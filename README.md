@@ -22,6 +22,8 @@
 
 일반 사용자는 HTML/CSS를 작성하지 않습니다. 관리자가 만든 템플릿을 선택하고, [Word 작성 가이드](docs/WORD_AUTHORING_GUIDE.md)에 따라 Word의 기본 스타일을 사용해 문서를 작성하면 됩니다.
 
+기존 작성자들이 보내는 Word도 그대로 받을 수 있습니다. 프로그램이 공통 필드와 소식 경계를 자동으로 찾고, 애매한 항목만 변환 전에 사용자에게 확인받습니다. 실제 네 문서의 편차 분석은 [다중 Word 비교 분석](docs/MULTI_DOC_ANALYSIS.md)에 정리되어 있습니다.
+
 ## 권장 기술 스택
 
 - UI: Next.js + TypeScript + Tailwind CSS
