@@ -24,6 +24,8 @@
 
 기존 작성자들이 보내는 Word도 그대로 받을 수 있습니다. 프로그램이 공통 필드와 소식 경계를 자동으로 찾고, 애매한 항목만 변환 전에 사용자에게 확인받습니다. 실제 네 문서의 편차 분석은 [다중 Word 비교 분석](docs/MULTI_DOC_ANALYSIS.md)에 정리되어 있습니다.
 
+Word와 HTML에서 도출한 작성 폼의 필수·선택 항목은 [입력 항목 분류](docs/FIELD_REQUIREMENTS.md)에 정리되어 있습니다.
+
 ## 권장 기술 스택
 
 - UI: Next.js + TypeScript + Tailwind CSS

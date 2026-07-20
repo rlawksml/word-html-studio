@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, DragEvent, useEffect, useMemo, useState } from "react";
 
 type Status = "작성 중" | "검토 요청" | "수정 요청" | "승인";
 
@@ -16,8 +16,7 @@ type NewsItem = {
   description: string;
   summary: string;
   applyUrl: string;
-  imageName: string;
-  imageUrl: string;
+  images: { id: number; name: string; url: string }[];
   includeInDigest: boolean;
 };
 
@@ -64,8 +63,7 @@ const seedSubmissions: Submission[] = [
         description: "앨리스 먼로의 『거지 소녀』를 마지막으로 상반기 문학모임을 잘 마무리했습니다. 7~8월 휴식 후 9월부터 하반기 모임을 시작합니다.",
         summary: "테마 ‘작은 빛’과 함께한 상반기 문학 독서모임 마무리",
         applyUrl: "",
-        imageName: "문학모임.jpg",
-        imageUrl: "",
+        images: [],
         includeInDigest: true,
       },
       {
@@ -80,8 +78,7 @@ const seedSubmissions: Submission[] = [
         description: "모옌의 《강풍에도 쓰러지지 않는다》를 7~8월 두 달에 걸쳐 읽습니다. 매월 한 번 Zoom으로 진행하며 새로운 멤버를 환영합니다.",
         summary: "모옌의 원서를 함께 읽는 온라인 중국어 독서모임, 신규 멤버 환영",
         applyUrl: "https://instagram.com/minxi1228",
-        imageName: "중국어모임.jpg",
-        imageUrl: "",
+        images: [],
         includeInDigest: true,
       },
     ],
@@ -112,8 +109,7 @@ const seedSubmissions: Submission[] = [
         description: "쓰임을 다한 건축물과 구조물의 표면에 남겨진 시간의 흔적을 바라보는 사진전입니다.",
         summary: "기능을 다한 건축물에 남은 시간의 흔적을 담은 김우영 작가 사진전",
         applyUrl: "https://www.suyonmokseo.com",
-        imageName: "after-use.jpg",
-        imageUrl: "",
+        images: [],
         includeInDigest: true,
       },
     ],
@@ -144,8 +140,7 @@ const seedSubmissions: Submission[] = [
         description: "혼자 완독하기 힘든 벽돌책을 매주 일요일 온라인에서 함께 읽는 10주 프로그램입니다.",
         summary: "매주 일요일 저녁, 두꺼운 책을 함께 완독하는 10주 온라인 읽기모임",
         applyUrl: "https://naver.me/5RAYReWM",
-        imageName: "일요일읽기모임.jpg",
-        imageUrl: "",
+        images: [],
         includeInDigest: true,
       },
     ],
@@ -164,8 +159,7 @@ const emptyNews = (id = Date.now()): NewsItem => ({
   description: "",
   summary: "",
   applyUrl: "",
-  imageName: "",
-  imageUrl: "",
+  images: [],
   includeInDigest: true,
 });
 
@@ -202,9 +196,13 @@ function individualHtml(submission: Submission) {
   const sections = submission.news
     .map((item) => {
       const dates = [item.startDate, item.endDate].filter(Boolean).join(" ~ ");
+      const images = (item.images || [])
+        .map((image) => `<img src="${image.url}" alt="${escapeHtml(image.name)}" style="display:block; width:100%; max-height:520px; object-fit:contain; margin:0 auto 14px; border-radius:10px;">`)
+        .join("\n");
       return `
   <section style="margin:32px 0;">
     <h2 style="color:#2f4538; font-size:1.5em; margin:0 0 14px; font-weight:bold;">${escapeHtml(item.title)}</h2>
+    ${images}
     <div style="background:#f7f4ed; border-radius:14px; padding:20px; border:1px solid #e8e1d3;">
       <p style="margin:0 0 12px; line-height:1.75; color:#333;">${escapeHtml(item.description)}</p>
       ${dates ? `<p style="margin:6px 0;"><strong>일정:</strong> ${escapeHtml(dates)}</p>` : ""}
@@ -219,11 +217,11 @@ function individualHtml(submission: Submission) {
   return `<div style="max-width:800px; margin:0 auto; background:white; padding:28px; font-family:'Apple SD Gothic Neo',Arial,sans-serif; line-height:1.6; color:#26312b;">
   <h1 style="text-align:center; color:#2f4538; font-size:1.8em; margin:0 0 24px;">지관서가 전해주는 ${monthLabel(submission.month)} 소식 – ${escapeHtml(submission.bookstore)}</h1>
   <div style="background:#eef2eb; border-left:4px solid #6f8a74; padding:16px 18px; margin-bottom:24px;">
-    <p style="margin:0;"><strong>${escapeHtml(submission.bookstore)}</strong><br>
-    주소: ${escapeHtml(submission.address)}<br>
-    영업시간: ${escapeHtml(submission.hours)}<br>
-    연락처: ${escapeHtml(submission.phone)}<br>
-    SNS: ${escapeHtml(submission.sns)}</p>
+    <p style="margin:0;"><strong>${escapeHtml(submission.bookstore)}</strong>
+    ${submission.address ? `<br>주소: ${escapeHtml(submission.address)}` : ""}
+    ${submission.hours ? `<br>영업시간: ${escapeHtml(submission.hours)}` : ""}
+    ${submission.phone ? `<br>연락처: ${escapeHtml(submission.phone)}` : ""}
+    ${submission.sns ? `<br>SNS: ${escapeHtml(submission.sns)}` : ""}</p>
   </div>
   ${sections}
 </div>`;
@@ -317,19 +315,51 @@ export default function Home() {
     }));
   };
 
-  const handleImage = (event: ChangeEvent<HTMLInputElement>, id: number) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      updateNews(id, "imageName", file.name);
-      updateNews(id, "imageUrl", String(reader.result));
-    };
-    reader.readAsDataURL(file);
+  const addImages = async (files: File[], id: number) => {
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+    if (!imageFiles.length) {
+      notify("이미지 파일만 첨부할 수 있습니다.");
+      return;
+    }
+    const uploaded = await Promise.all(
+      imageFiles.map(
+        (file) =>
+          new Promise<{ id: number; name: string; url: string }>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve({ id: Date.now() + Math.random(), name: file.name, url: String(reader.result) });
+            reader.readAsDataURL(file);
+          }),
+      ),
+    );
+    setDraft((current) => ({
+      ...current,
+      news: current.news.map((item) =>
+        item.id === id ? { ...item, images: [...(item.images || []), ...uploaded] } : item,
+      ),
+    }));
+  };
+
+  const handleImages = (event: ChangeEvent<HTMLInputElement>, id: number) => {
+    void addImages(Array.from(event.target.files || []), id);
+    event.target.value = "";
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>, id: number) => {
+    event.preventDefault();
+    void addImages(Array.from(event.dataTransfer.files), id);
+  };
+
+  const removeImage = (newsId: number, imageId: number) => {
+    setDraft((current) => ({
+      ...current,
+      news: current.news.map((item) =>
+        item.id === newsId ? { ...item, images: (item.images || []).filter((image) => image.id !== imageId) } : item,
+      ),
+    }));
   };
 
   const submitDraft = () => {
-    if (!draft.bookstore || !draft.writer || draft.news.some((item) => !item.title || !item.description || !item.summary)) {
+    if (!draft.bookstore || !draft.region || !draft.writer || draft.news.some((item) => !item.title || !item.description || !item.summary)) {
       notify("필수 항목을 확인해 주세요.");
       return;
     }
@@ -387,7 +417,7 @@ export default function Home() {
               <li className="current"><span>2</span><div><strong>소식 등록</strong><small>행사, 모임, 전시를 자유롭게</small></div></li>
               <li><span>3</span><div><strong>검토 요청</strong><small>발행 담당자에게 전달</small></div></li>
             </ol>
-            <div className="aside-note"><strong>작성 팁</strong><p>통합본용 한 줄 요약은 60자 안으로 핵심만 적어주세요.</p></div>
+            <div className="aside-note"><strong>작성은 간단하게</strong><p>제목, 내용, 한 줄 요약만 먼저 적으세요. 날짜나 장소가 있는 소식만 선택 정보를 열어 추가하면 됩니다.</p></div>
           </aside>
 
           <section className="form-page">
@@ -399,39 +429,55 @@ export default function Home() {
             {draft.revisionNote && <div className="revision-banner"><strong>수정 요청</strong>{draft.revisionNote}</div>}
 
             <div className="form-card">
-              <div className="section-title"><span>01</span><div><h3>책방 기본 정보</h3><p>소식 상단에 공통으로 표시됩니다.</p></div></div>
+              <div className="section-title"><span>01</span><div><h3>어느 책방의 소식인가요?</h3><p>책방 이름과 지역만 필수입니다. 나머지는 처음 한 번만 등록하면 됩니다.</p></div></div>
               <div className="field-grid two">
                 <label><span>책방 이름 *</span><input value={draft.bookstore} onChange={(e) => updateDraft("bookstore", e.target.value)} placeholder="예: 소담쓰담" /></label>
-                <label><span>작성자 이름 *</span><input value={draft.writer} onChange={(e) => updateDraft("writer", e.target.value)} placeholder="예: 김소담" /></label>
                 <label><span>지역 *</span><input value={draft.region} onChange={(e) => updateDraft("region", e.target.value)} placeholder="예: 울산 남구" /></label>
+                <label><span>작성자 이름 *</span><input value={draft.writer} onChange={(e) => updateDraft("writer", e.target.value)} placeholder="예: 김소담" /></label>
                 <label><span>발행 월</span><input type="month" value={draft.month} onChange={(e) => updateDraft("month", e.target.value)} /></label>
-                <label className="wide"><span>주소</span><input value={draft.address} onChange={(e) => updateDraft("address", e.target.value)} placeholder="책방 주소를 입력해 주세요" /></label>
-                <label><span>영업시간</span><input value={draft.hours} onChange={(e) => updateDraft("hours", e.target.value)} placeholder="화~일 12:00~18:00" /></label>
-                <label><span>연락처</span><input value={draft.phone} onChange={(e) => updateDraft("phone", e.target.value)} placeholder="052-000-0000" /></label>
-                <label className="wide"><span>SNS 또는 홈페이지</span><input value={draft.sns} onChange={(e) => updateDraft("sns", e.target.value)} placeholder="@bookstore 또는 https://..." /></label>
               </div>
+              <details className="optional-fields">
+                <summary>책방 주소·영업시간·연락처 추가 <span>선택</span></summary>
+                <div className="field-grid two optional-grid">
+                  <label className="wide"><span>주소</span><input value={draft.address} onChange={(e) => updateDraft("address", e.target.value)} placeholder="책방 주소를 입력해 주세요" /></label>
+                  <label><span>영업시간</span><input value={draft.hours} onChange={(e) => updateDraft("hours", e.target.value)} placeholder="화~일 12:00~18:00" /></label>
+                  <label><span>연락처</span><input value={draft.phone} onChange={(e) => updateDraft("phone", e.target.value)} placeholder="052-000-0000" /></label>
+                  <label className="wide"><span>SNS 또는 홈페이지</span><input value={draft.sns} onChange={(e) => updateDraft("sns", e.target.value)} placeholder="@bookstore 또는 https://..." /></label>
+                </div>
+              </details>
             </div>
 
             {draft.news.map((item, index) => (
               <div className="form-card news-card" key={item.id}>
                 <div className="section-title">
                   <span>{String(index + 2).padStart(2, "0")}</span>
-                  <div><h3>소식 {index + 1}</h3><p>행사, 전시, 모임 등 한 가지 소식을 작성합니다.</p></div>
+                  <div><h3>소식 {index + 1}</h3><p>Word를 쓰듯 제목과 내용을 자연스럽게 적어주세요.</p></div>
                   {draft.news.length > 1 && <button className="text-button danger" onClick={() => setDraft((current) => ({ ...current, news: current.news.filter((news) => news.id !== item.id) }))}>삭제</button>}
                 </div>
                 <div className="field-grid two">
                   <label className="wide"><span>소식 제목 *</span><input value={item.title} onChange={(e) => updateNews(item.id, "title", e.target.value)} placeholder="예: 7월 중국어 원서 독서모임" /></label>
-                  <label><span>분류</span><select value={item.category} onChange={(e) => updateNews(item.id, "category", e.target.value)}><option>행사</option><option>독서모임</option><option>전시</option><option>모집</option><option>책방 소식</option></select></label>
-                  <label><span>진행 상태</span><select value={item.status} onChange={(e) => updateNews(item.id, "status", e.target.value)}><option>진행 예정</option><option>모집 중</option><option>진행 중</option><option>종료</option><option>상시 운영</option></select></label>
-                  <label><span>시작일</span><input type="date" value={item.startDate} onChange={(e) => updateNews(item.id, "startDate", e.target.value)} /></label>
-                  <label><span>종료일</span><input type="date" value={item.endDate} onChange={(e) => updateNews(item.id, "endDate", e.target.value)} /></label>
-                  <label><span>장소</span><input value={item.place} onChange={(e) => updateNews(item.id, "place", e.target.value)} placeholder="예: 책방 또는 Zoom" /></label>
-                  <label><span>참가비</span><input value={item.fee} onChange={(e) => updateNews(item.id, "fee", e.target.value)} placeholder="예: 무료 / 1만원" /></label>
-                  <label className="wide"><span>상세 내용 *</span><textarea rows={5} value={item.description} onChange={(e) => updateNews(item.id, "description", e.target.value)} placeholder="소식의 배경과 참여 방법을 자세히 적어주세요." /></label>
-                  <label className="wide"><span>통합본용 한 줄 요약 *</span><div className="counter-wrap"><input maxLength={80} value={item.summary} onChange={(e) => updateNews(item.id, "summary", e.target.value)} placeholder="이 소식의 핵심을 한 문장으로 적어주세요." /><small>{item.summary.length}/80</small></div></label>
-                  <label className="wide"><span>신청 링크</span><input value={item.applyUrl} onChange={(e) => updateNews(item.id, "applyUrl", e.target.value)} placeholder="https://..." /></label>
-                  <label className="wide"><span>대표 이미지</span><div className="upload-box"><input type="file" accept="image/*" onChange={(e) => handleImage(e, item.id)} />{item.imageUrl ? <img src={item.imageUrl} alt="업로드 미리보기" /> : <><b>이미지를 끌어놓거나 눌러서 선택</b><small>JPG, PNG · 최대 10MB 권장</small></>}</div></label>
+                  <label className="wide"><span>내용 *</span><textarea rows={8} value={item.description} onChange={(e) => updateNews(item.id, "description", e.target.value)} placeholder="Word에 적던 것처럼 소식 내용을 자유롭게 작성해 주세요. 문단을 나눠도 됩니다." /></label>
+                  <label className="wide"><span>통합본에 들어갈 한 줄 요약 *</span><div className="counter-wrap"><input maxLength={80} value={item.summary} onChange={(e) => updateNews(item.id, "summary", e.target.value)} placeholder="예: 모옌의 원서를 함께 읽는 온라인 중국어 독서모임" /><small>{item.summary.length}/80</small></div><small className="field-help">통합본에는 제목과 이 문장만 사용됩니다.</small></label>
+                  <label className="wide"><span>사진 <em>선택 · 여러 장 가능</em></span>
+                    <div className="upload-box multi" onDragOver={(event) => event.preventDefault()} onDrop={(event) => handleDrop(event, item.id)}>
+                      <input type="file" accept="image/*" multiple onChange={(event) => handleImages(event, item.id)} />
+                      <div className="upload-icon">＋</div><b>사진 첨부하기</b><small>여기로 여러 사진을 끌어다 놓아도 됩니다.</small>
+                    </div>
+                    {(item.images || []).length > 0 && <div className="image-grid">{(item.images || []).map((image) => <figure key={image.id}><img src={image.url} alt={image.name} /><button type="button" onClick={() => removeImage(item.id, image.id)} aria-label={`${image.name} 삭제`}>×</button><figcaption>{image.name}</figcaption></figure>)}</div>}
+                  </label>
                 </div>
+                <details className="optional-fields news-options">
+                  <summary>날짜·장소·참가비·신청 링크 추가 <span>선택</span></summary>
+                  <div className="field-grid two optional-grid">
+                    <label><span>분류</span><select value={item.category} onChange={(e) => updateNews(item.id, "category", e.target.value)}><option>행사</option><option>독서모임</option><option>전시</option><option>모집</option><option>책방 소식</option></select></label>
+                    <label><span>진행 상태</span><select value={item.status} onChange={(e) => updateNews(item.id, "status", e.target.value)}><option>진행 예정</option><option>모집 중</option><option>진행 중</option><option>종료</option><option>상시 운영</option></select></label>
+                    <label><span>시작일</span><input type="date" value={item.startDate} onChange={(e) => updateNews(item.id, "startDate", e.target.value)} /></label>
+                    <label><span>종료일</span><input type="date" value={item.endDate} onChange={(e) => updateNews(item.id, "endDate", e.target.value)} /></label>
+                    <label><span>장소</span><input value={item.place} onChange={(e) => updateNews(item.id, "place", e.target.value)} placeholder="예: 책방 또는 Zoom" /></label>
+                    <label><span>참가비</span><input value={item.fee} onChange={(e) => updateNews(item.id, "fee", e.target.value)} placeholder="예: 무료 / 1만원" /></label>
+                    <label className="wide"><span>신청 링크</span><input value={item.applyUrl} onChange={(e) => updateNews(item.id, "applyUrl", e.target.value)} placeholder="https://..." /></label>
+                  </div>
+                </details>
               </div>
             ))}
 

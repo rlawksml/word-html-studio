@@ -31,6 +31,9 @@ test("ships accessible form labels and product-specific metadata", async () => {
   const html = await response.text();
   assert.match(html, /<title>책방소식/);
   assert.match(html, /책방 이름/);
-  assert.match(html, /통합본용 한 줄 요약/);
+  assert.match(html, /통합본에 들어갈 한 줄 요약/);
   assert.match(html, /검토 요청 보내기/);
+  assert.match(html, /사진 첨부하기/);
+  assert.match(html, /여러 사진을 끌어다 놓아도 됩니다/);
+  assert.match(html, /날짜·장소·참가비·신청 링크 추가/);
 });

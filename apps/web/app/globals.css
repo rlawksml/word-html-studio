@@ -66,6 +66,7 @@ button { cursor: pointer; }
 .field-grid.two { grid-template-columns: 1fr 1fr; }
 .field-grid label { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .field-grid label > span { font-size: 12px; font-weight: 700; color: #536057; }
+.field-grid label > span em { color: #929a94; font-style: normal; font-weight: 500; margin-left: 5px; }
 .field-grid .wide { grid-column: 1 / -1; }
 input, textarea, select { width: 100%; border: 1px solid #d9dbd6; border-radius: 9px; padding: 12px 13px; background: #fbfbf9; color: var(--ink); outline: none; transition: .2s; }
 input:focus, textarea:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(73,107,86,.11); background: white; }
@@ -74,11 +75,28 @@ input::placeholder, textarea::placeholder { color: #adb2ad; }
 .counter-wrap { position: relative; }
 .counter-wrap input { padding-right: 58px; }
 .counter-wrap small { position: absolute; right: 12px; top: 13px; color: #a3a8a3; font-size: 10px; }
+.field-help { color: #929a94; font-size: 11px; margin-top: -2px; }
+.optional-fields { margin-top: 22px; border-top: 1px solid #eceae5; padding-top: 18px; }
+.optional-fields summary { list-style: none; cursor: pointer; color: var(--green); font-size: 12px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+.optional-fields summary::-webkit-details-marker { display: none; }
+.optional-fields summary::before { content: "+"; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: var(--green-soft); }
+.optional-fields[open] summary::before { content: "−"; }
+.optional-fields summary span { color: #989f99; font-size: 9px; padding: 3px 6px; border: 1px solid #daddd8; border-radius: 9px; }
+.optional-grid { margin-top: 18px; padding: 20px; background: #f8f8f5; border-radius: 10px; }
+.news-options { margin-top: 26px; }
 .upload-box { min-height: 120px; border: 1px dashed #bfc7c0; border-radius: 11px; background: #f8faf7; display: grid; place-items: center; align-content: center; gap: 7px; position: relative; overflow: hidden; color: #5c695f; }
+.upload-box.multi { min-height: 160px; transition: .2s; }
+.upload-box.multi:hover { border-color: var(--green); background: #f1f6f0; }
 .upload-box input { position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 2; }
 .upload-box b { font-size: 13px; }
 .upload-box small { color: #929a94; font-size: 11px; }
 .upload-box img { width: 100%; height: 190px; object-fit: cover; }
+.upload-icon { width: 38px; height: 38px; border-radius: 50%; background: var(--green-dark); color: white; display: grid; place-items: center; font-size: 23px; font-weight: 300; }
+.image-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.image-grid figure { margin: 0; position: relative; border: 1px solid #dedfd9; border-radius: 9px; overflow: hidden; background: white; }
+.image-grid img { display: block; width: 100%; height: 100px; object-fit: cover; }
+.image-grid button { position: absolute; top: 5px; right: 5px; width: 24px; height: 24px; border: 0; border-radius: 50%; background: rgba(31,42,35,.82); color: white; font-size: 17px; line-height: 1; }
+.image-grid figcaption { padding: 7px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #747d76; font-size: 9px; }
 .add-news { width: 100%; border: 1px dashed #aeb8af; background: transparent; color: var(--green); padding: 17px; border-radius: 12px; font-weight: 800; margin: 2px 0 20px; }
 .add-news span { font-size: 18px; margin-right: 5px; }
 .submit-bar { justify-content: space-between; background: var(--green-dark); color: white; padding: 22px 24px; border-radius: 14px; }
@@ -183,6 +201,7 @@ input::placeholder, textarea::placeholder { color: #adb2ad; }
   .steps { display: none; }
   .field-grid.two { grid-template-columns: 1fr; }
   .field-grid .wide { grid-column: auto; }
+  .image-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .form-card { padding: 22px 18px; }
   .submit-bar { align-items: flex-start; gap: 18px; flex-direction: column; }
   .editor-layout { display: block; }
