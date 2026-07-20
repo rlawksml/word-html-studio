@@ -4,6 +4,16 @@ import { ChangeEvent, DragEvent, useEffect, useMemo, useState } from "react";
 
 type Status = "작성 중" | "검토 요청" | "수정 요청" | "승인";
 
+type BookstoreProfile = {
+  id: number;
+  name: string;
+  region: string;
+  address: string;
+  hours: string;
+  phone: string;
+  sns: string;
+};
+
 type NewsItem = {
   id: number;
   title: string;
@@ -35,6 +45,15 @@ type Submission = {
   revisionNote: string;
   news: NewsItem[];
 };
+
+const seedBookstores: BookstoreProfile[] = [
+  { id: 101, name: "소담쓰담", region: "울산 남구", address: "울산 남구 삼호로 25", hours: "화~일 12:00~18:00 / 월요일 휴무", phone: "0507-1339-3685", sns: "@minxi1228" },
+  { id: 102, name: "수연목서", region: "경기 여주시", address: "경기도 여주시 산북면 주어로 58", hours: "수~일 운영 / 월·화 휴무", phone: "031-885-5958", sns: "@suyonmokseo" },
+  { id: 103, name: "오직 책방", region: "경기 여주시", address: "경기 여주시 세종로 254-6", hours: "화~일 13:00~21:00 / 월요일 휴무", phone: "031-886-5567", sns: "@ojik_books" },
+  { id: 104, name: "책빵 자크르", region: "울산 남구", address: "울산 남구 대공원입구로9번길 24-11", hours: "화~토 11:00~20:00 / 일·월 휴무", phone: "052-268-2008", sns: "@book_n_bread_zakr" },
+];
+
+const emptyBookstore = (): BookstoreProfile => ({ id: Date.now(), name: "", region: "", address: "", hours: "", phone: "", sns: "" });
 
 const seedSubmissions: Submission[] = [
   {
@@ -267,7 +286,11 @@ function downloadHtml(filename: string, html: string) {
 }
 
 export default function Home() {
-  const [role, setRole] = useState<"writer" | "editor">("writer");
+  const [role, setRole] = useState<"writer" | "editor" | "bookstores">("writer");
+  const [bookstores, setBookstores] = useState<BookstoreProfile[]>(seedBookstores);
+  const [selectedBookstoreId, setSelectedBookstoreId] = useState<number | "">("");
+  const [bookstoreForm, setBookstoreForm] = useState<BookstoreProfile>(emptyBookstore());
+  const [editingBookstoreId, setEditingBookstoreId] = useState<number | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>(seedSubmissions);
   const [draft, setDraft] = useState<Submission>(emptySubmission());
   const [selectedId, setSelectedId] = useState(seedSubmissions[0].id);
@@ -280,12 +303,15 @@ export default function Home() {
   const selectedHtml = selected ? individualHtml(selected) : "";
   const combinedHtml = useMemo(() => digestHtml(submissions), [submissions]);
   const completedCount = submissions.filter((item) => item.status === "승인").length;
+  const selectedBookstore = bookstores.find((item) => item.id === selectedBookstoreId);
 
   useEffect(() => {
     const savedSubmissions = window.localStorage.getItem("bookstore-news-submissions");
     const savedDraft = window.localStorage.getItem("bookstore-news-draft");
+    const savedBookstores = window.localStorage.getItem("bookstore-news-profiles");
     if (savedSubmissions) setSubmissions(JSON.parse(savedSubmissions) as Submission[]);
     if (savedDraft) setDraft(JSON.parse(savedDraft) as Submission);
+    if (savedBookstores) setBookstores(JSON.parse(savedBookstores) as BookstoreProfile[]);
     setHydrated(true);
   }, []);
 
@@ -299,6 +325,11 @@ export default function Home() {
     window.localStorage.setItem("bookstore-news-draft", JSON.stringify(draft));
   }, [draft, hydrated]);
 
+  useEffect(() => {
+    if (!hydrated) return;
+    window.localStorage.setItem("bookstore-news-profiles", JSON.stringify(bookstores));
+  }, [bookstores, hydrated]);
+
   const notify = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(""), 2400);
@@ -306,6 +337,37 @@ export default function Home() {
 
   const updateDraft = (key: keyof Submission, value: string) => {
     setDraft((current) => ({ ...current, [key]: value }));
+  };
+
+  const chooseBookstore = (value: string) => {
+    if (!value) {
+      setSelectedBookstoreId("");
+      return;
+    }
+    const id = Number(value);
+    const profile = bookstores.find((item) => item.id === id);
+    if (!profile) return;
+    setSelectedBookstoreId(id);
+    setDraft((current) => ({ ...current, bookstore: profile.name, region: profile.region, address: profile.address, hours: profile.hours, phone: profile.phone, sns: profile.sns }));
+  };
+
+  const openBookstoreEditor = (profile?: BookstoreProfile) => {
+    setBookstoreForm(profile ? { ...profile } : emptyBookstore());
+    setEditingBookstoreId(profile?.id ?? null);
+    setRole("bookstores");
+  };
+
+  const saveBookstore = () => {
+    if (!bookstoreForm.name || !bookstoreForm.region) {
+      notify("책방 이름과 지역을 입력해 주세요.");
+      return;
+    }
+    setBookstores((current) => editingBookstoreId === null ? [...current, bookstoreForm] : current.map((item) => item.id === editingBookstoreId ? bookstoreForm : item));
+    setSelectedBookstoreId(bookstoreForm.id);
+    setDraft((current) => ({ ...current, bookstore: bookstoreForm.name, region: bookstoreForm.region, address: bookstoreForm.address, hours: bookstoreForm.hours, phone: bookstoreForm.phone, sns: bookstoreForm.sns }));
+    setBookstoreForm(emptyBookstore());
+    setEditingBookstoreId(null);
+    notify(editingBookstoreId === null ? "새 책방을 저장했습니다." : "책방 정보를 수정했습니다.");
   };
 
   const updateNews = (id: number, key: keyof NewsItem, value: string | boolean) => {
@@ -402,6 +464,7 @@ export default function Home() {
         <nav className="role-switch" aria-label="사용자 역할 선택">
           <button className={role === "writer" ? "active" : ""} onClick={() => setRole("writer")}>소식 작성</button>
           <button className={role === "editor" ? "active" : ""} onClick={() => setRole("editor")}>발행 관리</button>
+          <button className={role === "bookstores" ? "active" : ""} onClick={() => setRole("bookstores")}>책방 관리</button>
         </nav>
         <div className="profile"><span>2026년 7월호</span><div className="avatar">지</div></div>
       </header>
@@ -430,21 +493,16 @@ export default function Home() {
 
             <div className="form-card">
               <div className="section-title"><span>01</span><div><h3>어느 책방의 소식인가요?</h3><p>책방 이름과 지역만 필수입니다. 나머지는 처음 한 번만 등록하면 됩니다.</p></div></div>
-              <div className="field-grid two">
-                <label><span>책방 이름 *</span><input value={draft.bookstore} onChange={(e) => updateDraft("bookstore", e.target.value)} placeholder="예: 소담쓰담" /></label>
-                <label><span>지역 *</span><input value={draft.region} onChange={(e) => updateDraft("region", e.target.value)} placeholder="예: 울산 남구" /></label>
+              <div className="bookstore-picker">
+                <label><span>저장된 책방 선택 *</span><select value={selectedBookstoreId} onChange={(e) => chooseBookstore(e.target.value)}><option value="">책방을 선택해 주세요</option>{bookstores.map((bookstore) => <option key={bookstore.id} value={bookstore.id}>{bookstore.name} · {bookstore.region}</option>)}</select></label>
+                <button className="ghost-button" disabled={!selectedBookstore} onClick={() => selectedBookstore && openBookstoreEditor(selectedBookstore)}>정보 수정</button>
+                <button className="text-button" onClick={() => openBookstoreEditor()}>＋ 새 책방 등록</button>
+              </div>
+              {selectedBookstore && <div className="selected-bookstore"><div><strong>{selectedBookstore.name}</strong><span>{selectedBookstore.region}</span></div><p>{selectedBookstore.address || "주소 미등록"}<br />{selectedBookstore.hours || "영업시간 미등록"}<br />{[selectedBookstore.phone, selectedBookstore.sns].filter(Boolean).join(" · ") || "연락처 미등록"}</p></div>}
+              <div className="field-grid two writer-meta">
                 <label><span>작성자 이름 *</span><input value={draft.writer} onChange={(e) => updateDraft("writer", e.target.value)} placeholder="예: 김소담" /></label>
                 <label><span>발행 월</span><input type="month" value={draft.month} onChange={(e) => updateDraft("month", e.target.value)} /></label>
               </div>
-              <details className="optional-fields">
-                <summary>책방 주소·영업시간·연락처 추가 <span>선택</span></summary>
-                <div className="field-grid two optional-grid">
-                  <label className="wide"><span>주소</span><input value={draft.address} onChange={(e) => updateDraft("address", e.target.value)} placeholder="책방 주소를 입력해 주세요" /></label>
-                  <label><span>영업시간</span><input value={draft.hours} onChange={(e) => updateDraft("hours", e.target.value)} placeholder="화~일 12:00~18:00" /></label>
-                  <label><span>연락처</span><input value={draft.phone} onChange={(e) => updateDraft("phone", e.target.value)} placeholder="052-000-0000" /></label>
-                  <label className="wide"><span>SNS 또는 홈페이지</span><input value={draft.sns} onChange={(e) => updateDraft("sns", e.target.value)} placeholder="@bookstore 또는 https://..." /></label>
-                </div>
-              </details>
             </div>
 
             {draft.news.map((item, index) => (
@@ -485,7 +543,7 @@ export default function Home() {
             <div className="submit-bar"><div><strong>작성을 마치셨나요?</strong><small>제출 후에도 수정 요청을 받아 다시 편집할 수 있습니다.</small></div><button className="primary-button" onClick={submitDraft}>검토 요청 보내기 <span>→</span></button></div>
           </section>
         </div>
-      ) : (
+      ) : role === "editor" ? (
         <div className="editor-layout">
           <aside className="editor-sidebar">
             <div className="sidebar-title"><span className="brand-mark small">책</span><strong>발행 관리</strong></div>
@@ -541,6 +599,37 @@ export default function Home() {
               </div>
             </section>
           )}
+        </div>
+      ) : (
+        <div className="bookstore-page">
+          <div className="bookstore-heading">
+            <div><span className="eyebrow">기본정보 관리</span><h1>책방 관리</h1><p>한 번 저장한 책방 정보는 소식 작성 화면에서 바로 불러올 수 있습니다.</p></div>
+            <button className="primary-button" onClick={() => openBookstoreEditor()}>＋ 새 책방 등록</button>
+          </div>
+          <div className="bookstore-workspace">
+            <section className="bookstore-list-panel">
+              <div className="panel-heading"><h2>저장된 책방</h2><span>{bookstores.length}곳</span></div>
+              <div className="bookstore-list">
+                {bookstores.map((bookstore) => <article className={editingBookstoreId === bookstore.id ? "bookstore-card active" : "bookstore-card"} key={bookstore.id}>
+                  <div><strong>{bookstore.name}</strong><span>{bookstore.region}</span></div>
+                  <p>{bookstore.address || "주소 미등록"}<br />{bookstore.phone || "연락처 미등록"}</p>
+                  <div className="bookstore-card-actions"><button className="text-button" onClick={() => openBookstoreEditor(bookstore)}>정보 수정</button><button className="ghost-button" onClick={() => { chooseBookstore(String(bookstore.id)); setRole("writer"); }}>이 책방 소식 작성</button></div>
+                </article>)}
+              </div>
+            </section>
+            <section className="bookstore-editor-panel form-card">
+              <div className="section-title"><span>{editingBookstoreId === null ? "＋" : "✎"}</span><div><h3>{editingBookstoreId === null ? "새 책방 등록" : "책방 정보 수정"}</h3><p>이름과 지역은 필수이며, 나머지는 HTML에 필요할 때 표시됩니다.</p></div></div>
+              <div className="field-grid two">
+                <label><span>책방 이름 *</span><input value={bookstoreForm.name} onChange={(e) => setBookstoreForm((current) => ({ ...current, name: e.target.value }))} placeholder="예: 소담쓰담" /></label>
+                <label><span>지역 *</span><input value={bookstoreForm.region} onChange={(e) => setBookstoreForm((current) => ({ ...current, region: e.target.value }))} placeholder="예: 울산 남구" /></label>
+                <label className="wide"><span>주소</span><input value={bookstoreForm.address} onChange={(e) => setBookstoreForm((current) => ({ ...current, address: e.target.value }))} placeholder="도로명 주소" /></label>
+                <label className="wide"><span>영업시간</span><input value={bookstoreForm.hours} onChange={(e) => setBookstoreForm((current) => ({ ...current, hours: e.target.value }))} placeholder="예: 화~일 12:00~18:00 / 월요일 휴무" /></label>
+                <label><span>연락처</span><input value={bookstoreForm.phone} onChange={(e) => setBookstoreForm((current) => ({ ...current, phone: e.target.value }))} placeholder="052-000-0000" /></label>
+                <label><span>SNS 또는 홈페이지</span><input value={bookstoreForm.sns} onChange={(e) => setBookstoreForm((current) => ({ ...current, sns: e.target.value }))} placeholder="@bookstore 또는 https://..." /></label>
+              </div>
+              <div className="bookstore-form-actions"><button className="ghost-button" onClick={() => { setBookstoreForm(emptyBookstore()); setEditingBookstoreId(null); }}>취소</button><button className="primary-button" onClick={saveBookstore}>{editingBookstoreId === null ? "책방 저장" : "변경사항 저장"}</button></div>
+            </section>
+          </div>
         </div>
       )}
       {toast && <div className="toast">✓ {toast}</div>}

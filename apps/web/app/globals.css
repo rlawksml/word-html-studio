@@ -108,6 +108,14 @@ input::placeholder, textarea::placeholder { color: #adb2ad; }
 .ghost-button { background: white; color: var(--green-dark); padding: 10px 15px; border: 1px solid #d7dad5; }
 .text-button { background: transparent; color: var(--green); }
 .text-button.danger { color: #ad5e4b; }
+.ghost-button:disabled { opacity: .45; cursor: not-allowed; }
+.bookstore-picker { display: grid; grid-template-columns: minmax(260px,1fr) auto auto; align-items: end; gap: 10px; }
+.bookstore-picker label { gap: 7px; }
+.selected-bookstore { margin-top: 14px; padding: 16px 18px; border-radius: 11px; background: var(--green-soft); border: 1px solid #d6e0d5; display: flex; justify-content: space-between; gap: 18px; }
+.selected-bookstore strong, .selected-bookstore span { display: block; }
+.selected-bookstore span { color: var(--green); font-size: 11px; margin-top: 4px; }
+.selected-bookstore p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.7; text-align: right; }
+.writer-meta { margin-top: 18px; }
 .revision-banner { padding: 14px 16px; border-radius: 10px; margin-bottom: 18px; background: #fff2e9; color: #945232; font-size: 13px; }
 .revision-banner strong { margin-right: 10px; }
 
@@ -182,6 +190,25 @@ input::placeholder, textarea::placeholder { color: #adb2ad; }
 .preview-label { display: flex; justify-content: space-between; align-items: center; padding: 0 2px 12px; color: #7b837c; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .preview-label button { border: 0; background: transparent; color: var(--green); text-transform: none; letter-spacing: 0; font-weight: 800; }
 .digest-preview iframe { flex: 1; min-height: 600px; }
+.bookstore-page { min-height: calc(100vh - 72px); background: #f3f2ee; padding: 42px max(28px, calc((100vw - 1180px) / 2)); }
+.bookstore-heading { display: flex; justify-content: space-between; align-items: end; margin-bottom: 24px; }
+.bookstore-heading h1 { margin: 5px 0 5px; }
+.bookstore-heading p { margin: 0; color: var(--muted); font-size: 12px; }
+.bookstore-workspace { display: grid; grid-template-columns: minmax(360px,.8fr) minmax(500px,1.2fr); gap: 22px; align-items: start; }
+.bookstore-list-panel { background: white; border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+.panel-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.panel-heading h2 { margin: 0; font-size: 17px; }
+.panel-heading span { color: var(--muted); font-size: 11px; }
+.bookstore-list { display: grid; gap: 10px; }
+.bookstore-card { border: 1px solid #e0e1dc; border-radius: 11px; padding: 16px; transition: .15s ease; }
+.bookstore-card.active { border-color: var(--green); box-shadow: 0 0 0 2px var(--green-soft); }
+.bookstore-card > div:first-child { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.bookstore-card > div:first-child span { color: var(--green); font-size: 10px; font-weight: 800; }
+.bookstore-card p { color: var(--muted); font-size: 11px; line-height: 1.65; margin: 9px 0 12px; }
+.bookstore-card-actions { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+.bookstore-card-actions .ghost-button { padding: 7px 10px; font-size: 10px; }
+.bookstore-editor-panel { position: sticky; top: 94px; margin: 0; }
+.bookstore-form-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 22px; }
 .toast { position: fixed; right: 28px; bottom: 28px; z-index: 100; background: #203e2d; color: white; padding: 13px 18px; border-radius: 9px; box-shadow: 0 8px 28px rgba(0,0,0,.2); font-size: 12px; }
 
 @media (max-width: 1100px) {
@@ -200,6 +227,10 @@ input::placeholder, textarea::placeholder { color: #adb2ad; }
   .writer-aside { position: static; margin-bottom: 30px; }
   .steps { display: none; }
   .field-grid.two { grid-template-columns: 1fr; }
+  .bookstore-picker { grid-template-columns: 1fr 1fr; }
+  .bookstore-picker label { grid-column: 1 / -1; }
+  .selected-bookstore { display: block; }
+  .selected-bookstore p { margin-top: 10px; text-align: left; }
   .field-grid .wide { grid-column: auto; }
   .image-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .form-card { padding: 22px 18px; }
@@ -218,4 +249,8 @@ input::placeholder, textarea::placeholder { color: #adb2ad; }
   .digest-grid { display: block; }
   .digest-controls { max-height: none; border-right: 0; }
   .digest-preview { min-height: 700px; }
+  .bookstore-page { padding: 28px 16px 70px; }
+  .bookstore-heading { align-items: flex-start; gap: 18px; flex-direction: column; }
+  .bookstore-workspace { grid-template-columns: 1fr; }
+  .bookstore-editor-panel { position: static; }
 }

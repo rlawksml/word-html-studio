@@ -22,6 +22,7 @@ test("renders the bookstore news publishing prototype", async () => {
   assert.match(html, /책방소식/);
   assert.match(html, /소식 작성/);
   assert.match(html, /발행 관리/);
+  assert.match(html, /책방 관리/);
   assert.match(html, /소식 접수/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
@@ -30,7 +31,8 @@ test("ships accessible form labels and product-specific metadata", async () => {
   const response = await render();
   const html = await response.text();
   assert.match(html, /<title>책방소식/);
-  assert.match(html, /책방 이름/);
+  assert.match(html, /저장된 책방 선택/);
+  assert.match(html, /새 책방 등록/);
   assert.match(html, /통합본에 들어갈 한 줄 요약/);
   assert.match(html, /검토 요청 보내기/);
   assert.match(html, /사진 첨부하기/);
