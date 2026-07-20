@@ -20,6 +20,8 @@
 5. 생성된 HTML을 허용 목록으로 정제하고 모든 CSS를 inline style로 변환합니다.
 6. 파일별 HTML, 전체 통합 HTML, 변환 리포트를 ZIP으로 내려받습니다.
 
+일반 사용자는 HTML/CSS를 작성하지 않습니다. 관리자가 만든 템플릿을 선택하고, [Word 작성 가이드](docs/WORD_AUTHORING_GUIDE.md)에 따라 Word의 기본 스타일을 사용해 문서를 작성하면 됩니다.
+
 ## 권장 기술 스택
 
 - UI: Next.js + TypeScript + Tailwind CSS
@@ -61,7 +63,8 @@ apps/
 └── api/                 # Word 파싱, 매핑, 렌더링 API
 docs/
 ├── PRODUCT.md           # 요구사항과 범위
-└── ARCHITECTURE.md      # 처리 파이프라인과 데이터 설계
+├── ARCHITECTURE.md      # 처리 파이프라인과 데이터 설계
+└── WORD_AUTHORING_GUIDE.md # 비개발자용 Word 작성법
 examples/templates/      # 샘플 HTML 템플릿
 TODO.md                  # 구현 단계와 완료 조건
 ```
@@ -73,4 +76,3 @@ TODO.md                  # 구현 단계와 완료 조건
 ## 상태
 
 현재는 제품 결정 및 설계 단계입니다. 실행 가능한 MVP 구현 순서는 [TODO.md](TODO.md)를 참고하세요.
-
