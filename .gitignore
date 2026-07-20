@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+.DS_Store
+node_modules/
+.next/
+dist/
+build/
+__pycache__/
+.pytest_cache/
+.venv/
+uploads/
+results/
+*.doc
+*.docx
+*.zip
+

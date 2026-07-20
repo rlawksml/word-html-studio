@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <title>{{ collection.title }}</title>
+  </head>
+  <body style="margin:0; padding:24px; font-family:Arial, sans-serif; color:#222;">
+    <main style="max-width:800px; margin:0 auto;">
+      <h1 style="font-size:32px; margin:0 0 32px;">{{ collection.title }}</h1>
+      {% for document in documents %}
+      <section style="margin:0 0 48px; padding:0 0 32px; border-bottom:1px solid #ddd;">
+        {{ document.content_html | safe }}
+      </section>
+      {% endfor %}
+    </main>
+  </body>
+</html>
+
