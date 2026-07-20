@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 async function render() {
@@ -44,4 +45,11 @@ test("ships accessible discovery controls and compact public cards", async () =>
   assert.match(html, /public-event-list/);
   assert.match(html, /상반기 문학 독서모임 마무리/);
   assert.doesNotMatch(html, /public-news|public-status|앨리스 먼로의/);
+});
+
+test("uses the configured prototype worker passcodes", async () => {
+  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(source, /password === "지관서가" \? "input"/);
+  assert.match(source, /password === "지관서가2" \? "html"/);
+  assert.doesNotMatch(source, /password === "input"|password === "html"/);
 });
