@@ -93,7 +93,8 @@ const formatDate = (value: string) => value ? new Intl.DateTimeFormat("ko-KR", {
 const formatSavedAt = (value: string) => value ? new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value)) : "아직 저장하지 않음";
 const escapeHtml = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 const safeFilename = (value: string) => value.replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, "_").slice(0, 50);
-const previousMonth = (month: string) => { const date = new Date(`${month}-01T00:00:00`); date.setMonth(date.getMonth() - 1); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`; };
+const shiftMonth = (month: string, amount: number) => { const date = new Date(`${month}-01T00:00:00`); date.setMonth(date.getMonth() + amount); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`; };
+const previousMonth = (month: string) => shiftMonth(month, -1);
 const submissionStatus = (submission?: Submission) => !submission ? "미작성" : submission.publishedAt ? (new Date(submission.updatedAt) > new Date(submission.publishedAt) ? "재게시 필요" : "게시 완료") : submission.status === "completed" ? "입력 완료" : "작성 중";
 
 function generatedHtml(submission: Submission, bookstore: Bookstore, includePreviewImages = false) {
@@ -167,6 +168,7 @@ export default function Home() {
   const [htmlView, setHtmlView] = useState<"individual" | "digest">("individual");
   const [previewMode, setPreviewMode] = useState<"preview" | "code">("preview");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("soon");
   const [selectedDay, setSelectedDay] = useState<string>("");
   const [toast, setToast] = useState("");
@@ -199,6 +201,11 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [bookstores, hydrated, submissions]);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+
   const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(""), 2400); };
   const currentSubmission = submissions.find((item) => item.bookstoreId === selectedBookstoreId && item.month === month);
   const htmlReady = submissions.filter((item) => item.month === month && item.status === "completed");
@@ -212,7 +219,7 @@ export default function Home() {
   const publicEntries = monthSubmissions.map((submission) => ({ submission, bookstore: bookstores.find((item) => item.id === submission.bookstoreId)! })).filter((item) => item.bookstore && item.submission.news.some((news) => news.title.trim()));
   const filteredEntries = publicEntries.filter(({ bookstore, submission }) => {
     const haystack = `${bookstore.name} ${bookstore.region} ${submission.news.map((news) => `${news.title} ${news.description} ${news.place}`).join(" ")}`.toLowerCase();
-    return haystack.includes(search.toLowerCase());
+    return haystack.includes(debouncedSearch.toLowerCase());
   }).sort((a, b) => {
     if (sortMode === "name") return a.bookstore.name.localeCompare(b.bookstore.name, "ko");
     if (sortMode === "count") return b.submission.news.length - a.submission.news.length;
@@ -388,8 +395,7 @@ export default function Home() {
       {role === "visitor" && <section className="visitor-page">
         <div className="visitor-hero"><span>JIGWANSEOGA LOCAL BOOKS</span><h1>{formatMonth(month)}<br />동네책방 소식</h1><p>가까운 동네책방에서 열리는 모임과 전시, 새로운 이야기를 만나보세요.</p><div className="visitor-kpis"><strong>{publicEntries.length}<small>책방</small></strong><strong>{publicEntries.reduce((sum, item) => sum + item.submission.news.length, 0)}<small>소식</small></strong><strong>{publicEntries.reduce((sum, item) => sum + item.submission.news.flatMap((news) => news.dates).length, 0)}<small>일정</small></strong></div></div>
         <div className="visitor-content">
-          <label className="visitor-month"><span>소식 월</span><input type="month" value={month} onChange={(event) => { setMonth(event.target.value); setSelectedDay(""); }} /></label>
-          <section className="mobile-calendar"><div className="calendar-head"><h2>{formatMonth(month)}</h2>{selectedDay && <button onClick={() => setSelectedDay("")}>전체 일정</button>}</div><div className="weekdays">{["일", "월", "화", "수", "목", "금", "토"].map((day) => <span key={day}>{day}</span>)}</div><div className="calendar-grid">{calendarDays.map((date, index) => date ? <button key={date} className={selectedDay === date ? "selected" : ""} onClick={() => setSelectedDay(date)}><span>{Number(date.slice(-2))}</span>{eventCount(date) > 0 && <i>{eventCount(date)}</i>}</button> : <span key={`blank-${index}`} />)}</div></section>
+          <section className="mobile-calendar"><div className="calendar-head"><button type="button" aria-label="이전 달" onClick={() => { setMonth(shiftMonth(month, -1)); setSelectedDay(""); }}>← 이전 달</button><h2 aria-live="polite">{formatMonth(month)}</h2><button type="button" aria-label="다음 달" onClick={() => { setMonth(shiftMonth(month, 1)); setSelectedDay(""); }}>다음 달 →</button></div><div className="weekdays">{["일", "월", "화", "수", "목", "금", "토"].map((day) => <span key={day}>{day}</span>)}</div><div className="calendar-grid">{calendarDays.map((date, index) => date ? <button key={date} className={selectedDay === date ? "selected" : ""} aria-pressed={selectedDay === date} onClick={() => setSelectedDay((current) => current === date ? "" : date)}><span>{Number(date.slice(-2))}</span>{eventCount(date) > 0 && <i>{eventCount(date)}</i>}</button> : <span key={`blank-${index}`} />)}</div></section>
           <div className="discovery-tools"><label><span className="sr-only">책방이나 소식 검색</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="책방이나 소식을 검색해 보세요" /></label><select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)} aria-label="소식 정렬"><option value="soon">가까운 일정순</option><option value="recent">최근 수정순</option><option value="name">책방 이름순</option><option value="count">소식 많은순</option></select></div>
           <div className="public-heading"><div><span>{selectedDay ? formatDate(selectedDay) : "이번 달"}</span><h2>{selectedDay ? "선택한 날짜의 소식" : "책방별 소식"}</h2></div><small>{filteredEntries.length}개 책방</small></div>
           <div className="public-feed">{filteredEntries.map(({ bookstore, submission }) => {
