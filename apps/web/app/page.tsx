@@ -421,7 +421,7 @@ export default function Home() {
           <div className="public-feed">{filteredEntries.map(({ bookstore, submission }) => {
             const newsItems = selectedDay ? submission.news.filter((news) => news.dates.includes(selectedDay)) : submission.news;
             if (!newsItems.length) return null;
-            return <article className="public-card" key={submission.id}><div className="public-card-top"><div><span>{bookstore.region}</span><h3>{bookstore.name}</h3></div><span className={`public-status status-${submissionStatus(submission).replaceAll(" ", "-")}`}>{submissionStatus(submission)}</span></div>{newsItems.map((news) => <div className="public-news" key={news.id}>{news.images[0] && <img src={news.images[0].url} alt={news.images[0].caption || news.title} loading="lazy" />}<div><div className="chip-row">{news.regular && <span>정기</span>}{news.dates.length > 0 && <span>{news.dates.map(formatDate).join(" · ")}</span>}</div><h4>{news.title}</h4><p>{news.description}</p>{news.place && <small>장소 · {news.place}</small>}</div></div>)}<footer><small>마지막 수정 {formatSavedAt(submission.updatedAt)}</small>{submission.publishedUrl && <a href={submission.publishedUrl}>게시글 보기 →</a>}</footer></article>;
+            return <article className="public-card" key={submission.id} style={{ borderTopColor: bookstoreColor(bookstore.id) }}><h3>{submission.publishedUrl ? <a href={submission.publishedUrl} aria-label={`${bookstore.name} 게시글 보기`}>{bookstore.name}</a> : bookstore.name}</h3><ul className="public-event-list">{newsItems.map((news) => <li key={news.id}>{news.title}</li>)}</ul></article>;
           })}</div>
         </div>
       </section>}
