@@ -13,29 +13,27 @@ async function render() {
   );
 }
 
-test("renders the bookstore news publishing prototype", async () => {
+test("renders the public bookstore news calendar", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /책방소식/);
-  assert.match(html, /소식 작성/);
-  assert.match(html, /발행 관리/);
-  assert.match(html, /책방 관리/);
-  assert.match(html, /소식 접수/);
+  assert.match(html, /止觀書架/);
+  assert.match(html, /동네책방 소식/);
+  assert.match(html, /작업자 접속/);
+  assert.match(html, /2026년 7월/);
+  assert.match(html, /책방별 소식/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
 
-test("ships accessible form labels and product-specific metadata", async () => {
+test("ships accessible discovery controls and public status", async () => {
   const response = await render();
   const html = await response.text();
-  assert.match(html, /<title>책방소식/);
-  assert.match(html, /저장된 책방 선택/);
-  assert.match(html, /새 책방 등록/);
-  assert.match(html, /통합본에 들어갈 한 줄 요약/);
-  assert.match(html, /검토 요청 보내기/);
-  assert.match(html, /사진 첨부하기/);
-  assert.match(html, /여러 사진을 끌어다 놓아도 됩니다/);
-  assert.match(html, /날짜·장소·참가비·신청 링크 추가/);
+  assert.match(html, /<title>지관서가 동네책방 소식/);
+  assert.match(html, /책방이나 소식 검색/);
+  assert.match(html, /aria-label="소식 정렬"/);
+  assert.match(html, /가까운 일정순/);
+  assert.match(html, /작성 중/);
+  assert.match(html, /게시 완료/);
 });
