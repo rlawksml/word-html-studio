@@ -458,8 +458,8 @@ export default function Home() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand" aria-label="책방소식 홈">
-          <span className="brand-mark">책</span>
-          <div><strong>책방소식</strong><small>동네 책방 소식 발행 도구</small></div>
+          <span className="brand-mark">止</span>
+          <div><strong>止觀書架</strong><small>동네책방 소식 스튜디오</small></div>
         </div>
         <nav className="role-switch" aria-label="사용자 역할 선택">
           <button className={role === "writer" ? "active" : ""} onClick={() => setRole("writer")}>소식 작성</button>
