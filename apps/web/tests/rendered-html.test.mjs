@@ -23,7 +23,10 @@ test("renders the public bookstore news calendar", async () => {
   assert.match(html, /동네책방 소식/);
   assert.match(html, /작업자 접속/);
   assert.match(html, /2026년 7월/);
+  assert.match(html, /aria-label="이전 달"/);
+  assert.match(html, /aria-label="다음 달"/);
   assert.match(html, /책방별 소식/);
+  assert.doesNotMatch(html, /전체 일정|소식 월/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
 
@@ -32,6 +35,7 @@ test("ships accessible discovery controls and public status", async () => {
   const html = await response.text();
   assert.match(html, /<title>지관서가 동네책방 소식/);
   assert.match(html, /책방이나 소식 검색/);
+  assert.match(html, /aria-pressed="false"/);
   assert.match(html, /aria-label="소식 정렬"/);
   assert.match(html, /가까운 일정순/);
   assert.match(html, /작성 중/);
