@@ -25,6 +25,9 @@ test("renders the public bookstore news calendar", async () => {
   assert.match(html, /2026년 7월/);
   assert.match(html, /aria-label="이전 달"/);
   assert.match(html, /aria-label="다음 달"/);
+  assert.match(html, /aria-label="책방 색상 안내"/);
+  assert.match(html, /role="tooltip"/);
+  assert.match(html, /calendar-markers/);
   assert.match(html, /책방별 소식/);
   assert.doesNotMatch(html, /전체 일정|소식 월/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);

@@ -61,6 +61,8 @@ const seedBookstores: Bookstore[] = [
   { id: 104, name: "책빵 자크르", region: "울산 남구", address: "울산 남구 대공원입구로9번길 24-11", hours: "화~토 11:00~20:00 / 일·월 휴무", phone: "052-268-2008", sns: "https://instagram.com/book_n_bread_zakr", website: "", introduction: "책과 빵, 사람의 이야기가 만나는 공간입니다." },
 ];
 
+const BOOKSTORE_COLORS = ["#d96c5f", "#4f83a8", "#d19a3e", "#5f9274", "#8c6bb1", "#c56f9a", "#6f8f3d", "#b66d3f", "#397f86", "#7d756d"];
+
 const makeNews = (id = Date.now()): NewsItem => ({ id, title: "", description: "", dates: [], regular: false, deadline: "", place: "", fee: "", applyUrl: "", images: [], includeInDigest: true });
 const makeSubmission = (bookstoreId: number, month: string): Submission => ({ id: Date.now(), bookstoreId, month, status: "draft", updatedAt: nowIso(), completedAt: "", publishedAt: "", publishedUrl: "", news: [makeNews()] });
 const blankBookstore = (): Bookstore => ({ id: Date.now(), name: "", region: "", address: "", hours: "", phone: "", sns: "", website: "", introduction: "" });
@@ -383,7 +385,11 @@ export default function Home() {
     return [...Array(first).fill(null), ...Array.from({ length: count }, (_, index) => `${month}-${String(index + 1).padStart(2, "0")}`)];
   }, [month]);
 
-  const eventCount = (date: string) => publicEntries.reduce((sum, item) => sum + item.submission.news.filter((news) => news.dates.includes(date)).length, 0);
+  const bookstoreColor = (bookstoreId: number) => BOOKSTORE_COLORS[Math.max(0, bookstores.findIndex((bookstore) => bookstore.id === bookstoreId)) % BOOKSTORE_COLORS.length];
+  const calendarItems = (date: string) => publicEntries.flatMap(({ bookstore, submission }) => {
+    const titles = submission.news.filter((news) => news.dates.includes(date)).map((news) => news.title);
+    return titles.length ? [{ bookstore, titles, color: bookstoreColor(bookstore.id) }] : [];
+  });
 
   return (
     <main className={`app-shell role-${role}`}>
@@ -395,7 +401,21 @@ export default function Home() {
       {role === "visitor" && <section className="visitor-page">
         <div className="visitor-hero"><span>JIGWANSEOGA LOCAL BOOKS</span><h1>{formatMonth(month)}<br />동네책방 소식</h1><p>가까운 동네책방에서 열리는 모임과 전시, 새로운 이야기를 만나보세요.</p><div className="visitor-kpis"><strong>{publicEntries.length}<small>책방</small></strong><strong>{publicEntries.reduce((sum, item) => sum + item.submission.news.length, 0)}<small>소식</small></strong><strong>{publicEntries.reduce((sum, item) => sum + item.submission.news.flatMap((news) => news.dates).length, 0)}<small>일정</small></strong></div></div>
         <div className="visitor-content">
-          <section className="mobile-calendar"><div className="calendar-head"><button type="button" aria-label="이전 달" onClick={() => { setMonth(shiftMonth(month, -1)); setSelectedDay(""); }}>← 이전 달</button><h2 aria-live="polite">{formatMonth(month)}</h2><button type="button" aria-label="다음 달" onClick={() => { setMonth(shiftMonth(month, 1)); setSelectedDay(""); }}>다음 달 →</button></div><div className="weekdays">{["일", "월", "화", "수", "목", "금", "토"].map((day) => <span key={day}>{day}</span>)}</div><div className="calendar-grid">{calendarDays.map((date, index) => date ? <button key={date} className={selectedDay === date ? "selected" : ""} aria-pressed={selectedDay === date} onClick={() => setSelectedDay((current) => current === date ? "" : date)}><span>{Number(date.slice(-2))}</span>{eventCount(date) > 0 && <i>{eventCount(date)}</i>}</button> : <span key={`blank-${index}`} />)}</div></section>
+          <section className="mobile-calendar">
+            <div className="calendar-head"><button type="button" aria-label="이전 달" onClick={() => { setMonth(shiftMonth(month, -1)); setSelectedDay(""); }}>← 이전 달</button><h2 aria-live="polite">{formatMonth(month)}</h2><button type="button" aria-label="다음 달" onClick={() => { setMonth(shiftMonth(month, 1)); setSelectedDay(""); }}>다음 달 →</button></div>
+            <div className="weekdays">{["일", "월", "화", "수", "목", "금", "토"].map((day) => <span key={day}>{day}</span>)}</div>
+            <div className="calendar-grid">{calendarDays.map((date, index) => {
+              if (!date) return <span key={`blank-${index}`} />;
+              const items = calendarItems(date);
+              const tooltipId = `calendar-tooltip-${date}`;
+              const itemLabel = items.map((item) => `${item.bookstore.name}: ${item.titles.join(", ")}`).join("; ");
+              return <button key={date} className={`calendar-day ${selectedDay === date ? "selected" : ""}`} aria-label={`${formatDate(date)}${itemLabel ? `, ${itemLabel}` : ", 일정 없음"}`} aria-describedby={items.length ? tooltipId : undefined} aria-pressed={selectedDay === date} onClick={() => setSelectedDay((current) => current === date ? "" : date)}>
+                <span className="calendar-date-number">{Number(date.slice(-2))}</span>
+                {items.length > 0 && <><span className="calendar-markers" aria-hidden="true">{items.map((item) => <i key={item.bookstore.id} style={{ backgroundColor: item.color }} />)}</span><span className="calendar-tooltip" id={tooltipId} role="tooltip">{items.map((item) => <span key={item.bookstore.id}><i style={{ backgroundColor: item.color }} /><span><strong>{item.bookstore.name}</strong><small>{item.titles.join(" · ")}</small></span></span>)}</span></>}
+              </button>;
+            })}</div>
+            <div className="calendar-legend" aria-label="책방 색상 안내">{publicEntries.map(({ bookstore }) => <span key={bookstore.id}><i style={{ backgroundColor: bookstoreColor(bookstore.id) }} />{bookstore.name}</span>)}</div>
+          </section>
           <div className="discovery-tools"><label><span className="sr-only">책방이나 소식 검색</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="책방이나 소식을 검색해 보세요" /></label><select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)} aria-label="소식 정렬"><option value="soon">가까운 일정순</option><option value="recent">최근 수정순</option><option value="name">책방 이름순</option><option value="count">소식 많은순</option></select></div>
           <div className="public-heading"><div><span>{selectedDay ? formatDate(selectedDay) : "이번 달"}</span><h2>{selectedDay ? "선택한 날짜의 소식" : "책방별 소식"}</h2></div><small>{filteredEntries.length}개 책방</small></div>
           <div className="public-feed">{filteredEntries.map(({ bookstore, submission }) => {
