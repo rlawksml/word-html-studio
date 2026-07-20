@@ -159,7 +159,7 @@ async function urlToBlob(url: string) {
 
 export default function Home() {
   const [role, setRole] = useState<Role>("visitor");
-  const [showAccess, setShowAccess] = useState(false);
+  const [accessRole, setAccessRole] = useState<Exclude<Role, "visitor"> | null>(null);
   const [password, setPassword] = useState("");
   const [bookstores, setBookstores] = useState<Bookstore[]>(seedBookstores);
   const [submissions, setSubmissions] = useState<Submission[]>(seedSubmissions);
@@ -232,11 +232,11 @@ export default function Home() {
   });
 
   const login = () => {
-    const nextRole = password === "지관서가" ? "input" : password === "지관서가2" ? "html" : null;
-    if (!nextRole) { notify("작업 암호를 확인해 주세요."); return; }
-    window.sessionStorage.setItem("bookstore-news-role", nextRole);
-    setRole(nextRole);
-    setShowAccess(false);
+    const valid = accessRole === "input" ? password === "지관서가" : accessRole === "html" ? password === "지관서가2" : false;
+    if (!accessRole || !valid) { notify("작업 암호를 확인해 주세요."); return; }
+    window.sessionStorage.setItem("bookstore-news-role", accessRole);
+    setRole(accessRole);
+    setAccessRole(null);
     setPassword("");
   };
 
@@ -244,7 +244,7 @@ export default function Home() {
     window.sessionStorage.removeItem("bookstore-news-role");
     setRole("visitor");
     setInputView("list");
-    setShowAccess(false);
+    setAccessRole(null);
   };
 
   const ensureSubmission = (bookstoreId: number) => {
@@ -395,7 +395,7 @@ export default function Home() {
     <main className={`app-shell role-${role}`}>
       <header className="topbar">
         <button className="brand" onClick={() => { if (role === "input") setInputView("list"); }} aria-label="동네책방 소식 홈"><span className="brand-mark">止</span><span><strong>止觀書架</strong><small>동네책방 소식</small></span></button>
-        {role === "visitor" ? <button className="staff-access" onClick={() => setShowAccess(true)}>작업자 접속</button> : <div className="worker-nav"><span>{role === "input" ? "책방 정보 입력" : "HTML 편집"}</span><button onClick={logout}>로그아웃</button></div>}
+        {role === "visitor" ? <div className="staff-actions"><button className="staff-access" onClick={() => { setAccessRole("input"); setPassword(""); }}>소식 입력</button><button className="staff-access" onClick={() => { setAccessRole("html"); setPassword(""); }}>HTML 편집</button></div> : <div className="worker-nav"><span>{role === "input" ? "책방 정보 입력" : "HTML 편집"}</span><button onClick={logout}>로그아웃</button></div>}
       </header>
 
       {role === "visitor" && <section className="visitor-page">
@@ -439,7 +439,7 @@ export default function Home() {
         {htmlView === "individual" ? <div className="html-main">{selectedHtmlSubmission && selectedHtmlBookstore ? <><div className="html-main-head"><div><span>{formatMonth(month)} · {selectedHtmlBookstore.region}</span><h2>{selectedHtmlBookstore.name}</h2><p>입력 완료된 내용만 표시됩니다.</p></div><div><button className="secondary-button" onClick={() => void downloadPhotoZip(selectedHtmlSubmission, selectedHtmlBookstore, false)}>사진 ZIP</button><button className="primary-button" onClick={() => void downloadPhotoZip(selectedHtmlSubmission, selectedHtmlBookstore, true)}>HTML + 사진 ZIP</button></div></div><div className="html-tabs"><button className={previewMode === "preview" ? "active" : ""} onClick={() => setPreviewMode("preview")}>HTML 미리보기</button><button className={previewMode === "code" ? "active" : ""} onClick={() => setPreviewMode("code")}>HTML 코드</button><button onClick={() => navigator.clipboard.writeText(generatedCode).then(() => notify("HTML 코드를 복사했습니다."))}>HTML 복사</button></div><div className="html-preview">{previewMode === "preview" ? <iframe title={`${selectedHtmlBookstore.name} HTML 미리보기`} srcDoc={`<!doctype html><html><body style="margin:0;background:#eee;padding:24px">${generatedPreview}</body></html>`} /> : <pre>{generatedCode}</pre>}</div><PublishPanel key={selectedHtmlSubmission.id} submission={selectedHtmlSubmission} onPublish={updatePublished} /></> : <div className="empty-state"><h2>입력 완료된 책방이 없습니다.</h2><p>정보 입력자가 입력을 마치면 이곳에 표시됩니다.</p></div>}</div> : <div className="digest-work"><div className="digest-control"><div><span>DIGEST ORDER</span><h2>통합본 수록 순서</h2><p>책방과 포함할 소식을 선택하고 끌어서 순서를 바꿔보세요.</p></div>{htmlReady.map((submission, index) => { const bookstore = bookstores.find((item) => item.id === submission.bookstoreId); return <article key={submission.id} draggable onDragStart={() => setDraggedDigestId(submission.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderDigest(submission.id)}><header><span>⠿</span><div><strong>{index + 1}. {bookstore?.name}</strong><small>{bookstore?.region}</small></div></header>{submission.news.map((news) => <label key={news.id}><input type="checkbox" checked={news.includeInDigest} onChange={() => setSubmissions((current) => current.map((item) => item.id === submission.id ? { ...item, news: item.news.map((entry) => entry.id === news.id ? { ...entry, includeInDigest: !entry.includeInDigest } : entry) } : item))} /><span>{news.title}</span></label>)}</article>; })}</div><div className="digest-output"><div><span>통합 HTML 미리보기</span><button onClick={() => navigator.clipboard.writeText(combinedHtml).then(() => notify("통합 HTML을 복사했습니다."))}>HTML 복사</button></div><iframe title="통합 HTML 미리보기" srcDoc={`<!doctype html><html><body style="margin:0;background:#eee;padding:24px">${combinedHtml}</body></html>`} /></div></div>}
       </section>}
 
-      {showAccess && <div className="modal-backdrop" onMouseDown={() => setShowAccess(false)}><section className="access-modal" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setShowAccess(false)}>×</button><span>WORKER ACCESS</span><h2>작업자 접속</h2><p>작업 암호를 입력하면 해당 화면으로 바로 이동합니다.</p><label><span>작업 암호</span><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} onKeyDown={(event) => event.key === "Enter" && login()} autoFocus /></label><button className="primary-button" onClick={login}>작업 화면으로 이동</button><small>프로토타입 암호: 정보 입력자 <b>지관서가</b> · HTML 편집자 <b>지관서가2</b></small></section></div>}
+      {accessRole && <div className="modal-backdrop" onMouseDown={() => { setAccessRole(null); setPassword(""); }}><section className="access-modal" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => { setAccessRole(null); setPassword(""); }}>×</button><span>{accessRole === "input" ? "NEWS INPUT ACCESS" : "HTML EDITOR ACCESS"}</span><h2>{accessRole === "input" ? "소식 입력" : "HTML 편집"} 접속</h2><p>{accessRole === "input" ? "책방 소식을 작성하려면 입력자 암호를 입력해 주세요." : "완료된 소식을 HTML로 편집하려면 편집자 암호를 입력해 주세요."}</p><label><span>작업 암호</span><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} onKeyDown={(event) => event.key === "Enter" && login()} autoFocus /></label><button className="primary-button" onClick={login}>{accessRole === "input" ? "소식 입력으로 이동" : "HTML 편집으로 이동"}</button><small>인증은 이 탭을 닫거나 로그아웃할 때까지 유지됩니다.</small></section></div>}
       {completion && <div className="modal-backdrop"><section className="completion-modal"><span>COMPLETE</span><h2>🎉 입력이 완료되었습니다.</h2><pre>{completionMessage(completion)}</pre><div><button className="secondary-button" onClick={() => { setCompletion(null); setInputView("list"); setSelectedBookstoreId(null); }}>책방 목록으로</button><button className="primary-button" onClick={() => void copyText(completionMessage(completion))}>완료 메시지 복사</button></div></section></div>}
       {toast && <div className="toast">✓ {toast}</div>}
     </main>

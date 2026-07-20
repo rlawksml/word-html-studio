@@ -15,7 +15,10 @@ a { color:inherit; }
 .brand strong,.brand small { display:block; }
 .brand strong { font-family:Georgia,"Apple SD Gothic Neo",serif; font-size:18px; letter-spacing:.12em; font-weight:400; }
 .brand small { color:#888; font-size:10px; margin-top:2px; letter-spacing:.04em; }
-.staff-access,.worker-nav button { border:0; background:transparent; border-bottom:1px solid #777; padding:7px 1px; color:#555; font-size:12px; }
+.staff-actions { display:flex; align-items:center; gap:7px; }
+.staff-access { border:1px solid #ccc; background:white; padding:8px 11px; color:#555; font-size:11px; }
+.staff-access:hover { border-color:#555; color:#222; }
+.worker-nav button { border:0; background:transparent; border-bottom:1px solid #777; padding:7px 1px; color:#555; font-size:12px; }
 .worker-nav { display:flex; align-items:center; gap:20px; color:#555; font-size:12px; }
 .worker-nav button { color:#999; border-bottom:0; }
 .primary-button,.secondary-button { border-radius:2px; padding:12px 17px; font-weight:600; border:1px solid #292929; }
@@ -227,6 +230,8 @@ label>span em { color:#999; font-style:normal; font-weight:400; margin-left:5px;
   .brand-mark { width:32px; height:32px; }
   .brand strong { font-size:15px; }
   .brand small { font-size:9px; }
+  .staff-actions { gap:4px; }
+  .staff-access { padding:7px 8px; font-size:10px; }
   .visitor-page { min-height:calc(100vh - 64px); }
   .visitor-hero { padding:45px 20px 38px; }
   .visitor-hero h1 { font-size:36px; }

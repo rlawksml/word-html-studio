@@ -22,7 +22,9 @@ test("renders the public bookstore news calendar", async () => {
   const html = await response.text();
   assert.match(html, /止觀書架/);
   assert.match(html, /동네책방 소식/);
-  assert.match(html, /작업자 접속/);
+  assert.match(html, />소식 입력<\/button>/);
+  assert.match(html, />HTML 편집<\/button>/);
+  assert.doesNotMatch(html, /작업자 접속/);
   assert.match(html, /2026년 7월/);
   assert.match(html, /aria-label="이전 달"/);
   assert.match(html, /aria-label="다음 달"/);
@@ -49,7 +51,7 @@ test("ships accessible discovery controls and compact public cards", async () =>
 
 test("uses the configured prototype worker passcodes", async () => {
   const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
-  assert.match(source, /password === "지관서가" \? "input"/);
-  assert.match(source, /password === "지관서가2" \? "html"/);
+  assert.match(source, /accessRole === "input" \? password === "지관서가"/);
+  assert.match(source, /accessRole === "html" \? password === "지관서가2"/);
   assert.doesNotMatch(source, /password === "input"|password === "html"/);
 });
