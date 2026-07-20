@@ -33,7 +33,7 @@ test("renders the public bookstore news calendar", async () => {
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
 
-test("ships accessible discovery controls and public status", async () => {
+test("ships accessible discovery controls and compact public cards", async () => {
   const response = await render();
   const html = await response.text();
   assert.match(html, /<title>지관서가 동네책방 소식/);
@@ -41,6 +41,7 @@ test("ships accessible discovery controls and public status", async () => {
   assert.match(html, /aria-pressed="false"/);
   assert.match(html, /aria-label="소식 정렬"/);
   assert.match(html, /가까운 일정순/);
-  assert.match(html, /작성 중/);
-  assert.match(html, /게시 완료/);
+  assert.match(html, /public-event-list/);
+  assert.match(html, /상반기 문학 독서모임 마무리/);
+  assert.doesNotMatch(html, /public-news|public-status|앨리스 먼로의/);
 });
