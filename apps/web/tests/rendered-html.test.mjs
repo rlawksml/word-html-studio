@@ -74,3 +74,17 @@ test("uses the configured passcodes and consolidated completion sharing", async 
   assert.doesNotMatch(source, /password === "input"|password === "html"/);
   assert.doesNotMatch(source, /장의 사진 업로드|월별 현황 메시지 복사|completion-modal|재게시를 알려주세요|setCompletion/);
 });
+
+test("guides input work and focuses the first missing required field", async () => {
+  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(source, /① 발행 월 확인/);
+  assert.match(source, /② 소식 작성/);
+  assert.match(source, /③ 입력 마무리/);
+  assert.match(source, /className="input-month-nav"/);
+  assert.match(source, /이번 달 작업 진행률/);
+  assert.match(source, /role="progressbar"/);
+  assert.match(source, /scrollIntoView\(\{ behavior: "smooth", block: "center" \}\)/);
+  assert.match(source, /data-required-field="title"/);
+  assert.match(source, /data-required-field="description"/);
+  assert.doesNotMatch(source, /className="month-toolbar"/);
+});
