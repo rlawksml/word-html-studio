@@ -52,8 +52,11 @@ test("ships accessible discovery controls and compact public cards", async () =>
 
 test("uses the configured passcodes and consolidated completion sharing", async () => {
   const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
-  assert.match(source, /accessRole === "input" \? password === "wlrhkstjrk"/);
-  assert.match(source, /accessRole === "html" \? password === "wlrhkstjrk2"/);
+  assert.match(source, /input: \["지관서가", "wlrhkstjrk"\]/);
+  assert.match(source, /html: \["지관서가2", "wlrhkstjrk2"\]/);
+  assert.match(source, /password\.normalize\("NFC"\)\.trim\(\)/);
+  assert.match(source, /ACCESS_CODES\[accessRole\]\.includes\(normalizedPassword\)/);
+  assert.match(source, /한글·영문 자판 어느 쪽으로 입력해도 됩니다/);
   assert.match(source, /완료 내용 공유하기/);
   assert.match(source, /const bookstoreDetails = complete\.map/);
   assert.match(source, /news\.title/);
@@ -71,7 +74,7 @@ test("uses the configured passcodes and consolidated completion sharing", async 
   assert.match(source, /onClick=\{returnToVisitor\} aria-label="동네책방 소식 홈"/);
   assert.match(source, /<button onClick=\{returnToVisitor\}>로그아웃<\/button>/);
   assert.match(source, /← 뒤로가기/);
-  assert.doesNotMatch(source, /password === "input"|password === "html"/);
+  assert.doesNotMatch(source, /password === "input"|password === "html"|password === "wlrhkstjrk"|password === "wlrhkstjrk2"/);
   assert.doesNotMatch(source, /장의 사진 업로드|월별 현황 메시지 복사|completion-modal|재게시를 알려주세요|setCompletion/);
 });
 
