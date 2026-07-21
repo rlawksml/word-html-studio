@@ -143,7 +143,9 @@ test("uses Supabase with private originals and public mobile previews", async ()
   assert.match(imageRoute, /previews\//);
   assert.match(imageRoute, /ORIGINAL_IMAGE_BUCKET/);
   assert.match(imageRoute, /PREVIEW_IMAGE_BUCKET/);
+  assert.match(imageRoute, /cacheControl: "300"/);
   assert.match(imageRoute, /원본 사진 다운로드 권한/);
+  assert.match(imageRoute, /원본 사진을 찾지 못했습니다/);
   assert.match(migration, /alter table public\.bookstores/);
   assert.match(migration, /alter table public\.submissions/);
   assert.match(migration, /bookstore-news-originals/);

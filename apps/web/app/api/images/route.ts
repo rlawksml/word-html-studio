@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseAdmin();
     const originalUpload = await supabase.storage.from(ORIGINAL_IMAGE_BUCKET).upload(originalPath, original, { contentType: original.type, upsert: false });
     if (originalUpload.error) throw originalUpload.error;
-    const previewUpload = await supabase.storage.from(PREVIEW_IMAGE_BUCKET).upload(previewPath, preview, { contentType: "image/jpeg", upsert: false });
+    const previewUpload = await supabase.storage.from(PREVIEW_IMAGE_BUCKET).upload(previewPath, preview, { contentType: "image/jpeg", cacheControl: "300", upsert: false });
     if (previewUpload.error) {
       await supabase.storage.from(ORIGINAL_IMAGE_BUCKET).remove([originalPath]);
       throw previewUpload.error;
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
     const path = request.nextUrl.searchParams.get("path");
     if (!path || !path.startsWith("originals/")) return NextResponse.json({ error: "원본 사진 경로가 올바르지 않습니다." }, { status: 400 });
     const { data, error } = await getSupabaseAdmin().storage.from(ORIGINAL_IMAGE_BUCKET).download(path);
-    if (error) throw error;
+    if (error) return NextResponse.json({ error: "원본 사진을 찾지 못했습니다." }, { status: 404 });
     return new NextResponse(data, { headers: { "content-type": data.type || "application/octet-stream", "cache-control": "private, max-age=300" } });
   } catch (error) {
     if (error instanceof SupabaseConfigurationError) return configurationResponse();
