@@ -1,5 +1,6 @@
 import type { Bookstore, LabeledLink, LabeledValue, NewsItem, Submission } from "@/lib/workspace-types";
 
+// 네트워크나 React 상태에 의존하지 않는 생성·표시·검증 함수만 두는 도메인 유틸리티입니다.
 export type Role = "visitor" | "input" | "html";
 export type LeaveTarget = "visitor" | "list";
 
@@ -7,6 +8,7 @@ export const BOOKSTORE_COLORS = ["#d96c5f", "#4f83a8", "#d19a3e", "#5f9274", "#8
 export const DISPLAY_LABELS = ["신청 중", "신청 마감", "행사 종료", "신규 모집", "상시 운영"];
 export const INITIAL_MONTH = new Date().toISOString().slice(0, 7);
 
+// 새 책방과 소식을 만들 때 선택 필드까지 빠짐없이 초기화하는 팩토리입니다.
 export const makeValue = (): LabeledValue => ({ id: Date.now() + Math.random(), label: "", value: "" });
 export const makeLink = (): LabeledLink => ({ id: Date.now() + Math.random(), label: "", url: "" });
 export const makeNews = (id = Date.now()): NewsItem => ({
@@ -31,6 +33,7 @@ export const makeSubmission = (bookstoreId: number, month: string): Submission =
 export const blankBookstore = (): Bookstore => ({ id: Date.now(), name: "", region: "", address: "", hours: "", phone: "", sns: "", website: "", introduction: "", contacts: [], links: [] });
 export const hasSubmissionContent = (submission?: Submission) => Boolean(submission?.monthlyNotice.trim() || submission?.news.some((news) => news.title.trim() || news.description.trim() || news.dates.length || news.scheduleText.trim() || news.regular || news.displayLabel || news.deadline || news.place.trim() || news.fee.trim() || news.applicationInfo.trim() || news.applyUrl.trim() || news.extraFields.some((field) => field.label.trim() || field.value.trim()) || news.links.some((link) => link.label.trim() || link.url.trim()) || news.images.length));
 
+// 아래 함수는 UI 표시와 HTML 생성 양쪽에서 같은 날짜·URL·파일명 규칙을 사용하게 합니다.
 export const nowIso = () => new Date().toISOString();
 export const formatMonth = (month: string) => { const [year, value] = month.split("-"); return `${year}년 ${Number(value)}월`; };
 export const formatDate = (value: string) => value ? new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric" }).format(new Date(`${value}T00:00:00`)) : "";

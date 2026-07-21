@@ -44,9 +44,12 @@ components
     → lib/workspace-types        # 공용 데이터 타입
 
 Next.js API
-  → lib/workspace-repository     # Database 교체 경계
-  → lib/image-storage            # Storage 교체 경계
-  → Supabase
+  → app/api/session/route        # 역할별 암호와 세션 발급
+  → app/api/workspace/route      # Database 읽기·일괄 저장 경계
+  → app/api/images/route         # Storage 업로드·삭제·다운로드 경계
+    → lib/workspace-session      # HttpOnly 쿠키 + 탭 sessionId 검증
+    → lib/supabase-server        # 서버 전용 admin client
+      → Supabase Database / Storage
 ```
 
 이 경계 덕분에 향후 Supabase Database/Storage를 Cloudflare D1/R2로 옮겨도 화면 컴포넌트를 다시 작성하지 않아도 됩니다.

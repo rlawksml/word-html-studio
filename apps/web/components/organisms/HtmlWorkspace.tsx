@@ -2,6 +2,7 @@ import { PublishPanel } from "@/components/molecules/PublishPanel";
 import type { StudioController } from "@/hooks/use-studio-controller";
 import { formatMonth, submissionStatus } from "@/lib/workspace-formatters";
 
+// 입력 완료된 Submission만 개별 HTML 또는 월 통합본으로 발행하는 편집자 화면입니다.
 export function HtmlWorkspace({ studio }: { studio: StudioController }) {
   const {
     bookstores, month, htmlView, previewMode, htmlReady, selectedHtmlSubmission,

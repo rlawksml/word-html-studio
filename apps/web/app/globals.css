@@ -1,4 +1,6 @@
 @import "tailwindcss";
+
+/* 공통 → 역할별 → 반응형 순서가 cascade 우선순위이므로 import 순서를 유지합니다. */
 @import "../styles/foundations.css";
 @import "../styles/visitor.css";
 @import "../styles/input.css";

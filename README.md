@@ -32,6 +32,49 @@ Database와 Storage 요청은 서버 API를 통해 처리합니다. `SUPABASE_SE
 
 향후 Cloudflare 중심 구조가 더 적합해지면 Database를 D1으로, Storage를 R2로 이전할 수 있습니다. 이를 위해 화면에서 Supabase를 직접 호출하는 코드를 분산시키지 않고 데이터·사진 저장 모듈을 분리하며, DB에는 영구 공개 URL 대신 이식 가능한 사진 경로를 저장합니다. 월별 데이터와 사진 백업도 유지해 특정 서비스에 종속되지 않도록 설계합니다.
 
+## 처음 코드를 읽는 순서
+
+Next.js나 이 프로젝트가 익숙하지 않다면 다음 순서로 읽는 것이 가장 빠릅니다.
+
+1. [app/layout.tsx](apps/web/app/layout.tsx): 모든 페이지가 공유하는 HTML 골격과 메타데이터
+2. [app/page.tsx](apps/web/app/page.tsx): `/` 주소의 진입점
+3. [StudioPage.tsx](apps/web/components/templates/StudioPage.tsx): 현재 역할에 맞는 화면을 선택하는 template
+4. `components/organisms`: 방문자·입력자·HTML 편집자의 실제 작업 화면
+5. [use-studio-controller.ts](apps/web/hooks/use-studio-controller.ts): 세 역할이 공유하는 상태와 사용자 명령
+6. [workspace-types.ts](apps/web/lib/workspace-types.ts): 책방·월별 소식·사진의 표준 데이터 구조
+7. [workspace-client.ts](apps/web/lib/workspace-client.ts): 브라우저에서 Next.js API를 호출하는 함수
+8. `app/api`: 서버에서 세션을 검증하고 Supabase Database·Storage를 호출하는 Route Handler
+
+전체 데이터 흐름은 다음과 같습니다.
+
+```text
+page.tsx
+  → StudioPage
+    → 역할별 Workspace 컴포넌트
+      → useStudioController
+        → workspace-client
+          → /api/session, /api/workspace, /api/images
+            → workspace-session, supabase-server
+              → Supabase Database / Storage
+```
+
+### 기능별 수정 위치
+
+| 바꾸려는 기능 | 먼저 볼 파일 |
+|---|---|
+| 방문자 달력·검색·소식 카드 | `components/organisms/VisitorWorkspace.tsx`, `components/molecules/NewsCalendar.tsx` |
+| 책방 목록과 월별 진행률 | `components/organisms/InputWorkspace.tsx` |
+| 소식 입력 폼과 사진 순서 | `components/molecules/NewsEditorCard.tsx` |
+| 개별·통합 HTML 화면 | `components/organisms/HtmlWorkspace.tsx` |
+| inline CSS HTML 결과 | `lib/html-generators.ts` |
+| 자동 저장·완료·ZIP | `hooks/use-studio-controller.ts` |
+| 공용 데이터 읽기·저장 | `app/api/workspace/route.ts` |
+| 사진 업로드·삭제·원본 다운로드 | `app/api/images/route.ts` |
+| 작업 암호와 탭 세션 | `app/api/session/route.ts`, `lib/workspace-session.ts` |
+| 화면 스타일 | `styles/foundations.css`와 역할별 CSS 파일 |
+
+코드 주석은 문법이나 JSX 내용을 그대로 번역하지 않고, 파일의 책임과 보안·저장·상태 전환의 이유를 설명합니다. 기능을 옮기거나 경계를 변경할 때 관련 주석과 위 표도 함께 수정합니다.
+
 ## 실행과 검증
 
 Node.js 22.13 이상이 필요합니다.
@@ -69,6 +112,7 @@ apps/web/components/   # Atomic Design UI (atoms → molecules → organisms →
 apps/web/hooks/        # 화면 상태와 사용자 작업 흐름
 apps/web/lib/          # HTML 생성, 저장소 통신, 도메인 타입·포맷
 apps/web/styles/       # 공통·역할별·반응형 CSS 모듈
+apps/web/tests/        # 렌더링·보안·구조 회귀 테스트
 docs/                  # 제품·분석·사용자 흐름 문서
 examples/templates/    # 기존 inline CSS HTML 예시
 TODO.md                # 구현 단계와 완료 조건

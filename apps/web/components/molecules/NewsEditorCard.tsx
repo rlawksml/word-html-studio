@@ -11,6 +11,7 @@ type NewsEditorCardProps = {
   total: number;
 };
 
+// Submission 안의 NewsItem 하나를 편집하는 폼 단위입니다. 소식과 사진 정렬도 이 경계에서 처리합니다.
 export function NewsEditorCard({ studio, news, index, total }: NewsEditorCardProps) {
   const {
     setDraggedNewsId, setDraggedImageId, reorderNews, moveNews, updateCurrent, updateNews,

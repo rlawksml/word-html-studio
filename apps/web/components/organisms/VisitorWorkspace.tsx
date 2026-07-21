@@ -3,6 +3,7 @@ import { PublicNewsDetail } from "@/components/molecules/PublicNewsDetail";
 import type { StudioController } from "@/hooks/use-studio-controller";
 import { formatDate, formatMonth } from "@/lib/workspace-formatters";
 
+// 로그인하지 않은 방문자가 달력과 공개 소식을 탐색하는 읽기 전용 화면입니다.
 export function VisitorWorkspace({ studio }: { studio: StudioController }) {
   const { month, search, selectedDay, publicEntries, filteredEntries, publicDetailData, bookstoreColor, setSearch, setPublicDetail } = studio;
   return <>

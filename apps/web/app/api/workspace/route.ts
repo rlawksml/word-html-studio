@@ -3,6 +3,7 @@ import { getSupabaseAdmin, PREVIEW_IMAGE_BUCKET, SupabaseConfigurationError } fr
 import { readWorkerSession } from "@/lib/workspace-session";
 import type { Bookstore, LabeledLink, LabeledValue, NewsImage, NewsItem, Submission, Workspace } from "@/lib/workspace-types";
 
+// Supabase의 snake_case 행을 UI의 Workspace 모델로 바꾸기 위한 DB 전용 타입입니다.
 type BookstoreRow = {
   id: number;
   name: string;
@@ -36,6 +37,7 @@ function publicImageUrl(path: string) {
 }
 
 function hydrateImage(image: Partial<NewsImage>, role: "input" | "html" | null): NewsImage {
+  // 방문자는 공개 미리보기만, 작업자는 역할에 필요한 원본 경로/다운로드 URL만 받습니다.
   const originalPath = role ? image.originalPath || "" : "";
   const previewPath = image.previewPath || "";
   return {
@@ -50,6 +52,7 @@ function hydrateImage(image: Partial<NewsImage>, role: "input" | "html" | null):
 }
 
 function sanitizeNews(news: NewsItem[]) {
+  // 공개 URL은 환경에 따라 바뀌므로 DB에는 이식 가능한 Storage 경로와 설명만 저장합니다.
   return news.map((item) => ({
     ...item,
     images: item.images.map((image) => ({
@@ -99,6 +102,7 @@ function configurationResponse() {
 
 export async function GET(request: NextRequest) {
   try {
+    // 공개 조회도 허용하지만 role에 따라 hydrateImage가 반환하는 사진 정보가 달라집니다.
     const role = await readWorkerSession(request);
     const supabase = getSupabaseAdmin();
     const [bookstoresResult, submissionsResult] = await Promise.all([
@@ -124,6 +128,7 @@ async function save(request: NextRequest) {
     if (!await readWorkerSession(request, request.headers.get("x-workspace-session-id") || body.sessionId || "")) return NextResponse.json({ error: "작업자 세션이 만료되었습니다." }, { status: 401 });
     if (!Array.isArray(body.bookstores) || !Array.isArray(body.submissions)) return NextResponse.json({ error: "저장할 데이터 형식이 올바르지 않습니다." }, { status: 400 });
 
+    // 화면 배열 순서를 sort_order와 news 배열 순서로 보존한 뒤 RPC 한 번으로 전체 Workspace를 교체합니다.
     const payload = {
       bookstores: body.bookstores.map((bookstore, sortOrder) => ({ ...bookstore, contacts: bookstore.contacts || [], links: bookstore.links || [], sort_order: sortOrder })),
       submissions: body.submissions.map((submission) => ({
@@ -154,5 +159,6 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // sendBeacon은 PUT을 쓸 수 없어 작성 중 이탈 저장에 한해 같은 save 로직을 POST로도 엽니다.
   return save(request);
 }
