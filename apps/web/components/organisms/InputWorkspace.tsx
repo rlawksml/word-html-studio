@@ -4,6 +4,7 @@ import { NewsEditorWorkspace } from "@/components/organisms/NewsEditorWorkspace"
 import type { StudioController } from "@/hooks/use-studio-controller";
 import { formatMonth, formatSavedAt, shiftMonth } from "@/lib/workspace-formatters";
 
+// 입력자의 목록·책방 관리·소식 편집 화면을 전환하는 상위 organism입니다.
 export function InputWorkspace({ studio }: { studio: StudioController }) {
   const {
     bookstores, submissions, month, inputView, monthSubmissions, completedBookstoreCount,
@@ -35,6 +36,7 @@ export function InputWorkspace({ studio }: { studio: StudioController }) {
       })}</div> : <div className="empty-state input-empty-state"><h2>등록된 책방이 없습니다.</h2><p>책방 관리에서 첫 책방의 기본정보를 등록해 주세요.</p><button className="primary-button" onClick={() => setInputView("bookstores")}>책방 등록하기</button></div>}
     </>}
 
+    {/* inputView는 별도 URL이 아니라 한 작업 흐름 안의 세 화면 상태를 뜻합니다. */}
     {inputView === "bookstores" && <BookstoreManagement bookstores={bookstores} setBookstores={setBookstores} onBack={() => setInputView("list")} notify={notify} />}
     {inputView === "edit" && <NewsEditorWorkspace studio={studio} />}
   </section>;

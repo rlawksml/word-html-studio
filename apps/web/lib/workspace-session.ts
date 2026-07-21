@@ -1,6 +1,7 @@
 import type { NextRequest, NextResponse } from "next/server";
 import { isWorkerRole, type WorkerRole } from "@/lib/supabase-server";
 
+// Supabase Auth 대신 쓰는 가벼운 작업자 세션입니다. 개인정보 계정이 아니라 역할별 작업 권한만 표현합니다.
 export const WORKSPACE_SESSION_COOKIE = "bookstore_news_session";
 const SESSION_SECONDS = 60 * 60 * 12;
 
@@ -44,6 +45,7 @@ export async function createWorkerSession(role: WorkerRole, sessionId: string) {
 }
 
 export async function readWorkerSession(request: NextRequest, providedSessionId = request.headers.get("x-workspace-session-id") || ""): Promise<WorkerRole | null> {
+  // 서명된 HttpOnly 쿠키와 탭 sessionId가 모두 일치해야 작업자 권한을 반환합니다.
   try {
     const token = request.cookies.get(WORKSPACE_SESSION_COOKIE)?.value;
     if (!token) return null;

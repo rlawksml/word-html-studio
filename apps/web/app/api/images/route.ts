@@ -5,6 +5,7 @@ import type { NewsImage } from "@/lib/workspace-types";
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 
+// 사용자 파일명과 폼 값을 Storage 경로에 안전한 한 구간으로 제한합니다.
 function safeSegment(value: string) {
   return value.normalize("NFC").replace(/[^0-9A-Za-z가-힣._-]/g, "-").replace(/-+/g, "-").slice(0, 80) || "image";
 }
@@ -15,6 +16,7 @@ function configurationResponse() {
 
 export async function POST(request: NextRequest) {
   try {
+    // 입력자만 원본(비공개)과 모바일 미리보기(공개)를 한 쌍으로 업로드할 수 있습니다.
     if (await readWorkerSession(request) !== "input") return NextResponse.json({ error: "사진 업로드 권한을 다시 확인해 주세요." }, { status: 403 });
     const form = await request.formData();
     const original = form.get("original");
@@ -36,6 +38,7 @@ export async function POST(request: NextRequest) {
     if (originalUpload.error) throw originalUpload.error;
     const previewUpload = await supabase.storage.from(PREVIEW_IMAGE_BUCKET).upload(previewPath, preview, { contentType: "image/jpeg", cacheControl: "300", upsert: false });
     if (previewUpload.error) {
+      // 두 파일 중 하나만 남지 않도록 미리보기 실패 시 먼저 올라간 원본을 되돌립니다.
       await supabase.storage.from(ORIGINAL_IMAGE_BUCKET).remove([originalPath]);
       throw previewUpload.error;
     }
@@ -58,6 +61,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    // 소식에서 사진을 제거하면 원본과 미리보기 파일을 함께 정리합니다.
     if (await readWorkerSession(request) !== "input") return NextResponse.json({ error: "사진 삭제 권한을 다시 확인해 주세요." }, { status: 403 });
     const body = await request.json() as { originalPath?: string; previewPath?: string };
     const supabase = getSupabaseAdmin();
@@ -77,6 +81,7 @@ export async function DELETE(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    // 비공개 원본은 HTML 편집자 세션을 검증한 뒤 ZIP 다운로드용으로만 중계합니다.
     if (await readWorkerSession(request) !== "html") return NextResponse.json({ error: "원본 사진 다운로드 권한이 필요합니다." }, { status: 403 });
     const path = request.nextUrl.searchParams.get("path");
     if (!path || !path.startsWith("originals/")) return NextResponse.json({ error: "원본 사진 경로가 올바르지 않습니다." }, { status: 400 });

@@ -27,7 +27,12 @@ import {
 } from "@/lib/workspace-client";
 import type { Bookstore, NewsImage, NewsItem, Submission, WorkStatus } from "@/lib/workspace-types";
 
+/**
+ * 세 역할이 공유하는 상태와 업무 명령을 한곳에서 조정하는 application controller입니다.
+ * 컴포넌트는 이 반환값만 사용하고 저장소·세션·HTML 생성 구현을 직접 알지 않습니다.
+ */
 export function useStudioController() {
+  // 화면 선택, 편집 대상, 드래그 상태처럼 브라우저 탭 안에서만 필요한 UI 상태입니다.
   const [role, setRole] = useState<Role>("visitor");
   const [accessRole, setAccessRole] = useState<Exclude<Role, "visitor"> | null>(null);
   const [password, setPassword] = useState("");
@@ -53,6 +58,7 @@ export function useStudioController() {
   const [storageError, setStorageError] = useState("");
   const skipAutoSaveRef = useRef(true);
 
+  // 첫 진입 시 서버가 검증한 작업자 세션을 복원하고 공용 Workspace를 불러옵니다.
   useEffect(() => {
     let active = true;
     const initialize = async () => {
@@ -83,6 +89,7 @@ export function useStudioController() {
     return () => { active = false; };
   }, []);
 
+  // 입력자·편집자의 변경을 1.2초 동안 모아 저장해 입력마다 API를 호출하지 않게 합니다.
   useEffect(() => {
     if (!hydrated) return;
     if (skipAutoSaveRef.current) { skipAutoSaveRef.current = false; return; }
@@ -104,11 +111,13 @@ export function useStudioController() {
     return () => { active = false; window.clearTimeout(timer); };
   }, [bookstores, hydrated, role, submissions]);
 
+  // 방문자 검색은 타이핑이 잠시 멈춘 뒤 계산해 모바일 렌더링 부담을 줄입니다.
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [search]);
 
+  // 원본 상태에서 현재 역할과 선택값에 필요한 화면 데이터만 파생합니다.
   const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(""), 2400); };
   const currentSubmission = submissions.find((item) => item.bookstoreId === selectedBookstoreId && item.month === month);
   const htmlReady = submissions.filter((item) => item.month === month && item.status === "completed");
@@ -138,6 +147,7 @@ export function useStudioController() {
   })() : null;
   const hasDraftInProgress = role === "input" && inputView === "edit" && currentSubmission?.status === "draft" && hasSubmissionContent(currentSubmission);
 
+  // 작성 중 이탈은 브라우저 종료와 앱 내부 이동을 모두 가로채 임시 저장 기회를 줍니다.
   useEffect(() => {
     if (!hasDraftInProgress) return;
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -160,6 +170,7 @@ export function useStudioController() {
     };
   }, [bookstores, hasDraftInProgress, submissions]);
 
+  // 작업 암호는 서버로만 보내며 성공하면 현재 탭의 임의 sessionId와 HttpOnly 쿠키를 함께 사용합니다.
   const login = async () => {
     const normalizedPassword = password.normalize("NFC").trim();
     if (!accessRole) return;
@@ -228,6 +239,7 @@ export function useStudioController() {
     }
   };
 
+  // 책방을 처음 열 때 해당 월의 빈 Submission을 만들고 이후에는 같은 레코드를 재사용합니다.
   const ensureSubmission = (bookstoreId: number) => {
     const existing = submissions.find((item) => item.bookstoreId === bookstoreId && item.month === month);
     if (existing) return existing.id;
@@ -242,6 +254,7 @@ export function useStudioController() {
     setInputView("edit");
   };
 
+  // 모든 소식 수정은 이 함수를 통과합니다. 완료본을 수정하면 draft로 돌리고 제거된 사진도 정리합니다.
   const updateCurrent = (change: (submission: Submission) => Submission) => {
     if (!currentSubmission) return;
     setSubmissions((current) => current.map((item) => {
@@ -260,6 +273,7 @@ export function useStudioController() {
     news: submission.news.map((news) => news.id === newsId ? { ...news, [collection]: news[collection].map((item) => item.id === itemId ? { ...item, [key]: value } : item) } : news),
   }));
 
+  // 방문자용 미리보기는 브라우저에서 축소하고, 원본과 함께 서버의 서로 다른 버킷에 업로드합니다.
   const addImages = async (files: File[], newsId: number) => {
     const images = files.filter((file) => file.type.startsWith("image/"));
     if (!images.length) { notify("이미지 파일만 첨부할 수 있습니다."); return; }
@@ -308,6 +322,7 @@ export function useStudioController() {
     });
   }
 
+  // 소식과 사진의 정렬 결과는 배열 순서 자체에 저장되어 HTML과 방문자 화면에 동일하게 반영됩니다.
   const reorderNews = (targetId: number) => {
     if (!currentSubmission || draggedNewsId === null || draggedNewsId === targetId) return;
     const next = [...currentSubmission.news];
@@ -356,6 +371,7 @@ export function useStudioController() {
     }) }));
   };
 
+  // 지난달 복사는 본문 구조만 재사용하고, 일정·신청·사진처럼 월마다 달라지는 값은 초기화합니다.
   const copyPrevious = () => {
     if (!selectedBookstoreId || !currentSubmission) return;
     const previous = submissions.find((item) => item.bookstoreId === selectedBookstoreId && item.month === previousMonth(month));
@@ -380,6 +396,7 @@ export function useStudioController() {
     }
   };
 
+  // 필수값을 확인한 뒤 completed로 바꿉니다. 이후 수정은 updateCurrent가 다시 draft로 전환합니다.
   const completeSubmission = () => {
     if (!currentSubmission) return;
     const incompleteNewsIndex = currentSubmission.news.findIndex((news) => !news.title.trim() || !news.description.trim());
@@ -416,6 +433,7 @@ export function useStudioController() {
 
   const copyText = async (text: string) => { await navigator.clipboard.writeText(text); notify("메시지를 복사했습니다."); };
 
+  // HTML 편집자가 외부 게시판에 올릴 수 있도록 비공개 원본 사진과 선택적 HTML을 ZIP으로 묶습니다.
   const downloadPhotoZip = async (submission: Submission, bookstore: Bookstore, withHtml: boolean) => {
     const zip = new JSZip();
     const imageFolder = zip.folder("사진");
@@ -435,6 +453,7 @@ export function useStudioController() {
     triggerDownload(`${submission.month}_${safeFilename(bookstore.name)}_${withHtml ? "작업파일" : "사진"}.zip`, await zip.generateAsync({ type: "blob" }));
   };
 
+  // 통합본 순서는 해당 월의 완료 Submission 구간 안에서만 바꿉니다.
   const reorderDigest = (targetId: number) => {
     if (draggedDigestId === null || targetId === draggedDigestId) return;
     const monthIndexes = submissions.map((item, index) => item.month === month && item.status === "completed" ? index : -1).filter((index) => index >= 0);
@@ -455,6 +474,7 @@ export function useStudioController() {
     notify("게시 완료로 표시했습니다.");
   };
 
+  // 달력 칸과 책방별 색상은 저장하지 않고 현재 월·책방 순서에서 매번 계산합니다.
   const calendarDays = useMemo(() => {
     const [year, numericMonth] = month.split("-").map(Number);
     const first = new Date(year, numericMonth - 1, 1).getDay();
@@ -468,6 +488,7 @@ export function useStudioController() {
     return titles.length ? [{ bookstore, titles, color: bookstoreColor(bookstore.id) }] : [];
   });
 
+  // 아래 객체가 UI 계층에 공개되는 controller API입니다. 서버 구현은 여기 밖으로 노출하지 않습니다.
   return {
     role, accessRole, password, bookstores, submissions, month, selectedBookstoreId, inputView,
     selectedSubmissionId, htmlView, previewMode, search, selectedDay, toast, saveState,

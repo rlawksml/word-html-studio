@@ -11,6 +11,7 @@ type BookstoreManagementProps = {
   notify: (message: string) => void;
 };
 
+// 매월 반복해서 사용하는 책방 기본정보를 등록·수정합니다. 월별 소식은 이 컴포넌트에서 다루지 않습니다.
 export function BookstoreManagement({ bookstores, setBookstores, onBack, notify }: BookstoreManagementProps) {
   const [form, setForm] = useState<Bookstore>(blankBookstore());
   const [editingId, setEditingId] = useState<number | null>(null);

@@ -1,3 +1,5 @@
+// 브라우저, API Route, Supabase 변환 코드가 함께 사용하는 애플리케이션 표준 데이터 모델입니다.
+// DB의 snake_case 컬럼은 API에서 이 camelCase 구조로 변환한 뒤 UI에 전달합니다.
 export type WorkStatus = "draft" | "completed";
 
 export type Bookstore = {
@@ -69,6 +71,7 @@ export type Submission = {
 };
 
 export type Workspace = {
+  // Bookstore는 여러 달에 재사용되는 기본정보, Submission은 책방별·월별 소식 묶음입니다.
   bookstores: Bookstore[];
   submissions: Submission[];
 };
