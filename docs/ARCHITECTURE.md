@@ -1,111 +1,77 @@
-# 아키텍처
+# 애플리케이션 아키텍처
 
-## 처리 파이프라인
+현재 제품은 Word 변환 파이프라인이 아니라, 책방 소식을 구조화해 입력하고 공개하며 HTML로 발행하는 Next.js 웹 서비스입니다.
 
-```text
-DOCX 업로드
-  -> 파일 검증/격리
-  -> Word 구조 추출
-  -> 중간 문서 모델(JSON)
-  -> 규칙 기반 필드 매핑
-  -> 선택적 LLM 보정
-  -> 개별 템플릿 렌더링
-  -> 통합 템플릿 렌더링
-  -> HTML 정제 + CSS inline 변환
-  -> 미리보기/ZIP 출력
-```
-
-LLM을 파서로 직접 사용하지 않는 것이 핵심입니다. 결정론적 추출 결과를 먼저 만들고, 의미 분류가 모호한 블록만 구조화된 JSON으로 보정하면 비용, 재현성, 개인정보 위험을 줄일 수 있습니다.
-
-## 주요 컴포넌트
-
-### Web
-
-- 파일 업로드와 순서 변경
-- 템플릿 코드 편집 및 미리보기
-- 작업 진행률, 오류, 누락 필드 표시
-- 결과 비교 및 다운로드
-
-### API
-
-- 업로드 세션과 작업 수명주기 관리
-- 템플릿 CRUD와 버전 관리
-- 변환 파이프라인 실행
-- 결과 및 리포트 패키징
-
-### Converter Core
-
-- `DocxReader`: WordprocessingML과 관계 파일에서 구조/이미지 추출
-- `Normalizer`: Word 스타일을 의미 블록으로 정규화
-- `Mapper`: 사용자 규칙으로 블록을 템플릿 필드에 연결
-- `LlmAdapter`: OpenAI/Gemini를 공통 구조화 출력 인터페이스로 추상화
-- `Renderer`: 개별/통합 Jinja2 템플릿 렌더링
-- `Sanitizer`: 위험 태그와 속성 제거
-- `CssInliner`: `<style>` 규칙을 요소별 `style` 속성으로 변환
-- `Packager`: 파일명 충돌을 처리하고 ZIP/리포트 생성
-
-### Word 구조 인식 우선순위
-
-변환기는 사용자가 JSON을 작성하도록 요구하지 않습니다. 다음 신호를 순서대로 조합해 내부 문서 모델을 생성합니다.
-
-1. Word 의미 스타일: `제목`, `제목 1`, `제목 2`, 목록, 표
-2. 조직별 텍스트 규칙: `[문서 제목]`, `<소식 제목>`, `항목명: 값`
-3. 문단 순서와 이미지 위치
-4. 규칙만으로 확정하기 어려운 블록에 한해 LLM 분류
-
-기존 Word 문서는 2~3번 신호로 변환하고, 새 Word 양식은 1번 신호까지 포함하도록 합니다.
-
-## 중간 문서 모델 예시
-
-```json
-{
-  "source_name": "sample.docx",
-  "title": "문서 제목",
-  "metadata": {},
-  "blocks": [
-    {"id": "b1", "type": "heading", "level": 1, "text": "개요"},
-    {"id": "b2", "type": "paragraph", "runs": [{"text": "본문", "bold": false}]},
-    {"id": "b3", "type": "table", "rows": []}
-  ],
-  "assets": [],
-  "warnings": []
-}
-```
-
-이 JSON은 프로그램 내부 데이터이며 사용자가 보거나 작성할 필요가 없습니다. 디버깅과 고급 설정 화면에서만 선택적으로 표시합니다.
-
-이 모델은 LLM 공급자와 HTML 템플릿에서 독립적이어야 합니다. 각 블록에는 원본 위치를 추적할 ID를 부여해 누락과 오류를 사용자에게 설명합니다.
-
-## 통합 HTML 전략
-
-각 문서의 완성 HTML을 문자열로 이어 붙이지 않습니다. 개별 렌더링에 사용한 정규화 데이터와 렌더링 결과를 `documents[]`로 통합 템플릿에 전달합니다. 통합 템플릿은 표지, 목차, 공통 헤더/푸터, 문서 사이 구분을 담당합니다.
-
-## API 초안
+## 화면 계층: Atomic Design
 
 ```text
-POST   /api/templates
-GET    /api/templates
-PUT    /api/templates/{template_id}
-POST   /api/jobs                         multipart: docx[], template_id, options
-GET    /api/jobs/{job_id}
-GET    /api/jobs/{job_id}/preview/{document_id}
-POST   /api/jobs/{job_id}/documents/{document_id}/retry
-GET    /api/jobs/{job_id}/download
+app/page.tsx
+  → components/templates/StudioPage
+    → components/organisms/{Visitor,Input,Html}Workspace
+      → components/molecules/*
+        → components/atoms/*
 ```
 
-## 보안과 개인정보
+- `atoms`: 브랜드 버튼, 작업 상태 배지처럼 더 작게 나누는 의미가 없는 UI
+- `molecules`: 헤더, 달력, 소식 편집 카드, 상세 모달처럼 하나의 목적을 가진 UI 묶음
+- `organisms`: 방문자·입력자·HTML 편집자 작업 화면
+- `templates`: 역할별 화면과 공통 피드백을 조립하는 페이지 골격
+- `app/page.tsx`: Next.js 라우트 진입만 담당하며 업무 로직을 포함하지 않음
 
-- `.docx`만 허용하고 확장자와 MIME, ZIP 내부 구조를 함께 검사합니다.
-- macro를 실행하지 않으며 외부 관계 링크를 자동으로 가져오지 않습니다.
-- 압축 해제 크기와 파일 수를 제한해 zip bomb을 방지합니다.
-- 사용자 HTML에서 script, event handler, 위험 URL scheme을 제거합니다.
-- 원본과 결과에는 TTL을 적용하고 사용자가 즉시 삭제할 수 있게 합니다.
-- LLM 전송 데이터와 공급자를 작업 전에 명시합니다.
+Atomic Design은 파일 수를 늘리는 목표가 아닙니다. 독립적으로 이해·검증·재사용할 수 있는 화면 단위에서만 분리하고, 단 한 곳에서만 쓰이는 작은 마크업은 상위 컴포넌트에 유지합니다.
 
-## 결정이 필요한 항목
+## 상태와 업무 흐름
 
-- 결과 HTML의 주 사용처에 따른 허용 태그/CSS 범위
-- 이미지 패키징 방식
-- 통합 템플릿의 목차와 페이지 구분 규칙
-- Word의 헤더/푸터, 각주, 텍스트 상자 지원 우선순위
-- LLM 사용이 필수인지 선택인지, 조직의 데이터 반출 정책
+`hooks/use-studio-controller.ts`가 다음 애플리케이션 흐름을 한곳에서 조정합니다.
+
+- 작업자 세션 복원과 역할 전환
+- 월·책방·소식 선택 상태
+- 자동/수동 저장과 작성 중 이탈 방지
+- 소식·사진·통합본 순서 변경
+- 사진 업로드와 ZIP 생성
+- 입력 완료와 게시 완료 상태 변경
+
+화면 컴포넌트는 controller가 제공하는 값과 명령만 사용합니다. Supabase나 서버 세션의 구현 세부사항을 UI에 직접 넣지 않습니다.
+
+## 도메인과 인프라 경계
+
+```text
+components
+  → hooks/use-studio-controller
+    → lib/workspace-client       # 브라우저 ↔ Next.js API
+    → lib/html-generators        # 개별·통합 inline CSS HTML
+    → lib/workspace-formatters   # 팩토리·날짜·안전한 URL·상태 표시
+    → lib/workspace-types        # 공용 데이터 타입
+
+Next.js API
+  → lib/workspace-repository     # Database 교체 경계
+  → lib/image-storage            # Storage 교체 경계
+  → Supabase
+```
+
+이 경계 덕분에 향후 Supabase Database/Storage를 Cloudflare D1/R2로 옮겨도 화면 컴포넌트를 다시 작성하지 않아도 됩니다.
+
+## 스타일 구조
+
+`app/globals.css`는 로딩 순서를 선언하는 진입 파일입니다.
+
+1. `styles/foundations.css`: 토큰, reset, 공통 버튼·입력·상단 바
+2. `styles/visitor.css`: 방문자 달력·카드·상세 화면
+3. `styles/input.css`: 입력 대시보드·소식 편집·책방 관리
+4. `styles/html-editor.css`: 개별/통합 HTML 작업 화면
+5. `styles/feedback.css`: 접속·이탈 모달과 toast
+6. `styles/responsive.css`: 마지막에 적용되는 모바일/태블릿 재정의
+
+역할별 스타일은 다른 역할의 선택자를 추가하지 않습니다. 두 화면 이상이 공유하는 규칙은 `foundations.css`로 승격합니다.
+
+## 보안과 데이터 원칙
+
+- `SUPABASE_SECRET_KEY`와 작업 암호는 서버 환경변수에만 둡니다.
+- UI는 `/api/workspace`, `/api/images`, `/api/session`만 호출합니다.
+- 원본 사진은 비공개, 모바일 미리보기는 공개 버킷으로 분리합니다.
+- 사용자 입력 링크와 생성 HTML은 허용된 URL scheme만 사용합니다.
+- 공개 방문자는 데이터를 읽을 수 있지만 수정 API는 작업자 세션을 요구합니다.
+
+## 이후 확장
+
+기존 `.docx` 가져오기가 필요해지면 UI 계층에 직접 파서를 넣지 않고 별도 `converter` 모듈을 추가합니다. 파서는 Word 내용을 현재 `Workspace` 구조로 변환하고, 기존 입력 화면에서 사용자가 결과를 확인·수정하도록 연결합니다.

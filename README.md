@@ -53,6 +53,7 @@ npm run build
 ## 문서
 
 - [사용자 흐름](docs/USER_FLOW.md)
+- [현재 애플리케이션 아키텍처](docs/ARCHITECTURE.md)
 - [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)
 - [제품 요구사항](docs/PRODUCT.md)
 - [입력 항목 분류](docs/FIELD_REQUIREMENTS.md)
@@ -63,7 +64,11 @@ npm run build
 ## 저장소 구조
 
 ```text
-apps/web/              # Next.js + TypeScript 웹 프로토타입
+apps/web/app/          # Next.js 라우트와 서버 API
+apps/web/components/   # Atomic Design UI (atoms → molecules → organisms → templates)
+apps/web/hooks/        # 화면 상태와 사용자 작업 흐름
+apps/web/lib/          # HTML 생성, 저장소 통신, 도메인 타입·포맷
+apps/web/styles/       # 공통·역할별·반응형 CSS 모듈
 docs/                  # 제품·분석·사용자 흐름 문서
 examples/templates/    # 기존 inline CSS HTML 예시
 TODO.md                # 구현 단계와 완료 조건

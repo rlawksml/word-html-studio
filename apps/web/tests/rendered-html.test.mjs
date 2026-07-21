@@ -2,6 +2,30 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+const applicationSourceFiles = [
+  "../hooks/use-studio-controller.ts",
+  "../lib/html-generators.ts",
+  "../lib/workspace-client.ts",
+  "../lib/workspace-formatters.ts",
+  "../components/atoms/BrandButton.tsx",
+  "../components/atoms/WorkStatusBadge.tsx",
+  "../components/molecules/AppHeader.tsx",
+  "../components/molecules/NewsCalendar.tsx",
+  "../components/molecules/NewsEditorCard.tsx",
+  "../components/molecules/PublicNewsDetail.tsx",
+  "../components/molecules/StudioFeedback.tsx",
+  "../components/organisms/BookstoreManagement.tsx",
+  "../components/organisms/HtmlWorkspace.tsx",
+  "../components/organisms/InputWorkspace.tsx",
+  "../components/organisms/NewsEditorWorkspace.tsx",
+  "../components/organisms/VisitorWorkspace.tsx",
+  "../components/templates/StudioPage.tsx",
+];
+
+async function readApplicationSource() {
+  return (await Promise.all(applicationSourceFiles.map((path) => readFile(new URL(path, import.meta.url), "utf8")))).join("\n");
+}
+
 async function render(path = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
@@ -45,7 +69,7 @@ test("ships accessible discovery controls and compact public cards", async () =>
   assert.match(html, /지관서가 동네책방 바로가기/);
   assert.doesNotMatch(html, /aria-label="소식 정렬"|가까운 일정순|최근 수정순|책방 이름순|소식 많은순/);
   assert.doesNotMatch(html, /public-news|public-status|앨리스 먼로의/);
-  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const source = await readApplicationSource();
   assert.match(source, /public-event-list/);
   assert.match(source, /role="tooltip"/);
   assert.match(source, /calendar-markers/);
@@ -53,7 +77,7 @@ test("ships accessible discovery controls and compact public cards", async () =>
 
 test("keeps passcodes in server environment variables and uses a tab-scoped worker session", async () => {
   const [source, sessionRoute, sessionLibrary, serverLibrary] = await Promise.all([
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readApplicationSource(),
     readFile(new URL("../app/api/session/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/workspace-session.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/supabase-server.ts", import.meta.url), "utf8"),
@@ -86,14 +110,15 @@ test("keeps passcodes in server environment variables and uses a tab-scoped work
   assert.match(source, /\.brand, \.worker-nav button, \.editor-page-head \.back-button/);
   assert.match(source, /작성 중인 내용이 있습니다\./);
   assert.match(source, /임시 저장 후 나가기/);
-  assert.match(source, /onClick=\{returnToVisitor\} aria-label="동네책방 소식 홈"/);
+  assert.match(source, /<BrandButton onClick=\{returnToVisitor\} \/>/);
+  assert.match(source, /aria-label="동네책방 소식 홈"/);
   assert.match(source, /<button onClick=\{returnToVisitor\}>로그아웃<\/button>/);
   assert.match(source, /← 뒤로가기/);
   assert.doesNotMatch(source, /장의 사진 업로드|월별 현황 메시지 복사|completion-modal|재게시를 알려주세요|setCompletion/);
 });
 
 test("supports Word-like optional fields, detail views, and photo ordering", async () => {
-  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const source = await readApplicationSource();
   assert.match(source, /이번 달 운영 안내/);
   assert.match(source, /일정 안내/);
   assert.match(source, /신청 방법/);
@@ -109,7 +134,7 @@ test("supports Word-like optional fields, detail views, and photo ordering", asy
 });
 
 test("guides input work and focuses the first missing required field", async () => {
-  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const source = await readApplicationSource();
   assert.match(source, /① 발행 월 확인/);
   assert.match(source, /② 소식 작성/);
   assert.match(source, /③ 입력 마무리/);
@@ -124,7 +149,7 @@ test("guides input work and focuses the first missing required field", async () 
 
 test("uses Supabase with private originals and public mobile previews", async () => {
   const [pageSource, workspaceRoute, imageRoute, migration] = await Promise.all([
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readApplicationSource(),
     readFile(new URL("../app/api/workspace/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/images/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/202607220001_secure_media_and_flexible_fields.sql", import.meta.url), "utf8"),
@@ -156,4 +181,22 @@ test("uses Supabase with private originals and public mobile previews", async ()
   const response = await render("/api/workspace");
   assert.equal(response.status, 503);
   assert.match(await response.text(), /공용 저장소 연결 정보가 필요합니다/);
+});
+
+test("keeps the route and global stylesheet as thin Atomic Design composition points", async () => {
+  const [pageSource, globalStyles, templateSource] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../components/templates/StudioPage.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(pageSource, /<StudioPage \/>/);
+  assert.ok(pageSource.split("\n").length <= 10);
+  assert.match(templateSource, /VisitorWorkspace/);
+  assert.match(templateSource, /InputWorkspace/);
+  assert.match(templateSource, /HtmlWorkspace/);
+  assert.match(globalStyles, /styles\/foundations\.css/);
+  assert.match(globalStyles, /styles\/visitor\.css/);
+  assert.match(globalStyles, /styles\/input\.css/);
+  assert.match(globalStyles, /styles\/html-editor\.css/);
+  assert.doesNotMatch(globalStyles, /\.visitor-page|\.input-area|\.html-workspace/);
 });
