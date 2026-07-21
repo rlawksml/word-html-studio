@@ -1,27 +1,17 @@
-# 책방소식 웹 프로토타입
+# 책방소식 웹 앱
 
-Next.js 16과 TypeScript로 만든 역할별 인터랙티브 프로토타입입니다.
+Next.js 16, TypeScript, Supabase Database·Storage로 만든 동네책방 소식 입력·발행 웹 앱입니다.
 
 ## 실행
 
-Node.js 22.13 이상이 필요합니다.
+Node.js 22.13 이상과 `apps/web/.env.local`의 Supabase 서버 환경변수가 필요합니다.
 
 ```bash
 npm install
 npm run dev
 ```
 
-로컬 주소는 `http://localhost:3000`입니다.
-
-## 프로토타입 접근
-
-방문자 헤더에서 역할 버튼을 먼저 선택한 뒤 암호를 입력합니다.
-
-- 방문자: 별도 코드 없음
-- 정보 입력자: `wlrhkstjrk`
-- HTML 편집자: `wlrhkstjrk2`
-
-작업자 접근 상태는 해당 탭의 세션 동안만 유지됩니다.
+로컬 주소는 `http://localhost:3000`입니다. 작업 암호와 Supabase Secret Key는 클라이언트 번들에 포함하지 않습니다. 자세한 초기 설정은 `docs/SUPABASE_SETUP.md`를 확인하세요.
 
 ## 검증
 
@@ -31,6 +21,9 @@ npm test
 npm run build
 ```
 
-## 제한
+## 저장 구조
 
-현재 입력 자료와 이미지는 브라우저 `localStorage`에만 저장됩니다. 역할 간 실제 공유, 운영 인증, 원본/미리보기 이미지 저장은 D1·R2를 연결하는 다음 마일스톤에서 구현합니다.
+- Supabase Database: 책방 기본정보, 월별 운영 안내, 소식과 상태
+- Private Storage: HTML 편집자용 원본 사진
+- Public Storage: 방문자용 축소 미리보기
+- 작업 세션: HttpOnly 서명 쿠키 + 탭 단위 임의 세션 ID
