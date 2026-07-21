@@ -24,15 +24,15 @@
 
 ## 데이터에 관한 중요 안내
 
-현재 단계는 UX 검증용 프론트엔드 프로토타입입니다. 입력 데이터와 사진은 브라우저 `localStorage`에 저장되므로 다른 기기나 다른 사용자가 실제로 공유하지는 않습니다. 배포된 화면에 운영 자료를 장기 보관하면 안 됩니다.
-
-다음 단계의 공용 저장소는 **Supabase**를 사용합니다.
+공용 저장소는 **Supabase**를 사용하며 기존 브라우저 `localStorage`의 샘플·임시 데이터는 가져오지 않습니다. Supabase가 연결되면 빈 운영 데이터에서 책방을 새로 등록해 시작합니다.
 
 - Supabase Database: 책방 기본정보, 월별 소식, 일정과 작업 상태
 - Supabase Storage: HTML 편집자용 원본 사진과 방문자용 모바일 미리보기
 - 로그인: Supabase Auth는 도입하지 않고 현재의 입력자·HTML 편집자 작업 암호와 세션 방식을 유지
 
 원본 사진은 HTML 편집자의 다운로드용으로 보관하고 방문자 화면에는 작은 미리보기를 사용합니다. 입력 내용은 공개 소식이므로 별도의 사용자 계정 체계는 만들지 않습니다. 다만 공개 방문자가 데이터를 변경하지 못하도록 쓰기 경로와 Supabase 접근 정책은 최소한으로 제한합니다.
+
+Database와 Storage 요청은 서버 API를 통해 처리합니다. `SUPABASE_SERVICE_ROLE_KEY`는 브라우저나 GitHub에 노출하지 않고 로컬·배포 환경변수에만 저장합니다. 초기 연결 방법은 [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)를 따릅니다.
 
 향후 Cloudflare 중심 구조가 더 적합해지면 Database를 D1으로, Storage를 R2로 이전할 수 있습니다. 이를 위해 화면에서 Supabase를 직접 호출하는 코드를 분산시키지 않고 데이터·사진 저장 모듈을 분리하며, DB에는 영구 공개 URL 대신 이식 가능한 사진 경로를 저장합니다. 월별 데이터와 사진 백업도 유지해 특정 서비스에 종속되지 않도록 설계합니다.
 
@@ -57,6 +57,7 @@ npm run build
 ## 문서
 
 - [사용자 흐름](docs/USER_FLOW.md)
+- [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)
 - [제품 요구사항](docs/PRODUCT.md)
 - [입력 항목 분류](docs/FIELD_REQUIREMENTS.md)
 - [실제 Word 4개 비교 분석](docs/MULTI_DOC_ANALYSIS.md)

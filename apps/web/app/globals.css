@@ -21,6 +21,8 @@ a { color:inherit; }
 .worker-nav button { border:0; background:transparent; border-bottom:1px solid #777; padding:7px 1px; color:#555; font-size:12px; }
 .worker-nav { display:flex; align-items:center; gap:20px; color:#555; font-size:12px; }
 .worker-nav button { color:#999; border-bottom:0; }
+.storage-alert { display:flex; justify-content:center; align-items:center; gap:10px; padding:10px 18px; background:#f6e8df; border-bottom:1px solid #e8cdbf; color:#7b4532; font-size:11px; }
+.storage-alert span { color:#93614e; }
 .primary-button,.secondary-button { border-radius:2px; padding:12px 17px; font-weight:600; border:1px solid #292929; }
 .primary-button { background:#292929; color:white; }
 .secondary-button { background:white; color:#292929; border-color:#ccc; }
@@ -120,6 +122,9 @@ label>span em { color:#999; font-style:normal; font-weight:400; margin-left:5px;
 .bookstore-work-list p { margin:0; color:#777; font-size:11px; }
 .bookstore-work-list>button>div:last-child { display:flex; flex-direction:column; align-items:end; gap:9px; }
 .bookstore-work-list small { color:#aaa; font-size:9px; }
+.input-empty-state { padding:52px 20px; border:1px solid #ddd; background:white; }
+.input-empty-state h2 { margin:0 0 8px; color:#333; }
+.input-empty-state p { margin:0 0 20px; }
 
 /* single editor */
 .single-editor { max-width:900px; margin:0 auto; }
@@ -248,6 +253,7 @@ label>span em { color:#999; font-style:normal; font-weight:400; margin-left:5px;
   .brand strong { font-size:15px; }
   .brand small { font-size:9px; }
   .staff-actions { gap:4px; }
+  .storage-alert { align-items:flex-start; flex-direction:column; gap:3px; padding:9px 14px; }
   .staff-access { padding:7px 8px; font-size:10px; }
   .visitor-page { min-height:calc(100vh - 64px); }
   .visitor-hero { padding:45px 20px 38px; }
