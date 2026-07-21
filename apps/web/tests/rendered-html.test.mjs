@@ -32,7 +32,7 @@ test("renders the public bookstore news calendar", async () => {
   assert.match(html, /role="tooltip"/);
   assert.match(html, /calendar-markers/);
   assert.match(html, /책방별 소식/);
-  assert.doesNotMatch(html, /전체 일정|소식 월/);
+  assert.doesNotMatch(html, /가까운 동네책방에서 열리는|<small>일정<\/small>|전체 일정|소식 월/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
 });
 
@@ -60,6 +60,7 @@ test("uses the configured passcodes and consolidated completion sharing", async 
   assert.match(source, /setMonth\(INITIAL_MONTH\)/);
   assert.match(source, /setSelectedDay\(""\)/);
   assert.match(source, /setSearch\(""\)/);
+  assert.doesNotMatch(source, /flatMap\(\(news\) => news\.dates\)\.length/);
   assert.match(source, /onClick=\{returnToVisitor\} aria-label="동네책방 소식 홈"/);
   assert.match(source, /<button onClick=\{returnToVisitor\}>로그아웃<\/button>/);
   assert.match(source, /← 뒤로가기/);
