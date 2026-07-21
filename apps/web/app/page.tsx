@@ -7,6 +7,7 @@ import { ChangeEvent, DragEvent, useEffect, useMemo, useState } from "react";
 
 type Role = "visitor" | "input" | "html";
 type WorkStatus = "draft" | "completed";
+type LeaveTarget = "visitor" | "list";
 
 type Bookstore = {
   id: number;
@@ -65,6 +66,11 @@ const BOOKSTORE_COLORS = ["#d96c5f", "#4f83a8", "#d19a3e", "#5f9274", "#8c6bb1",
 const makeNews = (id = Date.now()): NewsItem => ({ id, title: "", description: "", dates: [], regular: false, deadline: "", place: "", fee: "", applyUrl: "", images: [], includeInDigest: true });
 const makeSubmission = (bookstoreId: number, month: string): Submission => ({ id: Date.now(), bookstoreId, month, status: "draft", updatedAt: nowIso(), completedAt: "", publishedAt: "", publishedUrl: "", news: [makeNews()] });
 const blankBookstore = (): Bookstore => ({ id: Date.now(), name: "", region: "", address: "", hours: "", phone: "", sns: "", website: "", introduction: "" });
+const hasSubmissionContent = (submission?: Submission) => Boolean(submission?.news.some((news) => news.title.trim() || news.description.trim() || news.dates.length || news.regular || news.deadline || news.place.trim() || news.fee.trim() || news.applyUrl.trim() || news.images.length));
+const persistWorkspace = (bookstores: Bookstore[], submissions: Submission[]) => {
+  window.localStorage.setItem("bookstore-news-profiles", JSON.stringify(bookstores));
+  window.localStorage.setItem("bookstore-news-submissions-v2", JSON.stringify(submissions));
+};
 
 const seedSubmissions: Submission[] = [
   {
@@ -177,6 +183,7 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
   const [draggedNewsId, setDraggedNewsId] = useState<number | null>(null);
   const [draggedDigestId, setDraggedDigestId] = useState<number | null>(null);
+  const [leaveTarget, setLeaveTarget] = useState<LeaveTarget | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -225,6 +232,29 @@ export default function Home() {
     const bDate = b.submission.news.flatMap((news) => news.dates).sort()[0] || "9999-12-31";
     return aDate.localeCompare(bDate);
   });
+  const hasDraftInProgress = role === "input" && inputView === "edit" && currentSubmission?.status === "draft" && hasSubmissionContent(currentSubmission);
+
+  useEffect(() => {
+    if (!hasDraftInProgress) return;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      persistWorkspace(bookstores, submissions);
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    const handleNavigationClick = (event: MouseEvent) => {
+      const element = event.target instanceof Element ? event.target.closest(".brand, .worker-nav button, .editor-page-head .back-button") : null;
+      if (!element) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setLeaveTarget(element.matches(".editor-page-head .back-button") ? "list" : "visitor");
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("click", handleNavigationClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("click", handleNavigationClick, true);
+    };
+  }, [bookstores, hasDraftInProgress, submissions]);
 
   const login = () => {
     const valid = accessRole === "input" ? password === "wlrhkstjrk" : accessRole === "html" ? password === "wlrhkstjrk2" : false;
@@ -242,6 +272,12 @@ export default function Home() {
     setDebouncedSearch("");
   };
 
+  const goToBookstoreList = () => {
+    setInputView("list");
+    setSelectedBookstoreId(null);
+    setLeaveTarget(null);
+  };
+
   const returnToVisitor = () => {
     window.sessionStorage.removeItem("bookstore-news-role");
     resetVisitorPage();
@@ -250,6 +286,14 @@ export default function Home() {
     setSelectedBookstoreId(null);
     setAccessRole(null);
     setPassword("");
+    setLeaveTarget(null);
+  };
+
+  const confirmLeave = () => {
+    if (!leaveTarget) return;
+    persistWorkspace(bookstores, submissions);
+    if (leaveTarget === "visitor") returnToVisitor();
+    else goToBookstoreList();
   };
 
   const ensureSubmission = (bookstoreId: number) => {
@@ -315,8 +359,7 @@ export default function Home() {
   };
 
   const manualSave = () => {
-    window.localStorage.setItem("bookstore-news-profiles", JSON.stringify(bookstores));
-    window.localStorage.setItem("bookstore-news-submissions-v2", JSON.stringify(submissions));
+    persistWorkspace(bookstores, submissions);
     setSaveState(`임시 저장됨 · ${new Intl.DateTimeFormat("ko-KR", { hour: "2-digit", minute: "2-digit" }).format(new Date())}`);
     notify("임시 저장했습니다.");
   };
@@ -443,6 +486,7 @@ export default function Home() {
         {htmlView === "individual" ? <div className="html-main">{selectedHtmlSubmission && selectedHtmlBookstore ? <><div className="html-main-head"><div><span>{formatMonth(month)} · {selectedHtmlBookstore.region}</span><h2>{selectedHtmlBookstore.name}</h2><p>입력 완료된 내용만 표시됩니다.</p></div><div><button className="secondary-button" onClick={() => void downloadPhotoZip(selectedHtmlSubmission, selectedHtmlBookstore, false)}>사진 ZIP</button><button className="primary-button" onClick={() => void downloadPhotoZip(selectedHtmlSubmission, selectedHtmlBookstore, true)}>HTML + 사진 ZIP</button></div></div><div className="html-tabs"><button className={previewMode === "preview" ? "active" : ""} onClick={() => setPreviewMode("preview")}>HTML 미리보기</button><button className={previewMode === "code" ? "active" : ""} onClick={() => setPreviewMode("code")}>HTML 코드</button><button onClick={() => navigator.clipboard.writeText(generatedCode).then(() => notify("HTML 코드를 복사했습니다."))}>HTML 복사</button></div><div className="html-preview">{previewMode === "preview" ? <iframe title={`${selectedHtmlBookstore.name} HTML 미리보기`} srcDoc={`<!doctype html><html><body style="margin:0;background:#eee;padding:24px">${generatedPreview}</body></html>`} /> : <pre>{generatedCode}</pre>}</div><PublishPanel key={selectedHtmlSubmission.id} submission={selectedHtmlSubmission} onPublish={updatePublished} /></> : <div className="empty-state"><h2>입력 완료된 책방이 없습니다.</h2><p>정보 입력자가 입력을 마치면 이곳에 표시됩니다.</p></div>}</div> : <div className="digest-work"><div className="digest-control"><div><span>DIGEST ORDER</span><h2>통합본 수록 순서</h2><p>책방과 포함할 소식을 선택하고 끌어서 순서를 바꿔보세요.</p></div>{htmlReady.map((submission, index) => { const bookstore = bookstores.find((item) => item.id === submission.bookstoreId); return <article key={submission.id} draggable onDragStart={() => setDraggedDigestId(submission.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderDigest(submission.id)}><header><span>⠿</span><div><strong>{index + 1}. {bookstore?.name}</strong><small>{bookstore?.region}</small></div></header>{submission.news.map((news) => <label key={news.id}><input type="checkbox" checked={news.includeInDigest} onChange={() => setSubmissions((current) => current.map((item) => item.id === submission.id ? { ...item, news: item.news.map((entry) => entry.id === news.id ? { ...entry, includeInDigest: !entry.includeInDigest } : entry) } : item))} /><span>{news.title}</span></label>)}</article>; })}</div><div className="digest-output"><div><span>통합 HTML 미리보기</span><button onClick={() => navigator.clipboard.writeText(combinedHtml).then(() => notify("통합 HTML을 복사했습니다."))}>HTML 복사</button></div><iframe title="통합 HTML 미리보기" srcDoc={`<!doctype html><html><body style="margin:0;background:#eee;padding:24px">${combinedHtml}</body></html>`} /></div></div>}
       </section>}
 
+      {leaveTarget && <div className="modal-backdrop"><section className="leave-modal" role="dialog" aria-modal="true" aria-labelledby="leave-dialog-title"><span>WRITING IN PROGRESS</span><h2 id="leave-dialog-title">작성 중인 내용이 있습니다.</h2><p>입력 마무리 전인 소식입니다. 지금 나가도 내용은 임시 저장되지만 상태는 <strong>작성 중</strong>으로 유지됩니다.</p><div className="leave-modal-actions"><button className="secondary-button" onClick={() => setLeaveTarget(null)} autoFocus>계속 작성</button><button className="primary-button" onClick={confirmLeave}>임시 저장 후 나가기</button></div></section></div>}
       {accessRole && <div className="modal-backdrop" onMouseDown={() => { setAccessRole(null); setPassword(""); }}><section className="access-modal" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => { setAccessRole(null); setPassword(""); }}>×</button><span>{accessRole === "input" ? "NEWS INPUT ACCESS" : "HTML EDITOR ACCESS"}</span><h2>{accessRole === "input" ? "소식 입력" : "HTML 편집"} 접속</h2><p>{accessRole === "input" ? "책방 소식을 작성하려면 입력자 암호를 입력해 주세요." : "완료된 소식을 HTML로 편집하려면 편집자 암호를 입력해 주세요."}</p><label><span>작업 암호</span><input type="password" value={password} onChange={(event) => setPassword(event.target.value)} onKeyDown={(event) => event.key === "Enter" && login()} autoFocus /></label><button className="primary-button" onClick={login}>{accessRole === "input" ? "소식 입력으로 이동" : "HTML 편집으로 이동"}</button><small>인증은 이 탭을 닫거나 로그아웃할 때까지 유지됩니다.</small></section></div>}
       {toast && <div className="toast">✓ {toast}</div>}
     </main>

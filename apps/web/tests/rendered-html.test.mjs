@@ -63,6 +63,11 @@ test("uses the configured passcodes and consolidated completion sharing", async 
   assert.match(source, /setSearch\(""\)/);
   assert.doesNotMatch(source, /SortMode|sortMode|setSortMode/);
   assert.doesNotMatch(source, /flatMap\(\(news\) => news\.dates\)\.length/);
+  assert.match(source, /const hasDraftInProgress =/);
+  assert.match(source, /addEventListener\("beforeunload"/);
+  assert.match(source, /\.brand, \.worker-nav button, \.editor-page-head \.back-button/);
+  assert.match(source, /작성 중인 내용이 있습니다\./);
+  assert.match(source, /임시 저장 후 나가기/);
   assert.match(source, /onClick=\{returnToVisitor\} aria-label="동네책방 소식 홈"/);
   assert.match(source, /<button onClick=\{returnToVisitor\}>로그아웃<\/button>/);
   assert.match(source, /← 뒤로가기/);
