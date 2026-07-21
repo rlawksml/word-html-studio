@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
-export const NEWS_IMAGE_BUCKET = "bookstore-news";
+export const ORIGINAL_IMAGE_BUCKET = "bookstore-news-originals";
+export const PREVIEW_IMAGE_BUCKET = "bookstore-news-previews";
 
 export class SupabaseConfigurationError extends Error {
   constructor() {
@@ -22,19 +23,18 @@ export function getSupabaseAdmin() {
   });
 }
 
-const DEFAULT_ACCESS_CODES = {
-  input: ["지관서가", "wlrhkstjrk"],
-  html: ["지관서가2", "wlrhkstjrk2"],
-} as const;
-
-type WorkerRole = keyof typeof DEFAULT_ACCESS_CODES;
+export type WorkerRole = "input" | "html";
 
 function accessCodes(role: WorkerRole): readonly string[] {
   const configured = process.env[role === "input" ? "INPUT_ACCESS_CODES" : "HTML_ACCESS_CODES"];
-  return configured ? configured.split(",").map((value) => value.normalize("NFC").trim()).filter(Boolean) : DEFAULT_ACCESS_CODES[role];
+  return configured ? configured.split(",").map((value) => value.normalize("NFC").trim()).filter(Boolean) : [];
 }
 
 export function hasWorkspaceWriteAccess(role: unknown, code: unknown) {
   if ((role !== "input" && role !== "html") || typeof code !== "string") return false;
   return accessCodes(role).includes(code.normalize("NFC").trim());
+}
+
+export function isWorkerRole(value: unknown): value is WorkerRole {
+  return value === "input" || value === "html";
 }

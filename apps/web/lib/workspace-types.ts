@@ -10,6 +10,20 @@ export type Bookstore = {
   sns: string;
   website: string;
   introduction: string;
+  contacts: LabeledValue[];
+  links: LabeledLink[];
+};
+
+export type LabeledValue = {
+  id: number;
+  label: string;
+  value: string;
+};
+
+export type LabeledLink = {
+  id: number;
+  label: string;
+  url: string;
 };
 
 export type NewsImage = {
@@ -27,11 +41,16 @@ export type NewsItem = {
   title: string;
   description: string;
   dates: string[];
+  scheduleText: string;
   regular: boolean;
+  displayLabel: string;
   deadline: string;
   place: string;
   fee: string;
+  applicationInfo: string;
   applyUrl: string;
+  extraFields: LabeledValue[];
+  links: LabeledLink[];
   images: NewsImage[];
   includeInDigest: boolean;
 };
@@ -45,6 +64,7 @@ export type Submission = {
   completedAt: string;
   publishedAt: string;
   publishedUrl: string;
+  monthlyNotice: string;
   news: NewsItem[];
 };
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin, hasWorkspaceWriteAccess, NEWS_IMAGE_BUCKET, SupabaseConfigurationError } from "@/lib/supabase-server";
+import { getSupabaseAdmin, ORIGINAL_IMAGE_BUCKET, PREVIEW_IMAGE_BUCKET, SupabaseConfigurationError } from "@/lib/supabase-server";
+import { readWorkerSession } from "@/lib/workspace-session";
 import type { NewsImage } from "@/lib/workspace-types";
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -8,17 +9,13 @@ function safeSegment(value: string) {
   return value.normalize("NFC").replace(/[^0-9A-Za-z가-힣._-]/g, "-").replace(/-+/g, "-").slice(0, 80) || "image";
 }
 
-function allowed(request: NextRequest) {
-  return hasWorkspaceWriteAccess(request.headers.get("x-workspace-role"), request.headers.get("x-workspace-code"));
-}
-
 function configurationResponse() {
   return NextResponse.json({ error: "공용 저장소 연결 정보가 필요합니다." }, { status: 503 });
 }
 
 export async function POST(request: NextRequest) {
   try {
-    if (!allowed(request)) return NextResponse.json({ error: "사진 업로드 권한을 다시 확인해 주세요." }, { status: 403 });
+    if (await readWorkerSession(request) !== "input") return NextResponse.json({ error: "사진 업로드 권한을 다시 확인해 주세요." }, { status: 403 });
     const form = await request.formData();
     const original = form.get("original");
     const preview = form.get("preview");
@@ -35,11 +32,11 @@ export async function POST(request: NextRequest) {
     const originalPath = `originals/${month}/${bookstoreId}/${newsId}/${uniqueId}-${originalName}`;
     const previewPath = `previews/${month}/${bookstoreId}/${newsId}/${uniqueId}.jpg`;
     const supabase = getSupabaseAdmin();
-    const originalUpload = await supabase.storage.from(NEWS_IMAGE_BUCKET).upload(originalPath, original, { contentType: original.type, upsert: false });
+    const originalUpload = await supabase.storage.from(ORIGINAL_IMAGE_BUCKET).upload(originalPath, original, { contentType: original.type, upsert: false });
     if (originalUpload.error) throw originalUpload.error;
-    const previewUpload = await supabase.storage.from(NEWS_IMAGE_BUCKET).upload(previewPath, preview, { contentType: "image/jpeg", upsert: false });
+    const previewUpload = await supabase.storage.from(PREVIEW_IMAGE_BUCKET).upload(previewPath, preview, { contentType: "image/jpeg", upsert: false });
     if (previewUpload.error) {
-      await supabase.storage.from(NEWS_IMAGE_BUCKET).remove([originalPath]);
+      await supabase.storage.from(ORIGINAL_IMAGE_BUCKET).remove([originalPath]);
       throw previewUpload.error;
     }
     const image: NewsImage = {
@@ -47,8 +44,8 @@ export async function POST(request: NextRequest) {
       name: original.name,
       originalPath,
       previewPath,
-      originalUrl: supabase.storage.from(NEWS_IMAGE_BUCKET).getPublicUrl(originalPath).data.publicUrl,
-      url: supabase.storage.from(NEWS_IMAGE_BUCKET).getPublicUrl(previewPath).data.publicUrl,
+      originalUrl: "",
+      url: supabase.storage.from(PREVIEW_IMAGE_BUCKET).getPublicUrl(previewPath).data.publicUrl,
       caption: "",
     };
     return NextResponse.json(image, { status: 201 });
@@ -61,16 +58,34 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    if (!allowed(request)) return NextResponse.json({ error: "사진 삭제 권한을 다시 확인해 주세요." }, { status: 403 });
+    if (await readWorkerSession(request) !== "input") return NextResponse.json({ error: "사진 삭제 권한을 다시 확인해 주세요." }, { status: 403 });
     const body = await request.json() as { originalPath?: string; previewPath?: string };
-    const paths = [body.originalPath, body.previewPath].filter((path): path is string => Boolean(path));
-    if (!paths.length) return new NextResponse(null, { status: 204 });
-    const { error } = await getSupabaseAdmin().storage.from(NEWS_IMAGE_BUCKET).remove(paths);
-    if (error) throw error;
+    const supabase = getSupabaseAdmin();
+    const [originalResult, previewResult] = await Promise.all([
+      body.originalPath ? supabase.storage.from(ORIGINAL_IMAGE_BUCKET).remove([body.originalPath]) : Promise.resolve({ error: null }),
+      body.previewPath ? supabase.storage.from(PREVIEW_IMAGE_BUCKET).remove([body.previewPath]) : Promise.resolve({ error: null }),
+    ]);
+    if (originalResult.error) throw originalResult.error;
+    if (previewResult.error) throw previewResult.error;
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     if (error instanceof SupabaseConfigurationError) return configurationResponse();
     console.error("image delete failed", error);
     return NextResponse.json({ error: "사진을 삭제하지 못했습니다." }, { status: 500 });
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    if (await readWorkerSession(request) !== "html") return NextResponse.json({ error: "원본 사진 다운로드 권한이 필요합니다." }, { status: 403 });
+    const path = request.nextUrl.searchParams.get("path");
+    if (!path || !path.startsWith("originals/")) return NextResponse.json({ error: "원본 사진 경로가 올바르지 않습니다." }, { status: 400 });
+    const { data, error } = await getSupabaseAdmin().storage.from(ORIGINAL_IMAGE_BUCKET).download(path);
+    if (error) throw error;
+    return new NextResponse(data, { headers: { "content-type": data.type || "application/octet-stream", "cache-control": "private, max-age=300" } });
+  } catch (error) {
+    if (error instanceof SupabaseConfigurationError) return configurationResponse();
+    console.error("original image download failed", error);
+    return NextResponse.json({ error: "원본 사진을 내려받지 못했습니다." }, { status: 500 });
   }
 }

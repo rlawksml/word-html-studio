@@ -51,12 +51,26 @@ test("ships accessible discovery controls and compact public cards", async () =>
   assert.match(source, /calendar-markers/);
 });
 
-test("uses the configured passcodes and consolidated completion sharing", async () => {
-  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
-  assert.match(source, /input: \["지관서가", "wlrhkstjrk"\]/);
-  assert.match(source, /html: \["지관서가2", "wlrhkstjrk2"\]/);
+test("keeps passcodes in server environment variables and uses a tab-scoped worker session", async () => {
+  const [source, sessionRoute, sessionLibrary, serverLibrary] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/session/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/workspace-session.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/supabase-server.ts", import.meta.url), "utf8"),
+  ]);
   assert.match(source, /password\.normalize\("NFC"\)\.trim\(\)/);
-  assert.match(source, /ACCESS_CODES\[accessRole\]\.includes\(normalizedPassword\)/);
+  assert.match(source, /fetch\("\/api\/session"/);
+  assert.match(source, /crypto\.randomUUID\(\)/);
+  assert.match(source, /bookstore-news-session-id/);
+  assert.doesNotMatch(source, /wlrhkstjrk|ACCESS_CODES|x-workspace-code|bookstore-news-access-code/);
+  assert.match(sessionRoute, /hasWorkspaceWriteAccess/);
+  assert.match(sessionRoute, /createWorkerSession/);
+  assert.match(serverLibrary, /INPUT_ACCESS_CODES/);
+  assert.match(serverLibrary, /HTML_ACCESS_CODES/);
+  assert.doesNotMatch(serverLibrary, /wlrhkstjrk|지관서가/);
+  assert.match(sessionLibrary, /httpOnly: true/);
+  assert.match(sessionLibrary, /sameSite: "strict"/);
+  assert.match(sessionLibrary, /x-workspace-session-id/);
   assert.match(source, /한글·영문 자판 어느 쪽으로 입력해도 됩니다/);
   assert.match(source, /완료 내용 공유하기/);
   assert.match(source, /const bookstoreDetails = complete\.map/);
@@ -75,8 +89,23 @@ test("uses the configured passcodes and consolidated completion sharing", async 
   assert.match(source, /onClick=\{returnToVisitor\} aria-label="동네책방 소식 홈"/);
   assert.match(source, /<button onClick=\{returnToVisitor\}>로그아웃<\/button>/);
   assert.match(source, /← 뒤로가기/);
-  assert.doesNotMatch(source, /password === "input"|password === "html"|password === "wlrhkstjrk"|password === "wlrhkstjrk2"/);
   assert.doesNotMatch(source, /장의 사진 업로드|월별 현황 메시지 복사|completion-modal|재게시를 알려주세요|setCompletion/);
+});
+
+test("supports Word-like optional fields, detail views, and photo ordering", async () => {
+  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(source, /이번 달 운영 안내/);
+  assert.match(source, /일정 안내/);
+  assert.match(source, /신청 방법/);
+  assert.match(source, /자유로운 추가 항목/);
+  assert.match(source, /관련 링크/);
+  assert.match(source, /optional-fields/);
+  assert.match(source, /reorderImages/);
+  assert.match(source, /moveImage/);
+  assert.match(source, /PublicNewsDetail/);
+  assert.match(source, /public-detail-photos/);
+  assert.match(source, /news\.includeInDigest\)\.map\(\(news\) => `<li[^`]+\$\{escapeHtml\(news\.title\)\}<\/li>`/);
+  assert.doesNotMatch(source, /news\.description\.slice\(0, 80\)/);
 });
 
 test("guides input work and focuses the first missing required field", async () => {
@@ -93,12 +122,12 @@ test("guides input work and focuses the first missing required field", async () 
   assert.doesNotMatch(source, /className="month-toolbar"/);
 });
 
-test("uses Supabase as the clean shared source of truth", async () => {
+test("uses Supabase with private originals and public mobile previews", async () => {
   const [pageSource, workspaceRoute, imageRoute, migration] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/workspace/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/images/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../supabase/migrations/202607210001_initial_workspace.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202607220001_secure_media_and_flexible_fields.sql", import.meta.url), "utf8"),
   ]);
   assert.match(pageSource, /useState<Bookstore\[]>\(\[\]\)/);
   assert.match(pageSource, /useState<Submission\[]>\(\[\]\)/);
@@ -108,13 +137,19 @@ test("uses Supabase as the clean shared source of truth", async () => {
   assert.match(pageSource, /item\.originalUrl \|\| item\.url/);
   assert.doesNotMatch(pageSource, /localStorage|seedBookstores|seedSubmissions|readAsDataURL/);
   assert.match(workspaceRoute, /replace_bookstore_news_workspace/);
-  assert.match(workspaceRoute, /NEWS_IMAGE_BUCKET/);
+  assert.match(workspaceRoute, /PREVIEW_IMAGE_BUCKET/);
+  assert.match(workspaceRoute, /readWorkerSession/);
   assert.match(imageRoute, /originals\//);
   assert.match(imageRoute, /previews\//);
-  assert.match(migration, /create table if not exists public\.bookstores/);
-  assert.match(migration, /create table if not exists public\.submissions/);
-  assert.match(migration, /enable row level security/);
-  assert.match(migration, /'bookstore-news'/);
+  assert.match(imageRoute, /ORIGINAL_IMAGE_BUCKET/);
+  assert.match(imageRoute, /PREVIEW_IMAGE_BUCKET/);
+  assert.match(imageRoute, /원본 사진 다운로드 권한/);
+  assert.match(migration, /alter table public\.bookstores/);
+  assert.match(migration, /alter table public\.submissions/);
+  assert.match(migration, /bookstore-news-originals/);
+  assert.match(migration, /bookstore-news-previews/);
+  assert.match(migration, /false,/);
+  assert.match(migration, /true,/);
 
   const response = await render("/api/workspace");
   assert.equal(response.status, 503);

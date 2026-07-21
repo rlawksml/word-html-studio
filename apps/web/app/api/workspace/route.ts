@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin, hasWorkspaceWriteAccess, NEWS_IMAGE_BUCKET, SupabaseConfigurationError } from "@/lib/supabase-server";
-import type { Bookstore, NewsImage, NewsItem, Submission, Workspace } from "@/lib/workspace-types";
+import { getSupabaseAdmin, PREVIEW_IMAGE_BUCKET, SupabaseConfigurationError } from "@/lib/supabase-server";
+import { readWorkerSession } from "@/lib/workspace-session";
+import type { Bookstore, LabeledLink, LabeledValue, NewsImage, NewsItem, Submission, Workspace } from "@/lib/workspace-types";
 
 type BookstoreRow = {
   id: number;
@@ -12,6 +13,8 @@ type BookstoreRow = {
   sns: string;
   website: string;
   introduction: string;
+  contacts: LabeledValue[] | null;
+  links: LabeledLink[] | null;
 };
 
 type SubmissionRow = {
@@ -23,23 +26,24 @@ type SubmissionRow = {
   completed_at: string | null;
   published_at: string | null;
   published_url: string;
+  monthly_notice: string;
   news: NewsItem[];
 };
 
 function publicImageUrl(path: string) {
   if (!path) return "";
-  return getSupabaseAdmin().storage.from(NEWS_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+  return getSupabaseAdmin().storage.from(PREVIEW_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
-function hydrateImage(image: Partial<NewsImage>): NewsImage {
-  const originalPath = image.originalPath || "";
+function hydrateImage(image: Partial<NewsImage>, role: "input" | "html" | null): NewsImage {
+  const originalPath = role ? image.originalPath || "" : "";
   const previewPath = image.previewPath || "";
   return {
     id: Number(image.id),
     name: image.name || "image.jpg",
     originalPath,
     previewPath,
-    originalUrl: publicImageUrl(originalPath),
+    originalUrl: role === "html" && originalPath ? `/api/images?path=${encodeURIComponent(originalPath)}` : "",
     url: publicImageUrl(previewPath || originalPath),
     caption: image.caption || "",
   };
@@ -59,10 +63,22 @@ function sanitizeNews(news: NewsItem[]) {
 }
 
 function mapBookstore(row: BookstoreRow): Bookstore {
-  return { ...row };
+  return { ...row, contacts: row.contacts || [], links: row.links || [] };
 }
 
-function mapSubmission(row: SubmissionRow): Submission {
+function normalizeNews(item: NewsItem, role: "input" | "html" | null): NewsItem {
+  return {
+    ...item,
+    scheduleText: item.scheduleText || "",
+    displayLabel: item.displayLabel || "",
+    applicationInfo: item.applicationInfo || "",
+    extraFields: item.extraFields || [],
+    links: item.links || [],
+    images: (item.images || []).map((image) => hydrateImage(image, role)),
+  };
+}
+
+function mapSubmission(row: SubmissionRow, role: "input" | "html" | null): Submission {
   return {
     id: Number(row.id),
     bookstoreId: Number(row.bookstore_id),
@@ -72,7 +88,8 @@ function mapSubmission(row: SubmissionRow): Submission {
     completedAt: row.completed_at || "",
     publishedAt: row.published_at || "",
     publishedUrl: row.published_url || "",
-    news: (row.news || []).map((item) => ({ ...item, images: (item.images || []).map(hydrateImage) })),
+    monthlyNotice: row.monthly_notice || "",
+    news: (row.news || []).map((item) => normalizeNews(item, role)),
   };
 }
 
@@ -80,18 +97,19 @@ function configurationResponse() {
   return NextResponse.json({ error: "공용 저장소 연결 정보가 필요합니다." }, { status: 503 });
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const role = await readWorkerSession(request);
     const supabase = getSupabaseAdmin();
     const [bookstoresResult, submissionsResult] = await Promise.all([
-      supabase.from("bookstores").select("id,name,region,address,hours,phone,sns,website,introduction").order("sort_order"),
-      supabase.from("submissions").select("id,bookstore_id,month,status,updated_at,completed_at,published_at,published_url,news").order("updated_at"),
+      supabase.from("bookstores").select("id,name,region,address,hours,phone,sns,website,introduction,contacts,links").order("sort_order"),
+      supabase.from("submissions").select("id,bookstore_id,month,status,updated_at,completed_at,published_at,published_url,monthly_notice,news").order("updated_at"),
     ]);
     if (bookstoresResult.error) throw bookstoresResult.error;
     if (submissionsResult.error) throw submissionsResult.error;
     return NextResponse.json({
       bookstores: (bookstoresResult.data || []).map((row) => mapBookstore(row as BookstoreRow)),
-      submissions: (submissionsResult.data || []).map((row) => mapSubmission(row as SubmissionRow)),
+      submissions: (submissionsResult.data || []).map((row) => mapSubmission(row as SubmissionRow, role)),
     } satisfies Workspace);
   } catch (error) {
     if (error instanceof SupabaseConfigurationError) return configurationResponse();
@@ -102,14 +120,12 @@ export async function GET() {
 
 async function save(request: NextRequest) {
   try {
-    const body = await request.json() as Workspace & { role?: unknown; code?: unknown };
-    const role = request.headers.get("x-workspace-role") || body.role;
-    const code = request.headers.get("x-workspace-code") || body.code;
-    if (!hasWorkspaceWriteAccess(role, code)) return NextResponse.json({ error: "작업 권한을 다시 확인해 주세요." }, { status: 403 });
+    const body = await request.json() as Workspace & { sessionId?: string };
+    if (!await readWorkerSession(request, request.headers.get("x-workspace-session-id") || body.sessionId || "")) return NextResponse.json({ error: "작업자 세션이 만료되었습니다." }, { status: 401 });
     if (!Array.isArray(body.bookstores) || !Array.isArray(body.submissions)) return NextResponse.json({ error: "저장할 데이터 형식이 올바르지 않습니다." }, { status: 400 });
 
     const payload = {
-      bookstores: body.bookstores.map((bookstore, sortOrder) => ({ ...bookstore, sort_order: sortOrder })),
+      bookstores: body.bookstores.map((bookstore, sortOrder) => ({ ...bookstore, contacts: bookstore.contacts || [], links: bookstore.links || [], sort_order: sortOrder })),
       submissions: body.submissions.map((submission) => ({
         id: submission.id,
         bookstore_id: submission.bookstoreId,
@@ -119,6 +135,7 @@ async function save(request: NextRequest) {
         completed_at: submission.completedAt || null,
         published_at: submission.publishedAt || null,
         published_url: submission.publishedUrl,
+        monthly_notice: submission.monthlyNotice || "",
         news: sanitizeNews(submission.news),
       })),
     };
