@@ -409,7 +409,7 @@ export default function Home() {
       </header>
 
       {role === "visitor" && <section className="visitor-page">
-        <div className="visitor-hero"><span>JIGWANSEOGA LOCAL BOOKS</span><h1>{formatMonth(month)}<br />동네책방 소식</h1><p>가까운 동네책방에서 열리는 모임과 전시, 새로운 이야기를 만나보세요.</p><div className="visitor-kpis"><strong>{publicEntries.length}<small>책방</small></strong><strong>{publicEntries.reduce((sum, item) => sum + item.submission.news.length, 0)}<small>소식</small></strong><strong>{publicEntries.reduce((sum, item) => sum + item.submission.news.flatMap((news) => news.dates).length, 0)}<small>일정</small></strong></div></div>
+        <div className="visitor-hero"><span>JIGWANSEOGA LOCAL BOOKS</span><h1>{formatMonth(month)}<br />동네책방 소식</h1><div className="visitor-kpis"><strong>{publicEntries.length}<small>책방</small></strong><strong>{publicEntries.reduce((sum, item) => sum + item.submission.news.length, 0)}<small>소식</small></strong></div></div>
         <div className="visitor-content">
           <section className="mobile-calendar">
             <div className="calendar-head"><button type="button" aria-label="이전 달" onClick={() => { setMonth(shiftMonth(month, -1)); setSelectedDay(""); }}>← 이전 달</button><h2 aria-live="polite">{formatMonth(month)}</h2><button type="button" aria-label="다음 달" onClick={() => { setMonth(shiftMonth(month, 1)); setSelectedDay(""); }}>다음 달 →</button></div>
