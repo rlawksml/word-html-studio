@@ -32,7 +32,7 @@
 
 원본 사진은 HTML 편집자의 다운로드용으로 보관하고 방문자 화면에는 작은 미리보기를 사용합니다. 입력 내용은 공개 소식이므로 별도의 사용자 계정 체계는 만들지 않습니다. 다만 공개 방문자가 데이터를 변경하지 못하도록 쓰기 경로와 Supabase 접근 정책은 최소한으로 제한합니다.
 
-Database와 Storage 요청은 서버 API를 통해 처리합니다. `SUPABASE_SERVICE_ROLE_KEY`는 브라우저나 GitHub에 노출하지 않고 로컬·배포 환경변수에만 저장합니다. 초기 연결 방법은 [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)를 따릅니다.
+Database와 Storage 요청은 서버 API를 통해 처리합니다. `SUPABASE_SECRET_KEY`는 브라우저나 GitHub에 노출하지 않고 로컬·배포 환경변수에만 저장합니다. 초기 연결 방법은 [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)를 따릅니다.
 
 향후 Cloudflare 중심 구조가 더 적합해지면 Database를 D1으로, Storage를 R2로 이전할 수 있습니다. 이를 위해 화면에서 Supabase를 직접 호출하는 코드를 분산시키지 않고 데이터·사진 저장 모듈을 분리하며, DB에는 영구 공개 URL 대신 이식 가능한 사진 경로를 저장합니다. 월별 데이터와 사진 백업도 유지해 특정 서비스에 종속되지 않도록 설계합니다.
 
