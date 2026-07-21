@@ -36,6 +36,8 @@ label>span em { color:#999; font-style:normal; font-weight:400; margin-left:5px;
 .visitor-hero { padding:72px max(24px,calc((100vw - 1040px)/2)) 60px; background:#292c2a; color:white; }
 .visitor-hero>span,.workspace-heading>div>span,.html-sidebar>div>span,.access-modal>span,.digest-control>div>span { color:#b9bdb9; font-size:10px; letter-spacing:.18em; }
 .visitor-hero h1 { margin:15px 0 18px; font-size:48px; font-weight:400; line-height:1.25; letter-spacing:-.05em; }
+.visitor-cta { display:inline-flex; align-items:center; min-height:42px; padding:0 15px; border:1px solid rgba(255,255,255,.42); color:white; font-size:12px; font-weight:600; text-decoration:none; transition:background-color .2s,color .2s,border-color .2s; }
+.visitor-cta:hover,.visitor-cta:focus-visible { border-color:white; background:white; color:#292c2a; }
 .visitor-kpis { display:flex; gap:34px; margin-top:24px; }
 .visitor-kpis strong { font-family:Georgia,serif; font-size:31px; font-weight:400; }
 .visitor-kpis small { display:block; margin-top:5px; color:#bfc4c0; font-family:inherit; font-size:13px; font-weight:500; line-height:1.3; }
@@ -66,7 +68,7 @@ label>span em { color:#999; font-style:normal; font-weight:400; margin-left:5px;
 .calendar-legend { display:flex; flex-wrap:wrap; gap:7px 13px; margin-top:10px; padding-top:10px; border-top:1px solid #e8e8e5; }
 .calendar-legend>span { display:inline-flex; align-items:center; gap:5px; color:#777; font-size:9px; }
 .calendar-legend i { width:7px; height:7px; border-radius:50%; }
-.discovery-tools { display:grid; grid-template-columns:1fr 180px; gap:10px; margin:22px 0 38px; }
+.discovery-tools { max-width:640px; margin:22px auto 38px; }
 .public-heading { display:flex; align-items:end; justify-content:space-between; border-bottom:1px solid #333; padding-bottom:14px; }
 .public-heading span,.public-heading small { color:#888; font-size:10px; letter-spacing:.08em; }
 .public-heading h2 { margin:5px 0 0; font-size:25px; font-weight:500; }
@@ -243,7 +245,7 @@ label>span em { color:#999; font-style:normal; font-weight:400; margin-left:5px;
   .calendar-grid>span,.calendar-grid>button { min-height:42px; padding:5px; }
   .calendar-markers { left:5px; right:5px; bottom:5px; }
   .calendar-legend { gap:6px 10px; }
-  .discovery-tools { grid-template-columns:1fr 130px; margin:14px 0 30px; }
+  .discovery-tools { margin:14px 0 30px; }
   .public-heading h2 { font-size:22px; }
   .public-card { padding:16px; }
   .input-area { padding:32px 14px 80px; }
