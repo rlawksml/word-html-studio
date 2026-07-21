@@ -56,6 +56,12 @@ test("uses the configured passcodes and consolidated completion sharing", async 
   assert.match(source, /완료 내용 공유하기/);
   assert.match(source, /const bookstoreDetails = complete\.map/);
   assert.match(source, /news\.title/);
+  assert.match(source, /const resetVisitorPage = \(\) =>/);
+  assert.match(source, /setMonth\(INITIAL_MONTH\)/);
+  assert.match(source, /setSelectedDay\(""\)/);
+  assert.match(source, /setSearch\(""\)/);
+  assert.match(source, /onClick=\{returnToVisitor\} aria-label="동네책방 소식 홈"/);
+  assert.match(source, /<button onClick=\{returnToVisitor\}>로그아웃<\/button>/);
   assert.match(source, /← 뒤로가기/);
   assert.doesNotMatch(source, /password === "input"|password === "html"/);
   assert.doesNotMatch(source, /장의 사진 업로드|월별 현황 메시지 복사|completion-modal|재게시를 알려주세요|setCompletion/);
