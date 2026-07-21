@@ -54,7 +54,9 @@ test("uses the configured passcodes and consolidated completion sharing", async 
   assert.match(source, /accessRole === "input" \? password === "wlrhkstjrk"/);
   assert.match(source, /accessRole === "html" \? password === "wlrhkstjrk2"/);
   assert.match(source, /완료 내용 공유하기/);
+  assert.match(source, /const bookstoreDetails = complete\.map/);
+  assert.match(source, /news\.title/);
   assert.match(source, /← 뒤로가기/);
   assert.doesNotMatch(source, /password === "input"|password === "html"/);
-  assert.doesNotMatch(source, /월별 현황 메시지 복사|completion-modal|재게시를 알려주세요|setCompletion/);
+  assert.doesNotMatch(source, /장의 사진 업로드|월별 현황 메시지 복사|completion-modal|재게시를 알려주세요|setCompletion/);
 });

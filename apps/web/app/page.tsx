@@ -327,8 +327,12 @@ export default function Home() {
   const completionShareMessage = () => {
     const complete = monthSubmissions.filter((item) => item.status === "completed");
     const newsCount = complete.reduce((sum, item) => sum + item.news.length, 0);
-    const imageCount = complete.reduce((sum, item) => sum + item.news.reduce((images, news) => images + news.images.length, 0), 0);
-    return `📚 ${formatMonth(month)} 동네책방 소식 입력을 완료했습니다!\n\n총 ${complete.length}개 책방, ${newsCount}가지 소식, ${imageCount}장의 사진 업로드가 완료되었습니다. 🎉\n\nHTML 작업을 진행해 주세요. 😊`;
+    const bookstoreDetails = complete.map((submission) => {
+      const bookstore = bookstores.find((item) => item.id === submission.bookstoreId);
+      const newsTitles = submission.news.map((news) => `  - ${news.title}`).join("\n");
+      return `• ${bookstore?.name || "등록된 책방"}\n${newsTitles}`;
+    }).join("\n\n");
+    return `📚 ${formatMonth(month)} 동네책방 소식 입력을 완료했습니다!\n\n총 ${complete.length}개 책방, ${newsCount}가지 소식이 업로드되었습니다. 🎉\n\n${bookstoreDetails}\n\nHTML 작업을 진행해 주세요. 😊`;
   };
 
   const copyText = async (text: string) => { await navigator.clipboard.writeText(text); notify("메시지를 복사했습니다."); };
