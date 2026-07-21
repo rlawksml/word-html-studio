@@ -1,0 +1,12 @@
+/* modals */
+.access-modal>span,.leave-modal>span { color:#b9bdb9; font-size:10px; letter-spacing:.18em; }
+.modal-backdrop { position:fixed; inset:0; z-index:100; display:grid; place-items:center; padding:20px; background:rgba(20,20,20,.52); }
+.access-modal,.leave-modal { width:min(440px,100%); background:white; padding:34px; position:relative; box-shadow:0 20px 70px rgba(0,0,0,.2); }
+.modal-close { position:absolute; right:16px; top:14px; border:0; background:transparent; font-size:24px; color:#777; }
+.access-modal h2,.leave-modal h2 { margin:8px 0 10px; font-size:26px; font-weight:500; }
+.access-modal p,.leave-modal p { margin:0 0 22px; color:#777; font-size:12px; line-height:1.7; }
+.access-modal>.primary-button { width:100%; margin-top:10px; }
+.access-modal>small { display:block; margin-top:16px; color:#999; font-size:9px; text-align:center; }
+.leave-modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:22px; }
+.leave-modal-actions button { min-width:128px; }
+.toast { position:fixed; right:24px; bottom:24px; z-index:130; background:#242824; color:white; padding:13px 17px; font-size:11px; box-shadow:0 8px 28px rgba(0,0,0,.2); }
