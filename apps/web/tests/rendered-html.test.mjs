@@ -49,9 +49,12 @@ test("ships accessible discovery controls and compact public cards", async () =>
   assert.doesNotMatch(html, /public-news|public-status|앨리스 먼로의/);
 });
 
-test("uses the configured prototype worker passcodes", async () => {
+test("uses the configured passcodes and consolidated completion sharing", async () => {
   const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
-  assert.match(source, /accessRole === "input" \? password === "지관서가"/);
-  assert.match(source, /accessRole === "html" \? password === "지관서가2"/);
+  assert.match(source, /accessRole === "input" \? password === "wlrhkstjrk"/);
+  assert.match(source, /accessRole === "html" \? password === "wlrhkstjrk2"/);
+  assert.match(source, /완료 내용 공유하기/);
+  assert.match(source, /← 뒤로가기/);
   assert.doesNotMatch(source, /password === "input"|password === "html"/);
+  assert.doesNotMatch(source, /월별 현황 메시지 복사|completion-modal|재게시를 알려주세요|setCompletion/);
 });
