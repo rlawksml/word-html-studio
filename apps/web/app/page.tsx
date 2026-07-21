@@ -89,6 +89,7 @@ const seedSubmissions: Submission[] = [
   },
 ];
 
+const INITIAL_MONTH = "2026-07";
 const nowIso = () => new Date().toISOString();
 const formatMonth = (month: string) => { const [year, value] = month.split("-"); return `${year}년 ${Number(value)}월`; };
 const formatDate = (value: string) => value ? new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric" }).format(new Date(`${value}T00:00:00`)) : "";
@@ -139,7 +140,7 @@ function digestHtml(submissions: Submission[], bookstores: Bookstore[]) {
     const items = submission.news.filter((news) => news.includeInDigest).map((news) => `<li style="margin:9px 0"><strong>${escapeHtml(news.title)}</strong>${news.description ? ` — ${escapeHtml(news.description.slice(0, 80))}${news.description.length > 80 ? "…" : ""}` : ""}</li>`).join("");
     return items ? `<section style="margin:0 0 30px"><h2 style="margin:0 0 10px;font-size:1.35em">${escapeHtml(bookstore.name)} <span style="font-size:.7em;color:#777">(${escapeHtml(bookstore.region)})</span></h2><ul style="margin:0;padding-left:22px">${items}</ul></section>` : "";
   }).join("\n");
-  const month = included[0]?.month || "2026-07";
+  const month = included[0]?.month || INITIAL_MONTH;
   return `<div style="max-width:900px;margin:0 auto;background:#fff;padding:32px;font-family:'Apple SD Gothic Neo',Arial,sans-serif;line-height:1.7;color:#222"><h1 style="text-align:center;font-size:1.9em;margin:0 0 36px">지관서가 전해주는 동네 책방 ${formatMonth(month)} 소식</h1>${blocks || "<p>포함된 소식이 없습니다.</p>"}</div>`;
 }
 
@@ -163,7 +164,7 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const [bookstores, setBookstores] = useState<Bookstore[]>(seedBookstores);
   const [submissions, setSubmissions] = useState<Submission[]>(seedSubmissions);
-  const [month, setMonth] = useState("2026-07");
+  const [month, setMonth] = useState(INITIAL_MONTH);
   const [selectedBookstoreId, setSelectedBookstoreId] = useState<number | null>(null);
   const [inputView, setInputView] = useState<"list" | "edit" | "bookstores">("list");
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<number>(1);
@@ -239,11 +240,22 @@ export default function Home() {
     setPassword("");
   };
 
-  const logout = () => {
+  const resetVisitorPage = () => {
+    setMonth(INITIAL_MONTH);
+    setSelectedDay("");
+    setSearch("");
+    setDebouncedSearch("");
+    setSortMode("soon");
+  };
+
+  const returnToVisitor = () => {
     window.sessionStorage.removeItem("bookstore-news-role");
+    resetVisitorPage();
     setRole("visitor");
     setInputView("list");
+    setSelectedBookstoreId(null);
     setAccessRole(null);
+    setPassword("");
   };
 
   const ensureSubmission = (bookstoreId: number) => {
@@ -392,8 +404,8 @@ export default function Home() {
   return (
     <main className={`app-shell role-${role}`}>
       <header className="topbar">
-        <button className="brand" onClick={() => { if (role === "input") setInputView("list"); }} aria-label="동네책방 소식 홈"><span className="brand-mark">止</span><span><strong>止觀書架</strong><small>동네책방 소식</small></span></button>
-        {role === "visitor" ? <div className="staff-actions"><button className="staff-access" onClick={() => { setAccessRole("input"); setPassword(""); }}>소식 입력</button><button className="staff-access" onClick={() => { setAccessRole("html"); setPassword(""); }}>HTML 편집</button></div> : <div className="worker-nav"><span>{role === "input" ? "책방 정보 입력" : "HTML 편집"}</span><button onClick={logout}>로그아웃</button></div>}
+        <button className="brand" onClick={returnToVisitor} aria-label="동네책방 소식 홈"><span className="brand-mark">止</span><span><strong>止觀書架</strong><small>동네책방 소식</small></span></button>
+        {role === "visitor" ? <div className="staff-actions"><button className="staff-access" onClick={() => { setAccessRole("input"); setPassword(""); }}>소식 입력</button><button className="staff-access" onClick={() => { setAccessRole("html"); setPassword(""); }}>HTML 편집</button></div> : <div className="worker-nav"><span>{role === "input" ? "책방 정보 입력" : "HTML 편집"}</span><button onClick={returnToVisitor}>로그아웃</button></div>}
       </header>
 
       {role === "visitor" && <section className="visitor-page">
