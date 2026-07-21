@@ -7,7 +7,6 @@ import { ChangeEvent, DragEvent, useEffect, useMemo, useState } from "react";
 
 type Role = "visitor" | "input" | "html";
 type WorkStatus = "draft" | "completed";
-type SortMode = "soon" | "recent" | "name" | "count";
 
 type Bookstore = {
   id: number;
@@ -172,7 +171,6 @@ export default function Home() {
   const [previewMode, setPreviewMode] = useState<"preview" | "code">("preview");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [sortMode, setSortMode] = useState<SortMode>("soon");
   const [selectedDay, setSelectedDay] = useState<string>("");
   const [toast, setToast] = useState("");
   const [saveState, setSaveState] = useState("모든 내용이 저장되었습니다");
@@ -223,9 +221,6 @@ export default function Home() {
     const haystack = `${bookstore.name} ${bookstore.region} ${submission.news.map((news) => `${news.title} ${news.description} ${news.place}`).join(" ")}`.toLowerCase();
     return haystack.includes(debouncedSearch.toLowerCase());
   }).sort((a, b) => {
-    if (sortMode === "name") return a.bookstore.name.localeCompare(b.bookstore.name, "ko");
-    if (sortMode === "count") return b.submission.news.length - a.submission.news.length;
-    if (sortMode === "recent") return new Date(b.submission.updatedAt).getTime() - new Date(a.submission.updatedAt).getTime();
     const aDate = a.submission.news.flatMap((news) => news.dates).sort()[0] || "9999-12-31";
     const bDate = b.submission.news.flatMap((news) => news.dates).sort()[0] || "9999-12-31";
     return aDate.localeCompare(bDate);
@@ -245,7 +240,6 @@ export default function Home() {
     setSelectedDay("");
     setSearch("");
     setDebouncedSearch("");
-    setSortMode("soon");
   };
 
   const returnToVisitor = () => {
@@ -409,7 +403,7 @@ export default function Home() {
       </header>
 
       {role === "visitor" && <section className="visitor-page">
-        <div className="visitor-hero"><span>JIGWANSEOGA LOCAL BOOKS</span><h1>{formatMonth(month)}<br />동네책방 소식</h1><div className="visitor-kpis"><strong>{publicEntries.length}<small>책방</small></strong><strong>{publicEntries.reduce((sum, item) => sum + item.submission.news.length, 0)}<small>소식</small></strong></div></div>
+        <div className="visitor-hero"><span>JIGWANSEOGA LOCAL BOOKS</span><h1>{formatMonth(month)}<br />동네책방 소식</h1><a className="visitor-cta" href="https://jigwanseoga.org/133" target="_blank" rel="noreferrer">지관서가 동네책방 바로가기 ↗</a><div className="visitor-kpis"><strong>{publicEntries.length}<small>책방</small></strong><strong>{publicEntries.reduce((sum, item) => sum + item.submission.news.length, 0)}<small>소식</small></strong></div></div>
         <div className="visitor-content">
           <section className="mobile-calendar">
             <div className="calendar-head"><button type="button" aria-label="이전 달" onClick={() => { setMonth(shiftMonth(month, -1)); setSelectedDay(""); }}>← 이전 달</button><h2 aria-live="polite">{formatMonth(month)}</h2><button type="button" aria-label="다음 달" onClick={() => { setMonth(shiftMonth(month, 1)); setSelectedDay(""); }}>다음 달 →</button></div>
@@ -426,7 +420,7 @@ export default function Home() {
             })}</div>
             <div className="calendar-legend" aria-label="책방 색상 안내">{publicEntries.map(({ bookstore }) => <span key={bookstore.id}><i style={{ backgroundColor: bookstoreColor(bookstore.id) }} />{bookstore.name}</span>)}</div>
           </section>
-          <div className="discovery-tools"><label><span className="sr-only">책방이나 소식 검색</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="책방이나 소식을 검색해 보세요" /></label><select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)} aria-label="소식 정렬"><option value="soon">가까운 일정순</option><option value="recent">최근 수정순</option><option value="name">책방 이름순</option><option value="count">소식 많은순</option></select></div>
+          <div className="discovery-tools"><label><span className="sr-only">책방이나 소식 검색</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="책방이나 소식을 검색해 보세요" /></label></div>
           <div className="public-heading"><div><span>{selectedDay ? formatDate(selectedDay) : "이번 달"}</span><h2>{selectedDay ? "선택한 날짜의 소식" : "책방별 소식"}</h2></div><small>{filteredEntries.length}개 책방</small></div>
           <div className="public-feed">{filteredEntries.map(({ bookstore, submission }) => {
             const newsItems = selectedDay ? submission.news.filter((news) => news.dates.includes(selectedDay)) : submission.news;

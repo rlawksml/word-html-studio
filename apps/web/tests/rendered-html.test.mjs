@@ -42,8 +42,9 @@ test("ships accessible discovery controls and compact public cards", async () =>
   assert.match(html, /<title>지관서가 동네책방 소식/);
   assert.match(html, /책방이나 소식 검색/);
   assert.match(html, /aria-pressed="false"/);
-  assert.match(html, /aria-label="소식 정렬"/);
-  assert.match(html, /가까운 일정순/);
+  assert.match(html, /href="https:\/\/jigwanseoga\.org\/133"/);
+  assert.match(html, /지관서가 동네책방 바로가기/);
+  assert.doesNotMatch(html, /aria-label="소식 정렬"|가까운 일정순|최근 수정순|책방 이름순|소식 많은순/);
   assert.match(html, /public-event-list/);
   assert.match(html, /상반기 문학 독서모임 마무리/);
   assert.doesNotMatch(html, /public-news|public-status|앨리스 먼로의/);
@@ -60,6 +61,7 @@ test("uses the configured passcodes and consolidated completion sharing", async 
   assert.match(source, /setMonth\(INITIAL_MONTH\)/);
   assert.match(source, /setSelectedDay\(""\)/);
   assert.match(source, /setSearch\(""\)/);
+  assert.doesNotMatch(source, /SortMode|sortMode|setSortMode/);
   assert.doesNotMatch(source, /flatMap\(\(news\) => news\.dates\)\.length/);
   assert.match(source, /onClick=\{returnToVisitor\} aria-label="동네책방 소식 홈"/);
   assert.match(source, /<button onClick=\{returnToVisitor\}>로그아웃<\/button>/);
