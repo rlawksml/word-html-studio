@@ -54,6 +54,8 @@
   .editor-page-head { grid-template-columns:1fr auto; }
   .editor-page-head>.back-button { grid-column:1/-1; justify-self:start; }
   .editor-page-head>div { min-width:0; }
+  .editor-head-actions { grid-column:1/-1; width:100%; }
+  .editor-head-actions button { flex:1; }
   .monthly-notice-card { grid-template-columns:1fr; gap:12px; padding:18px 14px; }
   .news-editor-card { padding:18px 14px; }
   .news-editor-head { align-items:flex-start; }
@@ -68,6 +70,10 @@
   .finish-bar { bottom:8px; align-items:flex-start; flex-direction:column; }
   .finish-bar>div:last-child { width:100%; }
   .finish-bar button { flex:1; }
+  .submission-preview-backdrop { align-items:end; padding:0; }
+  .submission-preview-dialog { width:100%; height:92vh; border-radius:16px 16px 0 0; }
+  .submission-preview-dialog>header { padding:14px; }
+  .submission-preview-dialog>header p { display:none; }
   .html-workspace { display:block; }
   .html-sidebar { position:static; height:auto; padding:18px 14px; }
   .html-sidebar>div>span,.html-sidebar>div>h1 { display:none; }

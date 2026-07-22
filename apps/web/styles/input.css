@@ -53,6 +53,7 @@
 .editor-page-head>div>span { color:#888; font-size:10px; }
 .editor-page-head h1 { margin:6px 0; font-size:30px; font-weight:500; }
 .editor-page-head p { margin:0; color:#999; font-size:10px; }
+.editor-head-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:7px; }
 .bookstore-management .back-button { font-size:14px; }
 .secondary-button:disabled { cursor:not-allowed; opacity:.45; }
 .news-editor-card { background:white; border:1px solid #ddd; margin-bottom:16px; padding:26px; }
@@ -109,6 +110,16 @@
 .finish-bar strong,.finish-bar small { display:block; }
 .finish-bar small { margin-top:4px; color:#aaa; font-size:9px; }
 .finish-bar>div:last-child { display:flex; gap:8px; }
+
+/* 입력 완료 전에도 현재 작성값을 실제 개별 HTML 모양으로 확인할 수 있습니다. */
+.submission-preview-backdrop { position:fixed; inset:0; z-index:120; display:grid; place-items:center; padding:28px; background:rgba(20,23,21,.72); }
+.submission-preview-dialog { display:flex; flex-direction:column; width:min(1100px,100%); height:min(860px,92vh); overflow:hidden; border:1px solid #ccc; background:#f4f4f2; box-shadow:0 24px 80px rgba(0,0,0,.3); }
+.submission-preview-dialog>header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:16px 20px; border-bottom:1px solid #d9d9d4; background:white; }
+.submission-preview-dialog>header span { color:#999; font-size:9px; letter-spacing:.12em; }
+.submission-preview-dialog>header h2 { margin:4px 0; font-size:19px; font-weight:600; }
+.submission-preview-dialog>header p { margin:0; color:#888; font-size:10px; }
+.submission-preview-dialog>header button { min-width:70px; min-height:38px; border:1px solid #bbb; background:white; color:#333; }
+.submission-preview-dialog iframe { width:100%; flex:1; border:0; background:#eee; }
 
 /* bookstore management */
 .management-grid { display:grid; grid-template-columns:330px 1fr; gap:18px; align-items:start; }

@@ -13,6 +13,7 @@ const applicationSourceFiles = [
   "../components/molecules/NewsCalendar.tsx",
   "../components/molecules/NewsEditorCard.tsx",
   "../components/molecules/PublicNewsDetail.tsx",
+  "../components/molecules/SubmissionPreviewDialog.tsx",
   "../components/molecules/StudioFeedback.tsx",
   "../components/organisms/BookstoreManagement.tsx",
   "../components/organisms/HtmlWorkspace.tsx",
@@ -147,6 +148,15 @@ test("guides input work and focuses the first missing required field", async () 
   assert.doesNotMatch(source, /className="month-toolbar"/);
 });
 
+test("lets input workers preview the current draft before completion", async () => {
+  const source = await readApplicationSource();
+  assert.match(source, /작성 내용 미리보기/);
+  assert.match(source, /SubmissionPreviewDialog/);
+  assert.match(source, /generatedHtml\(submission, bookstore, true\)/);
+  assert.match(source, /aria-modal="true"/);
+  assert.match(source, /작성 중인 내용/);
+});
+
 test("uses Supabase with private originals and public mobile previews", async () => {
   const [pageSource, workspaceRoute, imageRoute, migration] = await Promise.all([
     readApplicationSource(),
@@ -159,6 +169,8 @@ test("uses Supabase with private originals and public mobile previews", async ()
   assert.match(pageSource, /fetch\("\/api\/workspace"/);
   assert.match(pageSource, /fetch\("\/api\/images"/);
   assert.match(pageSource, /createImagePreview/);
+  assert.match(pageSource, /reserveImageUpload/);
+  assert.match(pageSource, /uploadFileToSignedUrl/);
   assert.match(pageSource, /item\.originalUrl \|\| item\.url/);
   assert.doesNotMatch(pageSource, /localStorage|seedBookstores|seedSubmissions|readAsDataURL/);
   assert.match(workspaceRoute, /replace_bookstore_news_workspace/);
@@ -168,7 +180,10 @@ test("uses Supabase with private originals and public mobile previews", async ()
   assert.match(imageRoute, /previews\//);
   assert.match(imageRoute, /ORIGINAL_IMAGE_BUCKET/);
   assert.match(imageRoute, /PREVIEW_IMAGE_BUCKET/);
-  assert.match(imageRoute, /cacheControl: "300"/);
+  assert.match(imageRoute, /createSignedUploadUrl\(originalPath\)/);
+  assert.match(imageRoute, /createSignedUploadUrl\(previewPath\)/);
+  assert.doesNotMatch(imageRoute, /request\.formData\(\)/);
+  assert.match(pageSource, /uploadFileToSignedUrl\(reservation\.uploads\.originalUrl, file, "300"\)/);
   assert.match(imageRoute, /원본 사진 다운로드 권한/);
   assert.match(imageRoute, /원본 사진을 찾지 못했습니다/);
   assert.match(migration, /alter table public\.bookstores/);
