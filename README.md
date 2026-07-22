@@ -33,6 +33,8 @@
 
 자동 저장은 Workspace 전체를 교체하지 않습니다. `/api/bookstores`와 `/api/submissions`가 레코드 하나씩 저장하며, 서버가 반환한 `updated_at`과 현재 값을 비교합니다. 다른 브라우저가 먼저 저장했다면 `409 Conflict`로 중단하고 사용자가 최신 내용을 다시 불러오게 하므로 조용한 덮어쓰기가 발생하지 않습니다.
 
+같은 책방·같은 월을 두 사람이 열면 짧은 편집 임대로 동시 작업 안내를 표시합니다. HTML 편집자의 개별 소식과 월 통합본도 같은 방식으로 확인합니다. 1분마다 상태를 갱신하고 3분 동안 갱신이 없으면 자동으로 다음 작업자가 인계하므로 WebSocket, 별도 계정, 정기 청소 작업이 필요하지 않습니다. 안내는 편집을 막지 않으며 실제 덮어쓰기는 `updated_at` 충돌 검사가 계속 방지합니다.
+
 Database와 Storage 요청은 서버 API를 통해 처리합니다. `SUPABASE_SECRET_KEY`는 브라우저나 GitHub에 노출하지 않고 로컬·배포 환경변수에만 저장합니다. 초기 연결 방법은 [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)를 따릅니다.
 
 향후 Cloudflare 중심 구조가 더 적합해지면 Database를 D1으로, Storage를 R2로 이전할 수 있습니다. 이를 위해 화면에서 Supabase를 직접 호출하는 코드를 분산시키지 않고 데이터·사진 저장 모듈을 분리하며, DB에는 영구 공개 URL 대신 이식 가능한 사진 경로를 저장합니다. 월별 데이터와 사진 백업도 유지해 특정 서비스에 종속되지 않도록 설계합니다.
@@ -59,7 +61,7 @@ page.tsx
     → 역할별 Workspace 컴포넌트
       → useStudioController
         → workspace-client
-          → /api/session, /api/workspace, /api/bookstores, /api/submissions, /api/images
+          → /api/session, /api/workspace, /api/bookstores, /api/submissions, /api/images, /api/presence
             → workspace-session, supabase-server
               → Supabase Database / Storage
 ```
@@ -80,6 +82,7 @@ page.tsx
 | 책방·월별 소식 저장 | `app/api/bookstores/route.ts`, `app/api/submissions/route.ts` |
 | 사진 업로드·삭제·원본 다운로드 | `app/api/images/route.ts` |
 | 작업 암호와 탭 세션 | `app/api/session/route.ts`, `lib/workspace-session.ts` |
+| 동시 편집 안내 | `hooks/use-editing-presence.ts`, `app/api/presence/route.ts`, `styles/presence.css` |
 | 화면 스타일 | `styles/foundations.css`와 역할별 CSS 파일 |
 
 코드 주석은 문법이나 JSX 내용을 그대로 번역하지 않고, 파일의 책임과 보안·저장·상태 전환의 이유를 설명합니다. 기능을 옮기거나 경계를 변경할 때 관련 주석과 위 표도 함께 수정합니다.
@@ -107,7 +110,7 @@ npm run test:integration:local
 
 ## 배포
 
-현재 프로젝트는 vinext 기반 Cloudflare Worker 출력과 기존 Sites 배포 설정을 사용합니다. 따라서 Vercel 배포는 필수가 아닙니다. 향후 독립 운영 도메인이나 Vercel의 관리 기능이 필요할 때 별도 배포 대상으로 검토할 수 있지만, 한 저장소에서 두 배포 환경을 동시에 운영하면 환경변수와 장애 확인 지점이 늘어나므로 운영 초기에는 한 플랫폼만 사용하는 편이 안전합니다.
+현재 프로젝트는 vinext가 Next.js 코드를 Cloudflare Worker에서 실행할 수 있는 형태로 만들고, Sites가 그 결과를 Cloudflare 환경에 배포합니다. 즉 Vercel은 Next.js를 올릴 수 있는 여러 배포 서비스 중 하나일 뿐 필수 구성요소가 아닙니다. 화면과 API 실행은 Sites/Cloudflare가, 책방 데이터와 사진 보관은 Supabase가 담당합니다. 향후 독립 운영 도메인이나 Vercel의 관리 기능이 필요할 때 별도 배포 대상으로 검토할 수 있지만, 한 저장소에서 두 배포 환경을 동시에 운영하면 환경변수·배포 주소·장애 확인 지점이 두 벌이 되므로 운영 초기에는 한 플랫폼만 사용하는 편이 안전합니다.
 
 ## 문서
 

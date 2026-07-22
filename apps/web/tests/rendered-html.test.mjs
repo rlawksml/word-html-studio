@@ -7,6 +7,7 @@ const applicationSourceFiles = [
   "../hooks/use-body-scroll-lock.ts",
   "../hooks/use-workspace-initialization.ts",
   "../hooks/use-workspace-persistence.ts",
+  "../hooks/use-editing-presence.ts",
   "../lib/html-generators.ts",
   "../lib/workspace-client.ts",
   "../lib/workspace-formatters.ts",
@@ -16,6 +17,7 @@ const applicationSourceFiles = [
   "../components/molecules/AppHeader.tsx",
   "../components/molecules/NewsCalendar.tsx",
   "../components/molecules/NewsEditorCard.tsx",
+  "../components/molecules/EditingPresenceNotice.tsx",
   "../components/molecules/PublicNewsDetail.tsx",
   "../components/molecules/SubmissionPreviewDialog.tsx",
   "../components/molecules/StudioFeedback.tsx",
@@ -152,6 +154,26 @@ test("keeps passcodes in server environment variables and uses a tab-scoped work
   assert.doesNotMatch(source, /장의 사진 업로드|월별 현황 메시지 복사|completion-modal|재게시를 알려주세요|setCompletion/);
 });
 
+test("warns about active editors with a short database lease", async () => {
+  const [source, presenceRoute, migration, globalStyles] = await Promise.all([
+    readApplicationSource(),
+    readFile(new URL("../app/api/presence/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202607220002_editing_leases.sql", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(source, /useEditingPresence/);
+  assert.match(source, /const HEARTBEAT_MS = 60_000/);
+  assert.match(source, /다른 .*가 이 내용을 편집 중입니다/);
+  assert.match(source, /저장 충돌이 발생할 수 있습니다/);
+  assert.match(presenceRoute, /const LEASE_SECONDS = 180/);
+  assert.match(presenceRoute, /acquire_editing_lease/);
+  assert.match(presenceRoute, /workspaceSessionFingerprint/);
+  assert.match(migration, /create table if not exists public\.editing_leases/);
+  assert.match(migration, /on conflict \(resource_key\) do update/);
+  assert.match(migration, /editing_leases\.expires_at <= now\(\)/);
+  assert.match(globalStyles, /styles\/presence\.css/);
+});
+
 test("supports Word-like optional fields, detail views, and photo ordering", async () => {
   const source = await readApplicationSource();
   assert.match(source, /이번 달 운영 안내/);
@@ -274,5 +296,6 @@ test("keeps the route and global stylesheet as thin Atomic Design composition po
   assert.match(globalStyles, /styles\/visitor\.css/);
   assert.match(globalStyles, /styles\/input\.css/);
   assert.match(globalStyles, /styles\/html-editor\.css/);
+  assert.match(globalStyles, /styles\/presence\.css/);
   assert.doesNotMatch(globalStyles, /\.visitor-page|\.input-area|\.html-workspace/);
 });

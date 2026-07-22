@@ -9,9 +9,12 @@
 ```text
 apps/web/supabase/migrations/202607210001_initial_workspace.sql
 apps/web/supabase/migrations/202607220001_secure_media_and_flexible_fields.sql
+apps/web/supabase/migrations/202607220002_editing_leases.sql
 ```
 
-첫 번째 마이그레이션을 이미 적용했다면 두 번째 파일만 추가로 실행합니다. 두 번째 마이그레이션은 다음을 수행합니다.
+기존 두 파일을 적용한 운영 프로젝트에는 세 번째 파일만 추가로 실행합니다. 세 번째 마이그레이션은 같은 책방·월 또는 통합본을 열어둔 다른 작업자가 있는지 확인하는 3분 편집 임대를 추가합니다. 원본 세션 ID는 저장하지 않으며, 만료된 행은 다음 작업자가 덮어쓰므로 별도 청소 작업이 필요하지 않습니다.
+
+두 번째 마이그레이션은 다음을 수행합니다.
 
 - 책방의 추가 연락처·여러 링크 필드 추가
 - 월별 운영 안내 필드 추가
@@ -45,7 +48,8 @@ HTML_ACCESS_CODES=편집자-암호,편집자-암호의-다른-자판값
 5. 다른 탭에서는 작업 화면이 자동으로 열리지 않는지 확인합니다.
 6. 방문자 상세에는 축소 미리보기만 표시되는지 확인합니다.
 7. HTML 편집자만 원본 사진 ZIP을 받을 수 있는지 확인합니다.
-8. Supabase Storage에서 원본 버킷이 `Private`, 미리보기 버킷이 `Public`인지 확인합니다.
+8. 다른 브라우저에서 같은 책방·월을 열었을 때 동시 작업 안내가 표시되는지 확인합니다.
+9. Supabase Storage에서 원본 버킷이 `Private`, 미리보기 버킷이 `Public`인지 확인합니다.
 
 공개 미리보기는 모바일 속도를 위해 CDN에 최대 5분 캐시됩니다. 사진 삭제는 변경된 소식이 Database에 저장된 뒤 Storage에서 처리됩니다. 이렇게 하면 Database 저장이 실패했을 때 기존 게시물의 사진이 먼저 사라지는 문제를 피할 수 있습니다. 이미 열린 공개 URL은 캐시가 만료될 때까지 잠시 보일 수 있습니다.
 
@@ -59,7 +63,7 @@ npm run build
 npm run test:integration:local
 ```
 
-테스트는 책방·소식 생성, 정상 수정, 오래된 `updated_at` 요청의 `409 Conflict`, 원본·미리보기 직접 업로드와 일괄 삭제를 확인합니다. 실제 운영 책방과 구분되는 먼 미래 월과 임시 ID를 사용하며 `finally` 단계에서 Database와 Storage를 정리합니다.
+테스트는 두 작업 세션의 편집 임대·인계, 책방·소식 생성, 정상 수정, 오래된 `updated_at` 요청의 `409 Conflict`, 원본·미리보기 직접 업로드와 일괄 삭제를 확인합니다. 실제 운영 책방과 구분되는 먼 미래 월과 임시 ID를 사용하며 `finally` 단계에서 Database와 Storage를 정리합니다.
 
 GitHub 저장소의 Actions Secret에 `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `INPUT_ACCESS_CODES`, `WORKSPACE_SESSION_SECRET`을 등록하면 `CI` 워크플로를 수동 실행해 같은 검증을 수행할 수 있습니다. Pull Request에서는 외부 Secret 없이 lint·build·회귀 테스트만 실행합니다.
 
@@ -74,4 +78,4 @@ GitHub 저장소의 Actions Secret에 `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `IN
 
 ## Cloudflare 이전 대비
 
-화면은 Supabase를 직접 호출하지 않고 `/api/workspace`, `/api/images`, `/api/session`만 사용합니다. 향후 Cloudflare로 이전할 때 Database 모듈을 D1으로, 두 Storage 버킷을 R2의 private/public 전달 방식으로 교체하고 객체 경로를 그대로 복사합니다.
+화면은 Supabase를 직접 호출하지 않고 `/api/workspace`, `/api/images`, `/api/session`, `/api/presence`만 사용합니다. 향후 Cloudflare로 이전할 때 Database 모듈을 D1으로, 두 Storage 버킷을 R2의 private/public 전달 방식으로 교체하고 객체 경로를 그대로 복사합니다.

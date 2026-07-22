@@ -1,4 +1,4 @@
-import type { Bookstore, NewsImage, Submission, Workspace } from "@/lib/workspace-types";
+import type { Bookstore, EditingPresenceTarget, NewsImage, Submission, Workspace } from "@/lib/workspace-types";
 
 export const MAX_ORIGINAL_IMAGE_BYTES = 20 * 1024 * 1024;
 
@@ -77,6 +77,27 @@ export async function persistSubmission(submission: Submission) {
     body: JSON.stringify({ submission }),
   });
   return recordResponse<Submission>(response, "submission", "소식을 저장하지 못했습니다.");
+}
+
+export async function heartbeatEditingPresence(target: EditingPresenceTarget) {
+  const response = await fetch("/api/presence", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...workspaceSessionHeaders() },
+    body: JSON.stringify(target),
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(await responseMessage(response, "편집 상태를 확인하지 못했습니다."));
+  return response.json() as Promise<{ owned: boolean; activeRole: "input" | "html"; expiresAt: string }>;
+}
+
+export function releaseEditingPresence(target: EditingPresenceTarget) {
+  const sessionId = window.sessionStorage.getItem("bookstore-news-session-id") || "";
+  return fetch("/api/presence", {
+    method: "DELETE",
+    headers: { "content-type": "application/json", ...workspaceSessionHeaders() },
+    body: JSON.stringify({ ...target, sessionId }),
+    keepalive: true,
+  });
 }
 
 export async function reserveImageUpload(file: File, preview: File, month: string, bookstoreId: number, newsId: number) {

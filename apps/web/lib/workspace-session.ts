@@ -44,6 +44,12 @@ export async function createWorkerSession(role: WorkerRole, sessionId: string) {
   return `${payload}.${await sign(payload)}`;
 }
 
+// 임대 테이블에는 브라우저의 원본 sessionId 대신 단방향 해시만 저장합니다.
+export async function workspaceSessionFingerprint(sessionId: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(sessionId));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 export async function readWorkerSession(request: NextRequest, providedSessionId = request.headers.get("x-workspace-session-id") || ""): Promise<WorkerRole | null> {
   // 서명된 HttpOnly 쿠키와 탭 sessionId가 모두 일치해야 작업자 권한을 반환합니다.
   try {

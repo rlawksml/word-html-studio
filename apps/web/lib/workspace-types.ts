@@ -78,3 +78,14 @@ export type Workspace = {
   bookstores: Bookstore[];
   submissions: Submission[];
 };
+
+export type EditingPresenceTarget = {
+  scope: "submission" | "digest";
+  month: string;
+  bookstoreId?: number;
+};
+
+export type EditingPresence = {
+  status: "idle" | "checking" | "owned" | "occupied" | "unavailable";
+  activeRole: "input" | "html" | null;
+};
