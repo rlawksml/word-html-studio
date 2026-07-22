@@ -4,6 +4,7 @@ import JSZip from "jszip";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWorkspaceInitialization } from "@/hooks/use-workspace-initialization";
 import { useWorkspacePersistence } from "@/hooks/use-workspace-persistence";
+import { useEditingPresence } from "@/hooks/use-editing-presence";
 import { digestHtml, generatedHtml } from "@/lib/html-generators";
 import {
   BOOKSTORE_COLORS,
@@ -28,7 +29,7 @@ import {
   uploadFileToSignedUrl,
   urlToBlob,
 } from "@/lib/workspace-client";
-import type { Bookstore, NewsImage, NewsItem, Submission, Workspace, WorkStatus } from "@/lib/workspace-types";
+import type { Bookstore, EditingPresenceTarget, NewsImage, NewsItem, Submission, Workspace, WorkStatus } from "@/lib/workspace-types";
 
 /**
  * 세 역할이 공유하는 상태와 업무 명령을 한곳에서 조정하는 application controller입니다.
@@ -110,6 +111,7 @@ export function useStudioController(initialMonth: string) {
   const currentSubmission = submissions.find((item) => item.bookstoreId === selectedBookstoreId && item.month === month);
   const htmlReady = submissions.filter((item) => item.month === month && item.status === "completed");
   const selectedHtmlSubmission = htmlReady.find((item) => item.id === selectedSubmissionId) || htmlReady[0];
+  const selectedHtmlBookstoreId = selectedHtmlSubmission?.bookstoreId || null;
   const selectedHtmlBookstore = bookstores.find((item) => item.id === selectedHtmlSubmission?.bookstoreId);
   const generatedCode = selectedHtmlSubmission && selectedHtmlBookstore ? generatedHtml(selectedHtmlSubmission, selectedHtmlBookstore, false) : "";
   const generatedPreview = selectedHtmlSubmission && selectedHtmlBookstore ? generatedHtml(selectedHtmlSubmission, selectedHtmlBookstore, true) : "";
@@ -134,6 +136,17 @@ export function useStudioController(initialMonth: string) {
     return submission && news && bookstore ? { submission, news, bookstore } : null;
   })() : null;
   const hasDraftInProgress = role === "input" && inputView === "edit" && currentSubmission?.status === "draft" && hasSubmissionContent(currentSubmission);
+  const presenceTarget = useMemo<EditingPresenceTarget | null>(() => {
+    if (role === "input" && inputView === "edit" && selectedBookstoreId) {
+      return { scope: "submission", month, bookstoreId: selectedBookstoreId };
+    }
+    if (role === "html" && htmlView === "digest") return { scope: "digest", month };
+    if (role === "html" && htmlView === "individual" && selectedHtmlBookstoreId) {
+      return { scope: "submission", month, bookstoreId: selectedHtmlBookstoreId };
+    }
+    return null;
+  }, [htmlView, inputView, month, role, selectedBookstoreId, selectedHtmlBookstoreId]);
+  const { editingPresence, releasePresence } = useEditingPresence({ enabled: hydrated, role, target: presenceTarget });
 
   // 작성 중 이탈은 브라우저 종료와 앱 내부 이동을 모두 가로채 임시 저장 기회를 줍니다.
   useEffect(() => {
@@ -200,6 +213,7 @@ export function useStudioController(initialMonth: string) {
   };
 
   const returnToVisitor = () => {
+    void releasePresence();
     void fetch("/api/session", { method: "DELETE" });
     window.sessionStorage.removeItem("bookstore-news-role");
     window.sessionStorage.removeItem("bookstore-news-session-id");
@@ -486,7 +500,7 @@ export function useStudioController(initialMonth: string) {
   return {
     role, accessRole, password, bookstores, submissions, month, selectedBookstoreId, inputView,
     selectedSubmissionId, htmlView, previewMode, search, selectedDay, toast, saveState,
-    draggedNewsId, draggedImageId, draggedDigestId, publicDetail, leaveTarget, storageError,
+    draggedNewsId, draggedImageId, draggedDigestId, publicDetail, leaveTarget, storageError, editingPresence,
     initialLoadState,
     currentSubmission, htmlReady, selectedHtmlSubmission, selectedHtmlBookstore, generatedCode,
     generatedPreview, combinedHtml, monthSubmissions, completedBookstoreCount, completionPercent,

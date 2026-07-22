@@ -35,6 +35,8 @@ Atomic Design은 파일 수를 늘리는 목표가 아닙니다. 독립적으로
 
 `hooks/use-workspace-persistence.ts`는 책방과 월별 소식의 변경을 감지해 1.2초 후 레코드 단위로 저장합니다. 요청을 한 줄로 직렬화하고 서버의 `updated_at`과 브라우저가 마지막으로 읽은 값을 비교합니다. 값이 달라진 요청은 `409 Conflict`로 멈추며 사용자가 최신 Workspace를 다시 불러오기 전에는 자동 저장을 반복하지 않습니다.
 
+`hooks/use-editing-presence.ts`는 입력자가 같은 책방·월을 열거나 HTML 편집자가 같은 개별 소식·통합본을 열었을 때 1분마다 짧은 편집 임대를 갱신합니다. 임대는 3분 뒤 자동 만료되고 DB에는 원본 세션 ID가 아닌 해시만 저장됩니다. 이 안내는 편집을 강제로 막지 않으며, 실제 저장 안전성은 기존 `updated_at` 충돌 검사가 담당합니다.
+
 화면 컴포넌트는 controller가 제공하는 값과 명령만 사용합니다. Supabase나 서버 세션의 구현 세부사항을 UI에 직접 넣지 않습니다.
 
 ## 도메인과 인프라 경계
@@ -44,6 +46,7 @@ components
   → hooks/use-studio-controller
     → hooks/use-workspace-initialization # 최초 세션·데이터 확인과 재시도
     → hooks/use-workspace-persistence    # 레코드 변경 감지·직렬 저장·충돌 처리
+    → hooks/use-editing-presence         # 실제 편집 대상의 짧은 임대·동시 작업 안내
     → lib/workspace-client       # 브라우저 ↔ Next.js API
     → lib/html-generators        # 개별·통합 inline CSS HTML
     → lib/workspace-formatters   # 팩토리·날짜·안전한 URL·상태 표시
@@ -55,6 +58,7 @@ Next.js API
   → app/api/bookstores/route     # 책방 하나 저장 + 낙관적 충돌 검사
   → app/api/submissions/route    # 월별 소식 하나 저장 + 역할별 필드 제한
   → app/api/images/route         # Storage 업로드·삭제·다운로드 경계
+  → app/api/presence/route       # 책방·월·통합본 편집 임대 갱신과 해제
     → lib/workspace-validation   # 요청 크기·필드·URL·Storage 경로 검증
     → lib/workspace-records      # Supabase 행 ↔ Workspace 변환
     → lib/workspace-session      # HttpOnly 쿠키 + 탭 sessionId 검증
@@ -84,6 +88,7 @@ Next.js API
 - UI는 `/api/workspace`, `/api/bookstores`, `/api/submissions`, `/api/images`, `/api/session`만 호출합니다.
 - 입력자와 HTML 편집자의 저장 권한을 필드 수준으로 나누고 `updated_at`이 일치할 때만 수정합니다.
 - 작업 암호의 반복 실패를 짧은 시간 동안 제한합니다.
+- 편집 임대는 세션 해시만 저장하고 3분 뒤 자동 만료되므로 별도 세션 청소 작업이 필요하지 않습니다.
 - 원본 사진은 비공개, 모바일 미리보기는 공개 버킷으로 분리합니다.
 - 사용자 입력 링크와 생성 HTML은 허용된 URL scheme만 사용합니다.
 - 공개 방문자는 데이터를 읽을 수 있지만 수정 API는 작업자 세션을 요구합니다.

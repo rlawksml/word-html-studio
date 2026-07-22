@@ -36,6 +36,7 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
   const submissionId = bookstoreId + 1;
   const newsId = bookstoreId + 2;
   const sessionId = crypto.randomUUID();
+  const secondSessionId = crypto.randomUUID();
   const code = process.env.INPUT_ACCESS_CODES.split(",")[0].trim();
   const admin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -52,8 +53,30 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
   const cookie = sessionResponse.headers.get("set-cookie")?.split(";")[0];
   assert.ok(cookie);
   const workerHeaders = { "content-type": "application/json", cookie, "x-workspace-session-id": sessionId };
+  const secondSessionResponse = await appFetch("/api/session", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ role: "input", code, sessionId: secondSessionId }),
+  });
+  assert.equal(secondSessionResponse.status, 200);
+  const secondCookie = secondSessionResponse.headers.get("set-cookie")?.split(";")[0];
+  assert.ok(secondCookie);
+  const secondWorkerHeaders = { "content-type": "application/json", cookie: secondCookie, "x-workspace-session-id": secondSessionId };
+  const presenceTarget = { scope: "submission", month: "2099-12", bookstoreId };
 
   try {
+    const firstLease = await appFetch("/api/presence", { method: "POST", headers: workerHeaders, body: JSON.stringify(presenceTarget) });
+    await assertStatus(firstLease, 200);
+    assert.equal((await firstLease.json()).owned, true);
+    const occupiedLease = await appFetch("/api/presence", { method: "POST", headers: secondWorkerHeaders, body: JSON.stringify(presenceTarget) });
+    await assertStatus(occupiedLease, 200);
+    assert.equal((await occupiedLease.json()).owned, false);
+    const releaseLease = await appFetch("/api/presence", { method: "DELETE", headers: workerHeaders, body: JSON.stringify(presenceTarget) });
+    await assertStatus(releaseLease, 204);
+    const handedOffLease = await appFetch("/api/presence", { method: "POST", headers: secondWorkerHeaders, body: JSON.stringify(presenceTarget) });
+    await assertStatus(handedOffLease, 200);
+    assert.equal((await handedOffLease.json()).owned, true);
+
     const bookstore = {
       id: bookstoreId, updatedAt: "", sortOrder: 9_999, name: `통합 테스트 책방 ${suffix}`, region: "테스트 지역",
       address: "", hours: "", phone: "", sns: "", website: "", introduction: "", contacts: [], links: [],
@@ -111,5 +134,6 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
     }
     await admin.from("submissions").delete().eq("id", submissionId);
     await admin.from("bookstores").delete().eq("id", bookstoreId);
+    await admin.from("editing_leases").delete().eq("resource_key", `submission:2099-12:${bookstoreId}`);
   }
 });
