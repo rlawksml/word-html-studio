@@ -18,8 +18,6 @@ export type InitialLoadState = {
   message: string;
 };
 
-class EmptyWorkspaceError extends Error {}
-
 function wait(milliseconds: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
 }
@@ -52,7 +50,6 @@ export function useWorkspaceInitialization(onReady: (workspace: Workspace, role:
 
     void (async () => {
       let delayed = false;
-      let lastFailureWasEmpty = false;
       let lastMessage = "동네 책방 소식을 불러오지 못했습니다.";
       const delayNoticeTimer = window.setTimeout(() => {
         if (runIdRef.current !== runId) return;
@@ -93,7 +90,6 @@ export function useWorkspaceInitialization(onReady: (workspace: Workspace, role:
           }
 
           const workspace = await loadWorkspace(workerSession, controller.signal);
-          if (workspace.bookstores.length === 0) throw new EmptyWorkspaceError("등록된 책방 정보가 없습니다.");
           if (runIdRef.current !== runId) return;
 
           window.clearTimeout(delayNoticeTimer);
@@ -102,10 +98,7 @@ export function useWorkspaceInitialization(onReady: (workspace: Workspace, role:
           return;
         } catch (error) {
           if (runIdRef.current !== runId) return;
-          lastFailureWasEmpty = error instanceof EmptyWorkspaceError;
-          if (lastFailureWasEmpty) {
-            lastMessage = "저장소에 등록된 책방 정보가 있는지 확인한 뒤 다시 시도해 주세요.";
-          } else if (isAbortError(error)) {
+          if (isAbortError(error)) {
             lastMessage = "연결 시간이 길어져 이번 확인을 마쳤습니다. 인터넷 연결을 확인해 주세요.";
           } else {
             lastMessage = error instanceof Error ? error.message : "동네 책방 소식을 불러오지 못했습니다.";
@@ -122,7 +115,7 @@ export function useWorkspaceInitialization(onReady: (workspace: Workspace, role:
       if (runIdRef.current !== runId) return;
       window.clearTimeout(delayNoticeTimer);
       setState({
-        phase: lastFailureWasEmpty ? "empty" : "error",
+        phase: "error",
         attempt: MAX_ATTEMPTS,
         maxAttempts: MAX_ATTEMPTS,
         message: lastMessage,

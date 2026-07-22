@@ -17,7 +17,7 @@ export function VisitorWorkspace({ studio }: { studio: StudioController }) {
           const newsItems = selectedDay ? submission.news.filter((news) => news.dates.includes(selectedDay)) : submission.news;
           if (!newsItems.length) return null;
           return <article className="public-card" key={submission.id} style={{ borderTopColor: bookstoreColor(bookstore.id) }}><h3>{bookstore.name}</h3><ul className="public-event-list">{newsItems.map((news) => <li key={news.id}><button type="button" onClick={() => setPublicDetail({ submissionId: submission.id, newsId: news.id })}>{news.title}<span aria-hidden="true">›</span></button></li>)}</ul></article>;
-        })}</div>
+        })}{publicEntries.length === 0 && <div className="empty-state"><h2>아직 등록된 동네책방 소식이 없습니다.</h2><p>소식 입력자가 첫 책방과 이번 달 이야기를 등록하면 이곳에 표시됩니다.</p></div>}{publicEntries.length > 0 && filteredEntries.length === 0 && <div className="empty-state"><h2>검색 결과가 없습니다.</h2><p>다른 책방 이름이나 소식 제목으로 찾아보세요.</p></div>}</div>
       </div>
     </section>
     {publicDetailData && <PublicNewsDetail {...publicDetailData} onClose={() => setPublicDetail(null)} />}

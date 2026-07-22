@@ -1,5 +1,5 @@
 import type { Bookstore, LabeledLink, Submission } from "@/lib/workspace-types";
-import { INITIAL_MONTH, escapeHtml, formatDate, formatMonth, safeFilename, safeHref } from "@/lib/workspace-formatters";
+import { escapeHtml, formatDate, formatMonth, safeFilename, safeHref } from "@/lib/workspace-formatters";
 
 /** 외부 HTML 편집기에 그대로 붙여넣을 수 있는 책방별 inline CSS HTML을 만듭니다. */
 export function generatedHtml(submission: Submission, bookstore: Bookstore, includePreviewImages = false) {
@@ -57,7 +57,7 @@ export function generatedHtml(submission: Submission, bookstore: Bookstore, incl
 }
 
 /** 완료된 Submission에서 선택된 소식 제목만 모아 월 통합본 HTML을 만듭니다. */
-export function digestHtml(submissions: Submission[], bookstores: Bookstore[]) {
+export function digestHtml(submissions: Submission[], bookstores: Bookstore[], fallbackMonth: string) {
   const included = submissions.filter((submission) => submission.status === "completed");
   const blocks = included.map((submission) => {
     const bookstore = bookstores.find((item) => item.id === submission.bookstoreId);
@@ -65,6 +65,6 @@ export function digestHtml(submissions: Submission[], bookstores: Bookstore[]) {
     const items = submission.news.filter((news) => news.includeInDigest).map((news) => `<li style="margin:9px 0">${escapeHtml(news.title)}</li>`).join("");
     return items ? `<section style="margin:0 0 30px"><h2 style="margin:0 0 10px;font-size:1.35em">${escapeHtml(bookstore.name)} <span style="font-size:.7em;color:#777">(${escapeHtml(bookstore.region)})</span></h2><ul style="margin:0;padding-left:22px">${items}</ul></section>` : "";
   }).join("\n");
-  const month = included[0]?.month || INITIAL_MONTH;
+  const month = included[0]?.month || fallbackMonth;
   return `<div style="max-width:900px;margin:0 auto;background:#fff;padding:32px;font-family:'Apple SD Gothic Neo',Arial,sans-serif;line-height:1.7;color:#222"><h1 style="text-align:center;font-size:1.9em;margin:0 0 36px">지관서가 전해주는 동네 책방 ${formatMonth(month)} 소식</h1>${blocks || "<p>포함된 소식이 없습니다.</p>"}</div>`;
 }

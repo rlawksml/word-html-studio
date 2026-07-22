@@ -13,13 +13,13 @@ import { useStudioController } from "@/hooks/use-studio-controller";
  * 세 역할의 화면을 조립하는 Atomic Design의 template 계층입니다.
  * 상태와 업무 규칙은 controller에 두고, 이 컴포넌트는 현재 역할에 맞는 organism만 선택합니다.
  */
-export function StudioPage() {
-  const studio = useStudioController();
+export function StudioPage({ initialMonth }: { initialMonth: string }) {
+  const studio = useStudioController(initialMonth);
   const dataReady = studio.initialLoadState.phase === "ready";
   return <>
     <main className={`app-shell role-${studio.role}`} aria-hidden={!dataReady || undefined} inert={!dataReady || undefined}>
       <AppHeader studio={studio} />
-      <StorageAlert message={studio.storageError} />
+      <StorageAlert message={studio.storageError} onReload={studio.role === "visitor" ? undefined : studio.reloadWorkspace} />
       {studio.role === "visitor" && <VisitorWorkspace studio={studio} />}
       {studio.role === "input" && <InputWorkspace studio={studio} />}
       {studio.role === "html" && <HtmlWorkspace studio={studio} />}

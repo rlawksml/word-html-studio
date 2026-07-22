@@ -6,7 +6,19 @@ export type LeaveTarget = "visitor" | "list";
 
 export const BOOKSTORE_COLORS = ["#d96c5f", "#4f83a8", "#d19a3e", "#5f9274", "#8c6bb1", "#c56f9a", "#6f8f3d", "#b66d3f", "#397f86", "#7d756d"];
 export const DISPLAY_LABELS = ["신청 중", "신청 마감", "행사 종료", "신규 모집", "상시 운영"];
-export const INITIAL_MONTH = new Date().toISOString().slice(0, 7);
+
+// 서버에서 계산한 KST 월을 Client Component의 초기값으로 전달하면 시간대 경계와 hydration 불일치를 함께 피할 수 있습니다.
+export function currentKstMonth(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  if (!year || !month) throw new Error("현재 발행 월을 계산하지 못했습니다.");
+  return `${year}-${month}`;
+}
 
 // 새 책방과 소식을 만들 때 선택 필드까지 빠짐없이 초기화하는 팩토리입니다.
 export const makeValue = (): LabeledValue => ({ id: Date.now() + Math.random(), label: "", value: "" });
@@ -29,14 +41,17 @@ export const makeNews = (id = Date.now()): NewsItem => ({
   images: [],
   includeInDigest: true,
 });
-export const makeSubmission = (bookstoreId: number, month: string): Submission => ({ id: Date.now(), bookstoreId, month, status: "draft", updatedAt: nowIso(), completedAt: "", publishedAt: "", publishedUrl: "", monthlyNotice: "", news: [makeNews()] });
-export const blankBookstore = (): Bookstore => ({ id: Date.now(), name: "", region: "", address: "", hours: "", phone: "", sns: "", website: "", introduction: "", contacts: [], links: [] });
+export const makeSubmission = (bookstoreId: number, month: string): Submission => ({ id: Date.now(), bookstoreId, month, status: "draft", updatedAt: "", completedAt: "", publishedAt: "", publishedUrl: "", monthlyNotice: "", news: [makeNews()] });
+export const blankBookstore = (): Bookstore => ({ id: Date.now(), updatedAt: "", sortOrder: 0, name: "", region: "", address: "", hours: "", phone: "", sns: "", website: "", introduction: "", contacts: [], links: [] });
 export const hasSubmissionContent = (submission?: Submission) => Boolean(submission?.monthlyNotice.trim() || submission?.news.some((news) => news.title.trim() || news.description.trim() || news.dates.length || news.scheduleText.trim() || news.regular || news.displayLabel || news.deadline || news.place.trim() || news.fee.trim() || news.applicationInfo.trim() || news.applyUrl.trim() || news.extraFields.some((field) => field.label.trim() || field.value.trim()) || news.links.some((link) => link.label.trim() || link.url.trim()) || news.images.length));
 
 // 아래 함수는 UI 표시와 HTML 생성 양쪽에서 같은 날짜·URL·파일명 규칙을 사용하게 합니다.
 export const nowIso = () => new Date().toISOString();
 export const formatMonth = (month: string) => { const [year, value] = month.split("-"); return `${year}년 ${Number(value)}월`; };
-export const formatDate = (value: string) => value ? new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric" }).format(new Date(`${value}T00:00:00`)) : "";
+export const formatDate = (value: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return match ? `${Number(match[2])}월 ${Number(match[3])}일` : "";
+};
 export const formatSavedAt = (value: string) => value ? new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value)) : "아직 저장하지 않음";
 export const escapeHtml = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 export const safeClientHref = (value: string) => {

@@ -2,6 +2,13 @@ import type { Bookstore, NewsImage, Submission, Workspace } from "@/lib/workspac
 
 export const MAX_ORIGINAL_IMAGE_BYTES = 20 * 1024 * 1024;
 
+export class WorkspaceConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WorkspaceConflictError";
+  }
+}
+
 type ImageUploadReservation = {
   image: NewsImage;
   uploads: {
@@ -43,13 +50,33 @@ export async function loadWorkspace(worker = false, signal?: AbortSignal): Promi
   return response.json() as Promise<Workspace>;
 }
 
-export async function persistWorkspace(bookstores: Bookstore[], submissions: Submission[]) {
-  const response = await fetch("/api/workspace", {
+async function recordResponse<T>(response: Response, key: string, fallback: string) {
+  const body = await response.json().catch(() => null) as ({ error?: string; code?: string } & Record<string, unknown>) | null;
+  if (!response.ok) {
+    const message = body?.error || fallback;
+    if (response.status === 409 || body?.code === "WORKSPACE_CONFLICT") throw new WorkspaceConflictError(message);
+    throw new Error(message);
+  }
+  if (!body || !(key in body)) throw new Error(fallback);
+  return body[key] as T;
+}
+
+export async function persistBookstore(bookstore: Bookstore) {
+  const response = await fetch("/api/bookstores", {
     method: "PUT",
     headers: { "content-type": "application/json", ...workspaceSessionHeaders() },
-    body: JSON.stringify({ bookstores, submissions }),
+    body: JSON.stringify({ bookstore }),
   });
-  if (!response.ok) throw new Error(await responseMessage(response, "공용 저장소에 저장하지 못했습니다."));
+  return recordResponse<Bookstore>(response, "bookstore", "책방 정보를 저장하지 못했습니다.");
+}
+
+export async function persistSubmission(submission: Submission) {
+  const response = await fetch("/api/submissions", {
+    method: "PUT",
+    headers: { "content-type": "application/json", ...workspaceSessionHeaders() },
+    body: JSON.stringify({ submission }),
+  });
+  return recordResponse<Submission>(response, "submission", "소식을 저장하지 못했습니다.");
 }
 
 export async function reserveImageUpload(file: File, preview: File, month: string, bookstoreId: number, newsId: number) {
@@ -86,10 +113,21 @@ export async function uploadFileToSignedUrl(signedUrl: string, file: File, cache
   throw new Error(`${file.name}: 사진 파일을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.`);
 }
 
-export function persistWorkspaceOnUnload(bookstores: Bookstore[], submissions: Submission[]) {
-  // beforeunload 중에는 일반 fetch가 취소될 수 있어 작은 JSON 저장에 sendBeacon을 사용합니다.
-  const payload = new Blob([JSON.stringify({ bookstores, submissions, sessionId: window.sessionStorage.getItem("bookstore-news-session-id") || "" })], { type: "application/json" });
-  navigator.sendBeacon("/api/workspace", payload);
+export function persistSubmissionOnUnload(submission: Submission) {
+  // 이탈 중에는 현재 편집 중인 소식 하나만 보내 전체 Workspace 덮어쓰기를 피합니다.
+  const payload = new Blob([JSON.stringify({ submission, sessionId: window.sessionStorage.getItem("bookstore-news-session-id") || "" })], { type: "application/json" });
+  navigator.sendBeacon("/api/submissions", payload);
+}
+
+export async function deleteStoredImages(images: NewsImage[]) {
+  const targets = images.filter((image) => image.originalPath || image.previewPath);
+  if (!targets.length) return;
+  const response = await fetch("/api/images", {
+    method: "DELETE",
+    headers: { "content-type": "application/json", ...workspaceSessionHeaders() },
+    body: JSON.stringify({ images: targets.map(({ originalPath, previewPath }) => ({ originalPath, previewPath })) }),
+  });
+  if (!response.ok) throw new Error(await responseMessage(response, "사진 파일을 정리하지 못했습니다."));
 }
 
 export async function createImagePreview(file: File) {

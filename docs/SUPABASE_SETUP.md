@@ -47,9 +47,23 @@ HTML_ACCESS_CODES=편집자-암호,편집자-암호의-다른-자판값
 7. HTML 편집자만 원본 사진 ZIP을 받을 수 있는지 확인합니다.
 8. Supabase Storage에서 원본 버킷이 `Private`, 미리보기 버킷이 `Public`인지 확인합니다.
 
-공개 미리보기는 모바일 속도를 위해 CDN에 최대 5분 캐시됩니다. 사진을 삭제하면 Storage에서는 즉시 제거되지만 이미 열린 공개 URL은 캐시가 만료될 때까지 잠시 보일 수 있습니다.
+공개 미리보기는 모바일 속도를 위해 CDN에 최대 5분 캐시됩니다. 사진 삭제는 변경된 소식이 Database에 저장된 뒤 Storage에서 처리됩니다. 이렇게 하면 Database 저장이 실패했을 때 기존 게시물의 사진이 먼저 사라지는 문제를 피할 수 있습니다. 이미 열린 공개 URL은 캐시가 만료될 때까지 잠시 보일 수 있습니다.
 
-## 4. 기존 단일 버킷 자료가 있을 때
+## 4. 실제 통합 테스트
+
+로컬 환경변수를 사용해 테스트 전용 레코드와 이미지를 만들었다가 자동 정리합니다.
+
+```bash
+cd apps/web
+npm run build
+npm run test:integration:local
+```
+
+테스트는 책방·소식 생성, 정상 수정, 오래된 `updated_at` 요청의 `409 Conflict`, 원본·미리보기 직접 업로드와 일괄 삭제를 확인합니다. 실제 운영 책방과 구분되는 먼 미래 월과 임시 ID를 사용하며 `finally` 단계에서 Database와 Storage를 정리합니다.
+
+GitHub 저장소의 Actions Secret에 `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `INPUT_ACCESS_CODES`, `WORKSPACE_SESSION_SECRET`을 등록하면 `CI` 워크플로를 수동 실행해 같은 검증을 수행할 수 있습니다. Pull Request에서는 외부 Secret 없이 lint·build·회귀 테스트만 실행합니다.
+
+## 5. 기존 단일 버킷 자료가 있을 때
 
 현재 운영 데이터가 없는 초기 프로젝트는 새 버킷으로 바로 시작하면 됩니다. 이전 `bookstore-news` 버킷에 파일이 이미 있다면 배포 전 다음을 별도 수행해야 합니다.
 

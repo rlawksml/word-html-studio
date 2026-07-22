@@ -6,6 +6,7 @@ const applicationSourceFiles = [
   "../hooks/use-studio-controller.ts",
   "../hooks/use-body-scroll-lock.ts",
   "../hooks/use-workspace-initialization.ts",
+  "../hooks/use-workspace-persistence.ts",
   "../lib/html-generators.ts",
   "../lib/workspace-client.ts",
   "../lib/workspace-formatters.ts",
@@ -74,7 +75,8 @@ test("guards the first visit with a three-attempt storage loading screen", async
   assert.match(source, /const DELAY_NOTICE_MS = 8_000/);
   assert.match(source, /const ATTEMPT_TIMEOUT_MS = 12_000/);
   assert.match(source, /await wait\(attempt \* 2_000\)/);
-  assert.match(source, /workspace\.bookstores\.length === 0/);
+  assert.doesNotMatch(source, /workspace\.bookstores\.length === 0/);
+  assert.match(source, /아직 등록된 동네책방 소식이 없습니다/);
   assert.match(source, /동네 책방에 잠시 들러 새로운 소식을 모으고 있어요/);
   assert.match(source, /책방으로 가는 길이 조금 막히네요/);
   assert.match(source, /지금 다시 시도/);
@@ -132,7 +134,8 @@ test("keeps passcodes in server environment variables and uses a tab-scoped work
   assert.match(source, /const bookstoreDetails = complete\.map/);
   assert.match(source, /news\.title/);
   assert.match(source, /const resetVisitorPage = \(\) =>/);
-  assert.match(source, /setMonth\(INITIAL_MONTH\)/);
+  assert.match(source, /setMonth\(initialMonth\)/);
+  assert.match(source, /currentKstMonth/);
   assert.match(source, /setSelectedDay\(""\)/);
   assert.match(source, /setSearch\(""\)/);
   assert.doesNotMatch(source, /SortMode|sortMode|setSortMode/);
@@ -199,10 +202,13 @@ test("lets input workers preview the current draft before completion", async () 
   assert.match(visitorStyles, /object-position:center/);
 });
 
-test("uses Supabase with private originals and public mobile previews", async () => {
-  const [pageSource, workspaceRoute, imageRoute, migration] = await Promise.all([
+test("uses record-scoped Supabase writes with private originals and public mobile previews", async () => {
+  const [pageSource, workspaceRoute, bookstoreRoute, submissionRoute, persistenceHook, imageRoute, migration] = await Promise.all([
     readApplicationSource(),
     readFile(new URL("../app/api/workspace/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/bookstores/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/submissions/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../hooks/use-workspace-persistence.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/images/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/202607220001_secure_media_and_flexible_fields.sql", import.meta.url), "utf8"),
   ]);
@@ -215,17 +221,29 @@ test("uses Supabase with private originals and public mobile previews", async ()
   assert.match(pageSource, /uploadFileToSignedUrl/);
   assert.match(pageSource, /item\.originalUrl \|\| item\.url/);
   assert.doesNotMatch(pageSource, /localStorage|seedBookstores|seedSubmissions|readAsDataURL/);
-  assert.match(workspaceRoute, /replace_bookstore_news_workspace/);
-  assert.match(workspaceRoute, /PREVIEW_IMAGE_BUCKET/);
+  assert.match(workspaceRoute, /전체 Workspace API는 읽기 전용/);
+  assert.doesNotMatch(workspaceRoute, /export async function (PUT|POST)/);
   assert.match(workspaceRoute, /readWorkerSession/);
+  assert.match(bookstoreRoute, /\.eq\("updated_at", bookstore\.updatedAt\)/);
+  assert.match(submissionRoute, /\.eq\("updated_at", submission\.updatedAt\)/);
+  assert.match(bookstoreRoute, /WORKSPACE_CONFLICT/);
+  assert.match(submissionRoute, /WORKSPACE_CONFLICT/);
+  assert.match(persistenceHook, /operationRef/);
+  assert.match(persistenceHook, /serialize/);
+  assert.match(persistenceHook, /WorkspaceConflictError/);
+  assert.doesNotMatch(pageSource, /persistWorkspace\(/);
   assert.match(imageRoute, /originals\//);
   assert.match(imageRoute, /previews\//);
   assert.match(imageRoute, /ORIGINAL_IMAGE_BUCKET/);
   assert.match(imageRoute, /PREVIEW_IMAGE_BUCKET/);
   assert.match(imageRoute, /createSignedUploadUrl\(originalPath\)/);
   assert.match(imageRoute, /createSignedUploadUrl\(previewPath\)/);
+  assert.match(imageRoute, /validStoragePath/);
+  assert.match(imageRoute, /body\.images\.length > 500/);
   assert.doesNotMatch(imageRoute, /request\.formData\(\)/);
   assert.match(pageSource, /uploadFileToSignedUrl\(reservation\.uploads\.originalUrl, file, "300"\)/);
+  assert.match(pageSource, /await saveSubmissionChange/);
+  assert.match(pageSource, /await deleteStoredImages\(reserved\)/);
   assert.match(imageRoute, /원본 사진 다운로드 권한/);
   assert.match(imageRoute, /원본 사진을 찾지 못했습니다/);
   assert.match(migration, /alter table public\.bookstores/);
@@ -246,7 +264,7 @@ test("keeps the route and global stylesheet as thin Atomic Design composition po
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../components/templates/StudioPage.tsx", import.meta.url), "utf8"),
   ]);
-  assert.match(pageSource, /<StudioPage \/>/);
+  assert.match(pageSource, /<StudioPage initialMonth=\{currentKstMonth\(\)\} \/>/);
   assert.ok(pageSource.split("\n").length <= 10);
   assert.match(templateSource, /VisitorWorkspace/);
   assert.match(templateSource, /InputWorkspace/);

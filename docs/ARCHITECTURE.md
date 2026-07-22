@@ -22,16 +22,18 @@ Atomic Design은 파일 수를 늘리는 목표가 아닙니다. 독립적으로
 
 ## 상태와 업무 흐름
 
-`hooks/use-studio-controller.ts`가 다음 애플리케이션 흐름을 한곳에서 조정합니다.
+`hooks/use-studio-controller.ts`가 다음 애플리케이션 흐름을 조정합니다.
 
 - 작업자 세션 복원과 역할 전환
 - 월·책방·소식 선택 상태
-- 자동/수동 저장과 작성 중 이탈 방지
+- 작성 중 이탈 방지와 사진·완료·발행 명령
 - 소식·사진·통합본 순서 변경
 - 사진 업로드와 ZIP 생성
 - 입력 완료와 게시 완료 상태 변경
 
-최초 세션 확인과 데이터 로드는 `hooks/use-workspace-initialization.ts`로 분리합니다. 이 hook은 한 요청을 12초로 제한하고 2초·4초 간격을 두어 최대 3번 확인하므로 전체 자동 시도는 1분 안에 끝납니다. 8초 이상 지연되면 사용자가 직접 다시 시도할 수 있고, 책방 데이터가 비어 있으면 정상 화면 대신 원인 안내를 표시합니다.
+최초 세션 확인과 데이터 로드는 `hooks/use-workspace-initialization.ts`로 분리합니다. 이 hook은 한 요청을 12초로 제한하고 2초·4초 간격을 두어 최대 3번 확인하므로 전체 자동 시도는 1분 안에 끝납니다. 8초 이상 지연되면 사용자가 직접 다시 시도할 수 있습니다. 연결은 성공했지만 책방이 0개이면 오류로 막지 않고 입력자가 첫 책방을 등록할 수 있습니다.
+
+`hooks/use-workspace-persistence.ts`는 책방과 월별 소식의 변경을 감지해 1.2초 후 레코드 단위로 저장합니다. 요청을 한 줄로 직렬화하고 서버의 `updated_at`과 브라우저가 마지막으로 읽은 값을 비교합니다. 값이 달라진 요청은 `409 Conflict`로 멈추며 사용자가 최신 Workspace를 다시 불러오기 전에는 자동 저장을 반복하지 않습니다.
 
 화면 컴포넌트는 controller가 제공하는 값과 명령만 사용합니다. Supabase나 서버 세션의 구현 세부사항을 UI에 직접 넣지 않습니다.
 
@@ -41,6 +43,7 @@ Atomic Design은 파일 수를 늘리는 목표가 아닙니다. 독립적으로
 components
   → hooks/use-studio-controller
     → hooks/use-workspace-initialization # 최초 세션·데이터 확인과 재시도
+    → hooks/use-workspace-persistence    # 레코드 변경 감지·직렬 저장·충돌 처리
     → lib/workspace-client       # 브라우저 ↔ Next.js API
     → lib/html-generators        # 개별·통합 inline CSS HTML
     → lib/workspace-formatters   # 팩토리·날짜·안전한 URL·상태 표시
@@ -48,8 +51,12 @@ components
 
 Next.js API
   → app/api/session/route        # 역할별 암호와 세션 발급
-  → app/api/workspace/route      # Database 읽기·일괄 저장 경계
+  → app/api/workspace/route      # Database 전체 읽기 전용
+  → app/api/bookstores/route     # 책방 하나 저장 + 낙관적 충돌 검사
+  → app/api/submissions/route    # 월별 소식 하나 저장 + 역할별 필드 제한
   → app/api/images/route         # Storage 업로드·삭제·다운로드 경계
+    → lib/workspace-validation   # 요청 크기·필드·URL·Storage 경로 검증
+    → lib/workspace-records      # Supabase 행 ↔ Workspace 변환
     → lib/workspace-session      # HttpOnly 쿠키 + 탭 sessionId 검증
     → lib/supabase-server        # 서버 전용 admin client
       → Supabase Database / Storage
@@ -74,7 +81,9 @@ Next.js API
 ## 보안과 데이터 원칙
 
 - `SUPABASE_SECRET_KEY`와 작업 암호는 서버 환경변수에만 둡니다.
-- UI는 `/api/workspace`, `/api/images`, `/api/session`만 호출합니다.
+- UI는 `/api/workspace`, `/api/bookstores`, `/api/submissions`, `/api/images`, `/api/session`만 호출합니다.
+- 입력자와 HTML 편집자의 저장 권한을 필드 수준으로 나누고 `updated_at`이 일치할 때만 수정합니다.
+- 작업 암호의 반복 실패를 짧은 시간 동안 제한합니다.
 - 원본 사진은 비공개, 모바일 미리보기는 공개 버킷으로 분리합니다.
 - 사용자 입력 링크와 생성 HTML은 허용된 URL scheme만 사용합니다.
 - 공개 방문자는 데이터를 읽을 수 있지만 수정 API는 작업자 세션을 요구합니다.
