@@ -97,6 +97,7 @@ npm run build
 
 ## 문서
 
+- [개발 에이전트 구조·CSS 분리 규칙](AGENTS.md)
 - [사용자 흐름](docs/USER_FLOW.md)
 - [현재 애플리케이션 아키텍처](docs/ARCHITECTURE.md)
 - [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)
