@@ -1,5 +1,8 @@
+"use client";
+
 /* eslint-disable @next/next/no-img-element */
 
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { formatDate, formatMonth, safeClientHref, submissionStatus } from "@/lib/workspace-formatters";
 import type { Bookstore, LabeledLink, NewsItem, Submission } from "@/lib/workspace-types";
 
@@ -11,6 +14,8 @@ type PublicNewsDetailProps = {
 };
 
 export function PublicNewsDetail({ submission, news, bookstore, onClose }: PublicNewsDetailProps) {
+  useBodyScrollLock();
+
   const status = submissionStatus(submission);
   const links = [
     news.applyUrl ? { id: -1, label: "신청 및 자세히 보기", url: news.applyUrl } : null,
@@ -20,7 +25,7 @@ export function PublicNewsDetail({ submission, news, bookstore, onClose }: Publi
     <article className="public-detail" role="dialog" aria-modal="true" aria-labelledby="public-detail-title" onMouseDown={(event) => event.stopPropagation()}>
       <button className="public-detail-close" onClick={onClose} aria-label="상세 소식 닫기">×</button>
       <header><span>{bookstore.region} · {formatMonth(submission.month)}</span><h2 id="public-detail-title">{news.title}</h2><div className="public-detail-badges"><i>{status}</i>{news.regular && <i>정기</i>}{news.displayLabel && <i>{news.displayLabel}</i>}</div></header>
-      {news.images.length > 0 && <div className="public-detail-photos">{news.images.map((image) => <figure key={image.id}><img src={image.url} alt={image.caption || news.title} loading="lazy" />{image.caption && <figcaption>{image.caption}</figcaption>}</figure>)}</div>}
+      {news.images.length > 0 && <div className={`public-detail-photos${news.images.length === 1 ? " single-photo" : ""}`}>{news.images.map((image) => <figure key={image.id}><img src={image.url} alt={image.caption || news.title} loading="lazy" />{image.caption && <figcaption>{image.caption}</figcaption>}</figure>)}</div>}
       <p className="public-detail-description">{news.description}</p>
       <dl className="public-detail-facts">
         {(news.scheduleText || news.dates.length > 0) && <div><dt>일정</dt><dd>{news.scheduleText || news.dates.map(formatDate).join(", ")}</dd></div>}

@@ -7,7 +7,7 @@ export function generatedHtml(submission: Submission, bookstore: Bookstore, incl
     const images = news.images.map((image, imageIndex) => {
       const filename = `${submission.month}_${safeFilename(bookstore.name)}_${String(newsIndex + 1).padStart(2, "0")}_${String(imageIndex + 1).padStart(2, "0")}_${safeFilename(news.title)}.${image.name.split(".").pop() || "jpg"}`;
       // 미리보기에는 공개 축소 이미지를 넣고, 다운로드 HTML에는 편집자가 교체할 파일명 표식을 남깁니다.
-      if (includePreviewImages) return `<figure style="margin:20px 0;text-align:center"><img src="${image.url}" alt="${escapeHtml(image.caption || news.title)}" style="display:block;width:100%;max-width:700px;height:auto;margin:0 auto">${image.caption ? `<figcaption style="margin-top:8px;color:#777;font-size:13px">${escapeHtml(image.caption)}</figcaption>` : ""}</figure>`;
+      if (includePreviewImages) return `<figure style="max-width:700px;margin:20px auto;text-align:center"><img src="${image.url}" alt="${escapeHtml(image.caption || news.title)}" style="display:block;width:auto;max-width:100%;height:auto;margin:0 auto">${image.caption ? `<figcaption style="margin-top:8px;color:#777;font-size:13px">${escapeHtml(image.caption)}</figcaption>` : ""}</figure>`;
       return `<!-- IMAGE: ${filename} -->`;
     }).join("\n");
     const dateText = news.dates.map(formatDate).join(", ");
