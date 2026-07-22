@@ -5,10 +5,12 @@ import test from "node:test";
 const applicationSourceFiles = [
   "../hooks/use-studio-controller.ts",
   "../hooks/use-body-scroll-lock.ts",
+  "../hooks/use-workspace-initialization.ts",
   "../lib/html-generators.ts",
   "../lib/workspace-client.ts",
   "../lib/workspace-formatters.ts",
   "../components/atoms/BrandButton.tsx",
+  "../components/atoms/LoadingBooks.tsx",
   "../components/atoms/WorkStatusBadge.tsx",
   "../components/molecules/AppHeader.tsx",
   "../components/molecules/NewsCalendar.tsx",
@@ -16,6 +18,7 @@ const applicationSourceFiles = [
   "../components/molecules/PublicNewsDetail.tsx",
   "../components/molecules/SubmissionPreviewDialog.tsx",
   "../components/molecules/StudioFeedback.tsx",
+  "../components/molecules/StorageLoadingOverlay.tsx",
   "../components/organisms/BookstoreManagement.tsx",
   "../components/organisms/HtmlWorkspace.tsx",
   "../components/organisms/InputWorkspace.tsx",
@@ -59,6 +62,33 @@ test("renders the public bookstore news calendar", async () => {
   assert.doesNotMatch(html, /상반기 문학 독서모임 마무리|소담쓰담|수연목서/);
   assert.doesNotMatch(html, /가까운 동네책방에서 열리는|<small>일정<\/small>|전체 일정|소식 월/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
+});
+
+test("guards the first visit with a three-attempt storage loading screen", async () => {
+  const [source, workspaceClient, globalStyles] = await Promise.all([
+    readApplicationSource(),
+    readFile(new URL("../lib/workspace-client.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(source, /const MAX_ATTEMPTS = 3/);
+  assert.match(source, /const DELAY_NOTICE_MS = 8_000/);
+  assert.match(source, /const ATTEMPT_TIMEOUT_MS = 12_000/);
+  assert.match(source, /await wait\(attempt \* 2_000\)/);
+  assert.match(source, /workspace\.bookstores\.length === 0/);
+  assert.match(source, /동네 책방에 잠시 들러 새로운 소식을 모으고 있어요/);
+  assert.match(source, /책방으로 가는 길이 조금 막히네요/);
+  assert.match(source, /지금 다시 시도/);
+  assert.match(source, /다시 불러오기/);
+  assert.match(source, /useBodyScrollLock\(\)/);
+  assert.match(source, /initialLoadState\.phase === "ready"/);
+  assert.match(source, /inert=\{!dataReady \|\| undefined\}/);
+  assert.match(workspaceClient, /signal\?: AbortSignal/);
+  assert.match(globalStyles, /styles\/startup-loading\.css/);
+
+  const response = await render();
+  const html = await response.text();
+  assert.match(html, /데이터 연결 중/);
+  assert.match(html, /1\/3번째 확인/);
 });
 
 test("ships accessible discovery controls and compact public cards", async () => {
@@ -222,6 +252,7 @@ test("keeps the route and global stylesheet as thin Atomic Design composition po
   assert.match(templateSource, /InputWorkspace/);
   assert.match(templateSource, /HtmlWorkspace/);
   assert.match(globalStyles, /styles\/foundations\.css/);
+  assert.match(globalStyles, /styles\/startup-loading\.css/);
   assert.match(globalStyles, /styles\/visitor\.css/);
   assert.match(globalStyles, /styles\/input\.css/);
   assert.match(globalStyles, /styles\/html-editor\.css/);

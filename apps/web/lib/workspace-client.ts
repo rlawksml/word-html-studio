@@ -37,8 +37,8 @@ export async function responseMessage(response: Response, fallback: string) {
   return body?.error || fallback;
 }
 
-export async function loadWorkspace(worker = false): Promise<Workspace> {
-  const response = await fetch("/api/workspace", { cache: "no-store", headers: worker ? workspaceSessionHeaders() : {} });
+export async function loadWorkspace(worker = false, signal?: AbortSignal): Promise<Workspace> {
+  const response = await fetch("/api/workspace", { cache: "no-store", headers: worker ? workspaceSessionHeaders() : {}, signal });
   if (!response.ok) throw new Error(await responseMessage(response, "공용 저장소를 불러오지 못했습니다."));
   return response.json() as Promise<Workspace>;
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import JSZip from "jszip";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useWorkspaceInitialization } from "@/hooks/use-workspace-initialization";
 import { digestHtml, generatedHtml } from "@/lib/html-generators";
 import {
   BOOKSTORE_COLORS,
@@ -28,7 +29,7 @@ import {
   urlToBlob,
   workspaceSessionHeaders,
 } from "@/lib/workspace-client";
-import type { Bookstore, NewsImage, NewsItem, Submission, WorkStatus } from "@/lib/workspace-types";
+import type { Bookstore, NewsImage, NewsItem, Submission, Workspace, WorkStatus } from "@/lib/workspace-types";
 
 /**
  * 세 역할이 공유하는 상태와 업무 명령을 한곳에서 조정하는 application controller입니다.
@@ -52,7 +53,6 @@ export function useStudioController() {
   const [selectedDay, setSelectedDay] = useState<string>("");
   const [toast, setToast] = useState("");
   const [saveState, setSaveState] = useState("모든 내용이 저장되었습니다");
-  const [hydrated, setHydrated] = useState(false);
   const [draggedNewsId, setDraggedNewsId] = useState<number | null>(null);
   const [draggedImageId, setDraggedImageId] = useState<number | null>(null);
   const [draggedDigestId, setDraggedDigestId] = useState<number | null>(null);
@@ -61,36 +61,14 @@ export function useStudioController() {
   const [storageError, setStorageError] = useState("");
   const skipAutoSaveRef = useRef(true);
 
-  // 첫 진입 시 서버가 검증한 작업자 세션을 복원하고 공용 Workspace를 불러옵니다.
-  useEffect(() => {
-    let active = true;
-    const initialize = async () => {
-      const savedRole = window.sessionStorage.getItem("bookstore-news-role") as Role | null;
-      try {
-        let workerSession = false;
-        if (savedRole === "input" || savedRole === "html") {
-          const sessionResponse = await fetch("/api/session", { cache: "no-store", headers: workspaceSessionHeaders() });
-          workerSession = sessionResponse.ok;
-          if (workerSession) setRole(savedRole);
-          else { window.sessionStorage.removeItem("bookstore-news-role"); window.sessionStorage.removeItem("bookstore-news-session-id"); }
-        }
-        const workspace = await loadWorkspace(workerSession);
-        if (!active) return;
-        setBookstores(workspace.bookstores);
-        setSubmissions(workspace.submissions);
-        setStorageError("");
-      } catch (error) {
-        if (!active) return;
-        setBookstores([]);
-        setSubmissions([]);
-        setStorageError(error instanceof Error ? error.message : "공용 저장소를 불러오지 못했습니다.");
-      } finally {
-        if (active) setHydrated(true);
-      }
-    };
-    void initialize();
-    return () => { active = false; };
+  const applyInitialWorkspace = useCallback((workspace: Workspace, restoredRole: Role) => {
+    // 준비된 데이터와 복원한 역할을 같은 렌더링에 반영해 빈 화면이 잠깐 보이지 않게 합니다.
+    setBookstores(workspace.bookstores);
+    setSubmissions(workspace.submissions);
+    setRole(restoredRole);
+    setStorageError("");
   }, []);
+  const { initialLoadState, hydrated, retryInitialLoad } = useWorkspaceInitialization(applyInitialWorkspace);
 
   // 입력자·편집자의 변경을 1.2초 동안 모아 저장해 입력마다 API를 호출하지 않게 합니다.
   useEffect(() => {
@@ -495,6 +473,7 @@ export function useStudioController() {
     role, accessRole, password, bookstores, submissions, month, selectedBookstoreId, inputView,
     selectedSubmissionId, htmlView, previewMode, search, selectedDay, toast, saveState,
     draggedNewsId, draggedImageId, draggedDigestId, publicDetail, leaveTarget, storageError,
+    initialLoadState,
     currentSubmission, htmlReady, selectedHtmlSubmission, selectedHtmlBookstore, generatedCode,
     generatedPreview, combinedHtml, monthSubmissions, completedBookstoreCount, completionPercent,
     publicEntries, filteredEntries, publicDetailData, calendarDays,
@@ -504,7 +483,7 @@ export function useStudioController() {
     login, returnToVisitor, confirmLeave, openBookstore, updateCurrent, updateNews, updateNewsValue,
     addImages, reorderNews, moveNews, reorderImages, moveImage, copyPrevious, manualSave,
     completeSubmission, completionShareMessage, copyText, downloadPhotoZip, reorderDigest,
-    updatePublished, bookstoreColor, calendarItems, notify,
+    updatePublished, bookstoreColor, calendarItems, retryInitialLoad, notify,
   };
 }
 

@@ -1,0 +1,48 @@
+/* 최초 저장소 연결을 기다리는 동안만 표시되는 전체 화면입니다. */
+.startup-loading { position:fixed; inset:0; z-index:220; display:grid; place-items:center; min-height:100dvh; overflow:auto; padding:32px 20px; background:#eeeee9; color:#272c29; }
+.startup-loading::before,.startup-loading::after { content:""; position:fixed; left:0; right:0; height:1px; background:rgba(43,49,45,.12); }
+.startup-loading::before { top:17%; }
+.startup-loading::after { bottom:15%; }
+.startup-loading-card { position:relative; z-index:1; width:min(560px,100%); padding:36px 42px 40px; border:1px solid #cfcfc8; background:rgba(255,255,255,.9); box-shadow:0 24px 70px rgba(44,49,45,.1); text-align:center; }
+.startup-loading-brand { display:flex; align-items:center; justify-content:center; gap:11px; margin-bottom:30px; text-align:left; }
+.startup-loading-brand>span { display:grid; place-items:center; width:42px; height:42px; border:1px solid #858b86; font-family:Georgia,serif; font-size:16px; }
+.startup-loading-brand strong,.startup-loading-brand small { display:block; }
+.startup-loading-brand strong { font-family:Georgia,"Apple SD Gothic Neo",serif; font-size:16px; font-weight:400; letter-spacing:.08em; }
+.startup-loading-brand small { margin-top:3px; color:#999; font-size:8px; letter-spacing:.1em; }
+.startup-loading-visual { display:grid; place-items:center; min-height:76px; margin-bottom:18px; }
+.loading-books { display:flex; align-items:end; justify-content:center; gap:5px; height:58px; padding:0 12px 8px; border-bottom:2px solid #777d78; }
+.loading-books i { position:relative; display:block; width:15px; height:44px; border:1px solid #4e5651; background:#d9d4c4; transform-origin:bottom; }
+.loading-books i:nth-child(2) { height:52px; background:#69736c; }
+.loading-books i:nth-child(3) { height:39px; background:#b99877; }
+.loading-books i::after { content:""; position:absolute; left:3px; right:3px; bottom:5px; height:1px; background:rgba(255,255,255,.58); }
+.loading-books.is-moving i { animation:book-arrive 1.35s ease-in-out infinite; }
+.loading-books.is-moving i:nth-child(2) { animation-delay:.14s; }
+.loading-books.is-moving i:nth-child(3) { animation-delay:.28s; }
+.startup-loading-eyebrow { display:block; color:#929792; font-size:9px; letter-spacing:.16em; }
+.startup-loading h1 { max-width:440px; margin:12px auto 11px; font-size:25px; font-weight:500; line-height:1.45; letter-spacing:-.035em; word-break:keep-all; }
+.startup-loading p { max-width:430px; min-height:44px; margin:0 auto; color:#737a75; font-size:12px; line-height:1.75; word-break:keep-all; }
+.startup-loading-progress { display:flex; justify-content:center; gap:6px; margin:23px 0 9px; }
+.startup-loading-progress i { width:28px; height:3px; background:#dddeda; transition:background-color .2s ease; }
+.startup-loading-progress i.active { background:#535c56; }
+.startup-loading-status { display:block; color:#969b97; font-size:9px; letter-spacing:.03em; }
+.startup-loading button { min-width:154px; margin-top:19px; border:1px solid #3c433f; background:#3c433f; color:white; padding:12px 18px; font-size:11px; font-weight:600; }
+.startup-loading button:hover,.startup-loading button:focus-visible { background:white; color:#303632; outline:2px solid rgba(48,54,50,.12); outline-offset:2px; }
+.startup-loading.phase-error .loading-books i,.startup-loading.phase-empty .loading-books i { background:#d8d3c5; }
+
+@keyframes book-arrive {
+  0%,55%,100% { transform:translateY(0); }
+  25% { transform:translateY(-9px); }
+}
+
+@media (max-width:680px) {
+  .startup-loading { padding:18px 14px; }
+  .startup-loading-card { padding:29px 20px 31px; }
+  .startup-loading-brand { margin-bottom:22px; }
+  .startup-loading h1 { font-size:21px; }
+  .startup-loading p { min-height:58px; font-size:11px; }
+  .startup-loading button { width:100%; }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .loading-books.is-moving i { animation:none; }
+}

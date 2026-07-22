@@ -8,6 +8,7 @@
 
 - 방문자: 지관서가 동네책방 페이지 바로가기, 책방·소식 수 요약, 책방별 색상 일정과 툴팁을 갖춘 모바일 달력, 제목 중심 카드, 중앙 정렬 사진 상세 화면과 후면 스크롤 잠금, 디바운스 검색
 - 정보 입력자: 항상 보이는 3단계 안내, 월별 진행률, 한 책방씩 작성, 중앙 정렬 사진이 적용된 작성 중 HTML 미리보기와 후면 스크롤 잠금, 이번 달 운영 안내, 일정 문구·신청 방법·자유 항목·여러 링크, 여러 소식·날짜·사진과 소식·사진 드래그 정렬
+- 초기 연결: 위트 있는 전체 데이터 로딩 화면, 최대 3회 자동 확인, 8초 지연 안내와 수동 재시도, 빈 책방 데이터 오류 안내
 - 저장: 1.2초 뒤 자동 임시 저장과 수동 임시 저장, 지난달 내용 복사, 작성 중 이탈 경고와 임시 저장
 - 완료: 누락된 필수 항목으로 자동 이동, 책방별 입력 완료, 수정 시 자동으로 작성 중 전환, 책방별 소식 제목이 담긴 월 전체 완료 내용 복사
 - HTML 편집자: 입력 완료 자료만 열람, 개별 HTML 복사·미리보기, 사진 ZIP과 HTML+사진 ZIP
@@ -70,6 +71,7 @@ page.tsx
 | 개별·통합 HTML 화면 | `components/organisms/HtmlWorkspace.tsx` |
 | inline CSS HTML 결과 | `lib/html-generators.ts` |
 | 자동 저장·완료·ZIP | `hooks/use-studio-controller.ts` |
+| 최초 세션·데이터 로딩과 재시도 | `hooks/use-workspace-initialization.ts`, `components/molecules/StorageLoadingOverlay.tsx` |
 | 공용 데이터 읽기·저장 | `app/api/workspace/route.ts` |
 | 사진 업로드·삭제·원본 다운로드 | `app/api/images/route.ts` |
 | 작업 암호와 탭 세션 | `app/api/session/route.ts`, `lib/workspace-session.ts` |
