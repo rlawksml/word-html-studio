@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { generatedHtml } from "@/lib/html-generators";
 import type { Bookstore, Submission } from "@/lib/workspace-types";
 
@@ -12,15 +13,12 @@ type SubmissionPreviewDialogProps = {
 
 // 입력 완료 여부와 관계없이 현재 폼 값을 HTML 결과와 같은 모습으로 확인하는 입력자 전용 미리보기입니다.
 export function SubmissionPreviewDialog({ bookstore, submission, onClose }: SubmissionPreviewDialogProps) {
+  useBodyScrollLock();
+
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
     const handleKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
-    document.body.style.overflow = "hidden";
     window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
   const previewHtml = generatedHtml(submission, bookstore, true);

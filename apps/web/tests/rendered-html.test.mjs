@@ -4,6 +4,7 @@ import test from "node:test";
 
 const applicationSourceFiles = [
   "../hooks/use-studio-controller.ts",
+  "../hooks/use-body-scroll-lock.ts",
   "../lib/html-generators.ts",
   "../lib/workspace-client.ts",
   "../lib/workspace-formatters.ts",
@@ -149,12 +150,23 @@ test("guides input work and focuses the first missing required field", async () 
 });
 
 test("lets input workers preview the current draft before completion", async () => {
-  const source = await readApplicationSource();
+  const [source, visitorStyles] = await Promise.all([
+    readApplicationSource(),
+    readFile(new URL("../styles/visitor.css", import.meta.url), "utf8"),
+  ]);
   assert.match(source, /작성 내용 미리보기/);
   assert.match(source, /SubmissionPreviewDialog/);
   assert.match(source, /generatedHtml\(submission, bookstore, true\)/);
   assert.match(source, /aria-modal="true"/);
   assert.match(source, /작성 중인 내용/);
+  assert.match(source, /max-width:700px;margin:20px auto/);
+  assert.match(source, /useBodyScrollLock\(\)/);
+  assert.match(source, /body\.style\.position = "fixed"/);
+  assert.match(source, /root\.style\.overflow = "hidden"/);
+  assert.match(source, /window\.scrollTo\(0, scrollY\)/);
+  assert.match(visitorStyles, /public-detail-photos\.single-photo \{ justify-content:center; \}/);
+  assert.match(visitorStyles, /align-items:center/);
+  assert.match(visitorStyles, /object-position:center/);
 });
 
 test("uses Supabase with private originals and public mobile previews", async () => {

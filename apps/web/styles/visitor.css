@@ -49,17 +49,18 @@
 .public-event-list button { width:100%; display:flex; justify-content:space-between; gap:12px; border:0; background:transparent; padding:9px 0; color:inherit; text-align:left; }
 .public-event-list button:hover,.public-event-list button:focus-visible { color:#111; text-decoration:underline; text-underline-offset:3px; }
 .public-event-list button span { color:#aaa; font-size:17px; line-height:1; }
-.public-detail-backdrop { position:fixed; inset:0; z-index:110; display:grid; place-items:center; padding:24px; background:rgba(20,20,20,.58); }
-.public-detail { position:relative; width:min(720px,100%); max-height:calc(100vh - 48px); overflow:auto; background:white; padding:38px; box-shadow:0 24px 80px rgba(0,0,0,.25); }
+.public-detail-backdrop { position:fixed; inset:0; z-index:110; display:grid; place-items:center; padding:24px; background:rgba(20,20,20,.58); overscroll-behavior:contain; }
+.public-detail { position:relative; width:min(720px,100%); max-height:calc(100vh - 48px); overflow:auto; overscroll-behavior:contain; background:white; padding:38px; box-shadow:0 24px 80px rgba(0,0,0,.25); }
 .public-detail-close { position:absolute; right:16px; top:14px; width:36px; height:36px; border:0; background:#f1f1ee; color:#555; font-size:24px; }
 .public-detail header>span { color:#888; font-size:10px; letter-spacing:.08em; }
 .public-detail header h2 { margin:9px 42px 12px 0; color:#272c29; font-size:28px; font-weight:500; line-height:1.35; }
 .public-detail-badges { display:flex; flex-wrap:wrap; gap:5px; }
 .public-detail-badges i { padding:5px 8px; background:#eeeee9; color:#59605c; font-size:9px; font-style:normal; }
 .public-detail-photos { display:flex; gap:10px; overflow-x:auto; margin:24px -38px 0; padding:0 38px 8px; scroll-snap-type:x mandatory; }
-.public-detail-photos figure { flex:0 0 min(540px,88%); margin:0; scroll-snap-align:start; }
-.public-detail-photos img { display:block; width:100%; max-height:440px; object-fit:contain; background:#f3f3f0; }
-.public-detail-photos figcaption { margin-top:6px; color:#888; font-size:10px; text-align:center; }
+.public-detail-photos.single-photo { justify-content:center; }
+.public-detail-photos figure { flex:0 0 min(540px,88%); display:flex; flex-direction:column; align-items:center; margin:0; scroll-snap-align:center; }
+.public-detail-photos img { display:block; width:auto; max-width:100%; max-height:440px; margin:0 auto; object-fit:contain; object-position:center; background:#f3f3f0; }
+.public-detail-photos figcaption { width:100%; margin-top:6px; color:#888; font-size:10px; text-align:center; }
 .public-detail-description { margin:26px 0; color:#444; line-height:1.85; white-space:pre-line; }
 .public-detail-facts { margin:0; border-top:1px solid #ddd; }
 .public-detail-facts>div { display:grid; grid-template-columns:100px 1fr; gap:18px; padding:12px 0; border-bottom:1px solid #eee; }
