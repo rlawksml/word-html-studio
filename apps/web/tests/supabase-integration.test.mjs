@@ -137,3 +137,75 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
     await admin.from("editing_leases").delete().eq("resource_key", `submission:2099-12:${bookstoreId}`);
   }
 });
+
+test("rejects unauthorized operations and safely hands off exceptional editing leases", { skip: !enabled }, async () => {
+  const required = ["SUPABASE_URL", "SUPABASE_SECRET_KEY", "INPUT_ACCESS_CODES", "HTML_ACCESS_CODES"];
+  for (const key of required) assert.ok(process.env[key], `${key} is required`);
+
+  const worker = await loadWorker();
+  const admin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const appFetch = (path, init = {}) => worker.fetch(new Request(`http://localhost${path}`, init), runtime(), context());
+  const suffix = `${Date.now()}${Math.floor(Math.random() * 1_000)}`;
+  const bookstoreId = Number(suffix.slice(-15));
+  const target = { scope: "submission", month: "2099-11", bookstoreId };
+  const digestTarget = { scope: "digest", month: "2099-11" };
+
+  const login = async (role, code) => {
+    const sessionId = crypto.randomUUID();
+    const response = await appFetch("/api/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ role, code, sessionId }),
+    });
+    await assertStatus(response, 200);
+    return {
+      sessionId,
+      headers: { "content-type": "application/json", cookie: response.headers.get("set-cookie").split(";")[0], "x-workspace-session-id": sessionId },
+    };
+  };
+
+  const input = await login("input", process.env.INPUT_ACCESS_CODES.split(",")[0].trim());
+  const html = await login("html", process.env.HTML_ACCESS_CODES.split(",")[0].trim());
+
+  try {
+    await assertStatus(await appFetch("/api/workspace"), 200);
+    await assertStatus(await appFetch("/api/presence", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(target) }), 401);
+    await assertStatus(await appFetch("/api/bookstores", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({}) }), 403);
+    await assertStatus(await appFetch("/api/presence", { method: "POST", headers: { ...input.headers, "x-workspace-session-id": html.sessionId }, body: JSON.stringify(target) }), 401);
+    await assertStatus(await appFetch("/api/presence", { method: "POST", headers: input.headers, body: JSON.stringify({ ...target, month: "2099-13" }) }), 400);
+
+    const firstLease = await appFetch("/api/presence", { method: "POST", headers: input.headers, body: JSON.stringify(target) });
+    await assertStatus(firstLease, 200);
+    assert.equal((await firstLease.json()).owned, true);
+
+    const nonOwnerRelease = await appFetch("/api/presence", { method: "DELETE", headers: html.headers, body: JSON.stringify(target) });
+    await assertStatus(nonOwnerRelease, 204);
+    const stillOwned = await appFetch("/api/presence", { method: "POST", headers: input.headers, body: JSON.stringify(target) });
+    assert.equal((await stillOwned.json()).owned, true);
+    const stillOccupied = await appFetch("/api/presence", { method: "POST", headers: html.headers, body: JSON.stringify(target) });
+    assert.equal((await stillOccupied.json()).owned, false);
+
+    const separateDigest = await appFetch("/api/presence", { method: "POST", headers: html.headers, body: JSON.stringify(digestTarget) });
+    await assertStatus(separateDigest, 200);
+    assert.equal((await separateDigest.json()).owned, true);
+
+    await admin.from("editing_leases").update({ expires_at: new Date(Date.now() - 1_000).toISOString() }).eq("resource_key", `submission:2099-11:${bookstoreId}`);
+    const expiredHandoff = await appFetch("/api/presence", { method: "POST", headers: html.headers, body: JSON.stringify(target) });
+    await assertStatus(expiredHandoff, 200);
+    assert.equal((await expiredHandoff.json()).owned, true);
+
+    await assertStatus(await appFetch("/api/bookstores", { method: "PUT", headers: html.headers, body: JSON.stringify({}) }), 403);
+    await assertStatus(await appFetch("/api/images", {
+      method: "POST", headers: input.headers,
+      body: JSON.stringify({ name: "document.pdf", type: "application/pdf", size: 100, previewSize: 100, month: "2099-11", bookstoreId, newsId: bookstoreId + 1 }),
+    }), 400);
+    await assertStatus(await appFetch("/api/images", {
+      method: "POST", headers: input.headers,
+      body: JSON.stringify({ name: "large.jpg", type: "image/jpeg", size: 20 * 1024 * 1024 + 1, previewSize: 100, month: "2099-11", bookstoreId, newsId: bookstoreId + 1 }),
+    }), 413);
+  } finally {
+    await admin.from("editing_leases").delete().in("resource_key", [`submission:2099-11:${bookstoreId}`, "digest:2099-11"]);
+  }
+});
