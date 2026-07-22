@@ -4,6 +4,9 @@ export type WorkStatus = "draft" | "completed";
 
 export type Bookstore = {
   id: number;
+  // updatedAt은 화면 표시뿐 아니라 다른 브라우저의 변경을 덮어쓰지 않는 낙관적 잠금 값입니다.
+  updatedAt: string;
+  sortOrder: number;
   name: string;
   region: string;
   address: string;

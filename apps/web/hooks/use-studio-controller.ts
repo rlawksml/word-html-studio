@@ -3,10 +3,10 @@
 import JSZip from "jszip";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWorkspaceInitialization } from "@/hooks/use-workspace-initialization";
+import { useWorkspacePersistence } from "@/hooks/use-workspace-persistence";
 import { digestHtml, generatedHtml } from "@/lib/html-generators";
 import {
   BOOKSTORE_COLORS,
-  INITIAL_MONTH,
   formatMonth,
   hasSubmissionContent,
   makeSubmission,
@@ -18,16 +18,15 @@ import {
 } from "@/lib/workspace-formatters";
 import {
   createImagePreview,
+  deleteStoredImages,
   loadWorkspace,
   MAX_ORIGINAL_IMAGE_BYTES,
-  persistWorkspace,
-  persistWorkspaceOnUnload,
+  persistSubmissionOnUnload,
   reserveImageUpload,
   responseMessage,
   triggerDownload,
   uploadFileToSignedUrl,
   urlToBlob,
-  workspaceSessionHeaders,
 } from "@/lib/workspace-client";
 import type { Bookstore, NewsImage, NewsItem, Submission, Workspace, WorkStatus } from "@/lib/workspace-types";
 
@@ -35,14 +34,14 @@ import type { Bookstore, NewsImage, NewsItem, Submission, Workspace, WorkStatus 
  * 세 역할이 공유하는 상태와 업무 명령을 한곳에서 조정하는 application controller입니다.
  * 컴포넌트는 이 반환값만 사용하고 저장소·세션·HTML 생성 구현을 직접 알지 않습니다.
  */
-export function useStudioController() {
+export function useStudioController(initialMonth: string) {
   // 화면 선택, 편집 대상, 드래그 상태처럼 브라우저 탭 안에서만 필요한 UI 상태입니다.
   const [role, setRole] = useState<Role>("visitor");
   const [accessRole, setAccessRole] = useState<Exclude<Role, "visitor"> | null>(null);
   const [password, setPassword] = useState("");
   const [bookstores, setBookstores] = useState<Bookstore[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [month, setMonth] = useState(INITIAL_MONTH);
+  const [month, setMonth] = useState(initialMonth);
   const [selectedBookstoreId, setSelectedBookstoreId] = useState<number | null>(null);
   const [inputView, setInputView] = useState<"list" | "edit" | "bookstores">("list");
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<number>(1);
@@ -59,7 +58,14 @@ export function useStudioController() {
   const [publicDetail, setPublicDetail] = useState<{ submissionId: number; newsId: number } | null>(null);
   const [leaveTarget, setLeaveTarget] = useState<LeaveTarget | null>(null);
   const [storageError, setStorageError] = useState("");
-  const skipAutoSaveRef = useRef(true);
+  const submissionsRef = useRef(submissions);
+  const pendingImageDeletesRef = useRef(new Map<number, NewsImage[]>());
+  useEffect(() => { submissionsRef.current = submissions; }, [submissions]);
+
+  const notify = useCallback((message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 2400);
+  }, []);
 
   const applyInitialWorkspace = useCallback((workspace: Workspace, restoredRole: Role) => {
     // 준비된 데이터와 복원한 역할을 같은 렌더링에 반영해 빈 화면이 잠깐 보이지 않게 합니다.
@@ -70,27 +76,29 @@ export function useStudioController() {
   }, []);
   const { initialLoadState, hydrated, retryInitialLoad } = useWorkspaceInitialization(applyInitialWorkspace);
 
-  // 입력자·편집자의 변경을 1.2초 동안 모아 저장해 입력마다 API를 호출하지 않게 합니다.
-  useEffect(() => {
-    if (!hydrated) return;
-    if (skipAutoSaveRef.current) { skipAutoSaveRef.current = false; return; }
-    if (role !== "input" && role !== "html") return;
-    let active = true;
-    const timer = window.setTimeout(() => {
-      setSaveState("공용 저장소에 저장 중...");
-      void persistWorkspace(bookstores, submissions).then(() => {
-        if (!active) return;
-        setStorageError("");
-        setSaveState(`자동 저장됨 · ${new Intl.DateTimeFormat("ko-KR", { hour: "2-digit", minute: "2-digit" }).format(new Date())}`);
-      }).catch((error: unknown) => {
-        if (!active) return;
-        const message = error instanceof Error ? error.message : "공용 저장소에 저장하지 못했습니다.";
-        setStorageError(message);
-        setSaveState("자동 저장 실패");
-      });
-    }, 1200);
-    return () => { active = false; window.clearTimeout(timer); };
-  }, [bookstores, hydrated, role, submissions]);
+  const handleSubmissionSaved = useCallback(async (submissionId: number) => {
+    const pending = pendingImageDeletesRef.current.get(submissionId);
+    if (!pending?.length) return;
+    try {
+      await deleteStoredImages(pending);
+      pendingImageDeletesRef.current.delete(submissionId);
+    } catch (error) {
+      // DB에서 참조를 먼저 제거했으므로 실패해도 깨진 이미지는 생기지 않고 Storage 정리만 다시 시도하면 됩니다.
+      const message = error instanceof Error ? error.message : "사용하지 않는 사진 파일을 정리하지 못했습니다.";
+      setStorageError(message);
+    }
+  }, []);
+  const { replaceWorkspace, saveNow, saveSubmissionChange } = useWorkspacePersistence({
+    enabled: hydrated,
+    role,
+    bookstores,
+    submissions,
+    setBookstores,
+    setSubmissions,
+    setSaveState,
+    setStorageError,
+    onSubmissionSaved: handleSubmissionSaved,
+  });
 
   // 방문자 검색은 타이핑이 잠시 멈춘 뒤 계산해 모바일 렌더링 부담을 줄입니다.
   useEffect(() => {
@@ -99,14 +107,13 @@ export function useStudioController() {
   }, [search]);
 
   // 원본 상태에서 현재 역할과 선택값에 필요한 화면 데이터만 파생합니다.
-  const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(""), 2400); };
   const currentSubmission = submissions.find((item) => item.bookstoreId === selectedBookstoreId && item.month === month);
   const htmlReady = submissions.filter((item) => item.month === month && item.status === "completed");
   const selectedHtmlSubmission = htmlReady.find((item) => item.id === selectedSubmissionId) || htmlReady[0];
   const selectedHtmlBookstore = bookstores.find((item) => item.id === selectedHtmlSubmission?.bookstoreId);
   const generatedCode = selectedHtmlSubmission && selectedHtmlBookstore ? generatedHtml(selectedHtmlSubmission, selectedHtmlBookstore, false) : "";
   const generatedPreview = selectedHtmlSubmission && selectedHtmlBookstore ? generatedHtml(selectedHtmlSubmission, selectedHtmlBookstore, true) : "";
-  const combinedHtml = useMemo(() => digestHtml(htmlReady, bookstores), [bookstores, htmlReady]);
+  const combinedHtml = useMemo(() => digestHtml(htmlReady, bookstores, month), [bookstores, htmlReady, month]);
 
   const monthSubmissions = submissions.filter((item) => item.month === month);
   const completedBookstoreCount = monthSubmissions.filter((item) => item.status === "completed").length;
@@ -132,7 +139,7 @@ export function useStudioController() {
   useEffect(() => {
     if (!hasDraftInProgress) return;
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      persistWorkspaceOnUnload(bookstores, submissions);
+      if (currentSubmission) persistSubmissionOnUnload(currentSubmission);
       event.preventDefault();
       event.returnValue = "";
     };
@@ -149,7 +156,7 @@ export function useStudioController() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("click", handleNavigationClick, true);
     };
-  }, [bookstores, hasDraftInProgress, submissions]);
+  }, [currentSubmission, hasDraftInProgress]);
 
   // 작업 암호는 서버로만 보내며 성공하면 현재 탭의 임의 sessionId와 HttpOnly 쿠키를 함께 사용합니다.
   const login = async () => {
@@ -166,8 +173,7 @@ export function useStudioController() {
       window.sessionStorage.setItem("bookstore-news-role", accessRole);
       window.sessionStorage.setItem("bookstore-news-session-id", sessionId);
       const workspace = await loadWorkspace(true);
-      setBookstores(workspace.bookstores);
-      setSubmissions(workspace.submissions);
+      replaceWorkspace(workspace);
       setRole(accessRole);
       setAccessRole(null);
       setPassword("");
@@ -180,7 +186,7 @@ export function useStudioController() {
   };
 
   const resetVisitorPage = () => {
-    setMonth(INITIAL_MONTH);
+    setMonth(initialMonth);
     setSelectedDay("");
     setSearch("");
     setDebouncedSearch("");
@@ -209,7 +215,7 @@ export function useStudioController() {
   const confirmLeave = async () => {
     if (!leaveTarget) return;
     try {
-      await persistWorkspace(bookstores, submissions);
+      await saveNow(true);
       setStorageError("");
       if (leaveTarget === "visitor") returnToVisitor();
       else goToBookstoreList();
@@ -242,8 +248,12 @@ export function useStudioController() {
       if (item.id !== currentSubmission.id) return item;
       const changed = change(item);
       const retainedImageIds = new Set(changed.news.flatMap((news) => news.images.map((image) => image.id)));
-      item.news.flatMap((news) => news.images).filter((image) => !retainedImageIds.has(image.id)).forEach(deleteStoredImage);
-      return { ...changed, status: item.status === "completed" ? "draft" : item.status, updatedAt: nowIso() };
+      const removed = item.news.flatMap((news) => news.images).filter((image) => !retainedImageIds.has(image.id));
+      if (removed.length) {
+        const pending = pendingImageDeletesRef.current.get(item.id) || [];
+        pendingImageDeletesRef.current.set(item.id, [...pending, ...removed.filter((image) => !pending.some((entry) => entry.id === image.id))]);
+      }
+      return { ...changed, status: item.status === "completed" ? "draft" : item.status };
     }));
   };
 
@@ -274,33 +284,25 @@ export function useStudioController() {
         await uploadFileToSignedUrl(reservation.uploads.previewUrl, preview, "300");
         uploaded.push(reservation.image);
       }
-      updateCurrent((submission) => ({ ...submission, news: submission.news.map((news) => news.id === newsId ? { ...news, images: [...news.images, ...uploaded] } : news) }));
+      const target = submissionsRef.current.find((submission) => submission.bookstoreId === selectedBookstoreId && submission.month === month);
+      if (!target) throw new Error("사진을 연결할 소식을 찾지 못했습니다.");
+      await saveSubmissionChange(target.id, (submission) => ({ ...submission, news: submission.news.map((news) => news.id === newsId ? { ...news, images: [...news.images, ...uploaded] } : news) }));
       setStorageError("");
-      setSaveState("사진 업로드 완료 · 내용 저장 중...");
+      setSaveState("사진 업로드와 내용 저장 완료");
       notify(`사진 ${uploaded.length}장을 저장했습니다.`);
     } catch (error) {
-      reserved.forEach(deleteStoredImage);
+      try {
+        await deleteStoredImages(reserved);
+      } catch (cleanupError) {
+        const cleanupMessage = cleanupError instanceof Error ? cleanupError.message : "업로드에 실패한 사진을 정리하지 못했습니다.";
+        setStorageError(cleanupMessage);
+      }
       const message = error instanceof Error ? error.message : "사진을 저장하지 못했습니다.";
       setStorageError(message);
       setSaveState("사진 업로드 실패");
       notify(message);
     }
   };
-
-  function deleteStoredImage(image: NewsImage) {
-    if (!image.originalPath && !image.previewPath) return;
-    void fetch("/api/images", {
-      method: "DELETE",
-      headers: { "content-type": "application/json", ...workspaceSessionHeaders() },
-      body: JSON.stringify({ originalPath: image.originalPath, previewPath: image.previewPath }),
-    }).then(async (response) => {
-      if (!response.ok) throw new Error(await responseMessage(response, "사진 파일을 정리하지 못했습니다."));
-    }).catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : "사진 파일을 정리하지 못했습니다.";
-      setStorageError(message);
-      notify(message);
-    });
-  }
 
   // 소식과 사진의 정렬 결과는 배열 순서 자체에 저장되어 HTML과 방문자 화면에 동일하게 반영됩니다.
   const reorderNews = (targetId: number) => {
@@ -364,7 +366,7 @@ export function useStudioController() {
   const manualSave = async () => {
     try {
       setSaveState("공용 저장소에 저장 중...");
-      await persistWorkspace(bookstores, submissions);
+      await saveNow(true);
       setStorageError("");
       setSaveState(`임시 저장됨 · ${new Intl.DateTimeFormat("ko-KR", { hour: "2-digit", minute: "2-digit" }).format(new Date())}`);
       notify("임시 저장했습니다.");
@@ -393,7 +395,7 @@ export function useStudioController() {
       notify(`소식 ${incompleteNewsIndex + 1}의 ${missingLabel}을 입력해 주세요.`);
       return;
     }
-    const completed = { ...currentSubmission, status: "completed" as WorkStatus, completedAt: nowIso(), updatedAt: nowIso() };
+    const completed = { ...currentSubmission, status: "completed" as WorkStatus, completedAt: nowIso() };
     setSubmissions((current) => current.map((item) => item.id === completed.id ? completed : item));
     setInputView("list");
     setSelectedBookstoreId(null);
@@ -454,6 +456,18 @@ export function useStudioController() {
     notify("게시 완료로 표시했습니다.");
   };
 
+  const reloadWorkspace = async () => {
+    try {
+      setSaveState("최신 내용을 불러오는 중...");
+      replaceWorkspace(await loadWorkspace(true));
+      notify("최신 저장 내용을 불러왔습니다.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "최신 내용을 불러오지 못했습니다.";
+      setStorageError(message);
+      notify(message);
+    }
+  };
+
   // 달력 칸과 책방별 색상은 저장하지 않고 현재 월·책방 순서에서 매번 계산합니다.
   const calendarDays = useMemo(() => {
     const [year, numericMonth] = month.split("-").map(Number);
@@ -483,7 +497,7 @@ export function useStudioController() {
     login, returnToVisitor, confirmLeave, openBookstore, updateCurrent, updateNews, updateNewsValue,
     addImages, reorderNews, moveNews, reorderImages, moveImage, copyPrevious, manualSave,
     completeSubmission, completionShareMessage, copyText, downloadPhotoZip, reorderDigest,
-    updatePublished, bookstoreColor, calendarItems, retryInitialLoad, notify,
+    updatePublished, bookstoreColor, calendarItems, retryInitialLoad, reloadWorkspace, notify,
   };
 }
 

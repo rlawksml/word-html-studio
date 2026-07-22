@@ -18,7 +18,7 @@ export function BookstoreManagement({ bookstores, setBookstores, onBack, notify 
   const edit = (bookstore?: Bookstore) => { setForm(bookstore ? { ...bookstore } : blankBookstore()); setEditingId(bookstore?.id ?? null); };
   const save = () => {
     if (!form.name.trim() || !form.region.trim()) { notify("책방 이름과 지역을 입력해 주세요."); return; }
-    setBookstores((current) => editingId === null ? [...current, form] : current.map((item) => item.id === editingId ? form : item));
+    setBookstores((current) => editingId === null ? [...current, { ...form, sortOrder: current.length }] : current.map((item) => item.id === editingId ? form : item));
     edit();
     notify(editingId === null ? "새 책방을 저장했습니다." : "책방 정보를 수정했습니다.");
   };
