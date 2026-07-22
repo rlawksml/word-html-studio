@@ -7,7 +7,7 @@
 ## 현재 구현된 프로토타입
 
 - 방문자: 지관서가 동네책방 페이지 바로가기, 책방·소식 수 요약, 책방별 색상 일정과 툴팁을 갖춘 모바일 달력, 제목 중심 카드, 소식·사진 상세 화면, 디바운스 검색
-- 정보 입력자: 항상 보이는 3단계 안내, 월별 진행률, 한 책방씩 작성, 이번 달 운영 안내, 일정 문구·신청 방법·자유 항목·여러 링크, 여러 소식·날짜·사진과 소식·사진 드래그 정렬
+- 정보 입력자: 항상 보이는 3단계 안내, 월별 진행률, 한 책방씩 작성, 작성 중 HTML 미리보기, 이번 달 운영 안내, 일정 문구·신청 방법·자유 항목·여러 링크, 여러 소식·날짜·사진과 소식·사진 드래그 정렬
 - 저장: 1.2초 뒤 자동 임시 저장과 수동 임시 저장, 지난달 내용 복사, 작성 중 이탈 경고와 임시 저장
 - 완료: 누락된 필수 항목으로 자동 이동, 책방별 입력 완료, 수정 시 자동으로 작성 중 전환, 책방별 소식 제목이 담긴 월 전체 완료 내용 복사
 - HTML 편집자: 입력 완료 자료만 열람, 개별 HTML 복사·미리보기, 사진 ZIP과 HTML+사진 ZIP
@@ -27,6 +27,8 @@
 - 로그인: Supabase Auth는 도입하지 않고 현재의 입력자·HTML 편집자 작업 암호와 세션 방식을 유지
 
 원본 사진은 HTML 편집자의 세션 검증 다운로드용으로 비공개 보관하고 방문자 화면에는 작은 미리보기만 사용합니다. 입력 내용은 공개 소식이므로 별도의 사용자 계정 체계는 만들지 않습니다. 공개 방문자는 원본 경로를 받거나 데이터를 변경할 수 없습니다.
+
+사진은 한 장당 20MB까지 받습니다. 브라우저는 모바일 미리보기를 만든 뒤 짧게 유효한 업로드 주소를 발급받아 원본과 미리보기를 Supabase Storage에 직접 전송합니다. 큰 파일이 Next.js 서버 요청 크기 제한에 걸려 `413` 오류가 나는 것을 피하면서도 Storage 비밀키와 원본 사진은 공개하지 않습니다.
 
 Database와 Storage 요청은 서버 API를 통해 처리합니다. `SUPABASE_SECRET_KEY`는 브라우저나 GitHub에 노출하지 않고 로컬·배포 환경변수에만 저장합니다. 초기 연결 방법은 [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)를 따릅니다.
 
@@ -64,7 +66,7 @@ page.tsx
 |---|---|
 | 방문자 달력·검색·소식 카드 | `components/organisms/VisitorWorkspace.tsx`, `components/molecules/NewsCalendar.tsx` |
 | 책방 목록과 월별 진행률 | `components/organisms/InputWorkspace.tsx` |
-| 소식 입력 폼과 사진 순서 | `components/molecules/NewsEditorCard.tsx` |
+| 소식 입력 폼과 사진 순서·작성 내용 미리보기 | `components/molecules/NewsEditorCard.tsx`, `components/molecules/SubmissionPreviewDialog.tsx` |
 | 개별·통합 HTML 화면 | `components/organisms/HtmlWorkspace.tsx` |
 | inline CSS HTML 결과 | `lib/html-generators.ts` |
 | 자동 저장·완료·ZIP | `hooks/use-studio-controller.ts` |

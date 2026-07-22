@@ -18,10 +18,13 @@ import {
 import {
   createImagePreview,
   loadWorkspace,
+  MAX_ORIGINAL_IMAGE_BYTES,
   persistWorkspace,
   persistWorkspaceOnUnload,
+  reserveImageUpload,
   responseMessage,
   triggerDownload,
+  uploadFileToSignedUrl,
   urlToBlob,
   workspaceSessionHeaders,
 } from "@/lib/workspace-client";
@@ -273,33 +276,32 @@ export function useStudioController() {
     news: submission.news.map((news) => news.id === newsId ? { ...news, [collection]: news[collection].map((item) => item.id === itemId ? { ...item, [key]: value } : item) } : news),
   }));
 
-  // 방문자용 미리보기는 브라우저에서 축소하고, 원본과 함께 서버의 서로 다른 버킷에 업로드합니다.
+  // 미리보기는 브라우저에서 축소하고, 큰 원본은 GPT 임시 서버를 거치지 않고 Storage로 바로 올립니다.
   const addImages = async (files: File[], newsId: number) => {
     const images = files.filter((file) => file.type.startsWith("image/"));
     if (!images.length) { notify("이미지 파일만 첨부할 수 있습니다."); return; }
     if (!selectedBookstoreId) return;
     const uploaded: NewsImage[] = [];
+    const reserved: NewsImage[] = [];
     try {
       setSaveState(`사진 ${images.length}장 업로드 중...`);
-      for (const file of images) {
-        if (file.size > 20 * 1024 * 1024) throw new Error(`${file.name}: 사진 한 장은 20MB 이하로 업로드해 주세요.`);
+      for (let index = 0; index < images.length; index += 1) {
+        const file = images[index];
+        setSaveState(`사진 ${index + 1}/${images.length} 업로드 중...`);
+        if (file.size > MAX_ORIGINAL_IMAGE_BYTES) throw new Error(`${file.name}: 사진 한 장은 20MB 이하로 업로드해 주세요.`);
         const preview = await createImagePreview(file);
-        const form = new FormData();
-        form.append("original", file);
-        form.append("preview", preview);
-        form.append("month", month);
-        form.append("bookstoreId", String(selectedBookstoreId));
-        form.append("newsId", String(newsId));
-        const response = await fetch("/api/images", { method: "POST", headers: workspaceSessionHeaders(), body: form });
-        if (!response.ok) throw new Error(await responseMessage(response, "사진을 저장하지 못했습니다."));
-        uploaded.push(await response.json() as NewsImage);
+        const reservation = await reserveImageUpload(file, preview, month, selectedBookstoreId, newsId);
+        reserved.push(reservation.image);
+        await uploadFileToSignedUrl(reservation.uploads.originalUrl, file, "300");
+        await uploadFileToSignedUrl(reservation.uploads.previewUrl, preview, "300");
+        uploaded.push(reservation.image);
       }
       updateCurrent((submission) => ({ ...submission, news: submission.news.map((news) => news.id === newsId ? { ...news, images: [...news.images, ...uploaded] } : news) }));
       setStorageError("");
       setSaveState("사진 업로드 완료 · 내용 저장 중...");
       notify(`사진 ${uploaded.length}장을 저장했습니다.`);
     } catch (error) {
-      uploaded.forEach(deleteStoredImage);
+      reserved.forEach(deleteStoredImage);
       const message = error instanceof Error ? error.message : "사진을 저장하지 못했습니다.";
       setStorageError(message);
       setSaveState("사진 업로드 실패");

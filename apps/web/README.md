@@ -26,4 +26,5 @@ npm run build
 - Supabase Database: 책방 기본정보, 월별 운영 안내, 소식과 상태
 - Private Storage: HTML 편집자용 원본 사진
 - Public Storage: 방문자용 축소 미리보기
+- 사진 업로드: 한 장당 20MB, 서버 본문을 거치지 않는 짧은 유효기간의 Storage 서명 URL 사용
 - 작업 세션: HttpOnly 서명 쿠키 + 탭 단위 임의 세션 ID

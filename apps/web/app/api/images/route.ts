@@ -4,6 +4,17 @@ import { readWorkerSession } from "@/lib/workspace-session";
 import type { NewsImage } from "@/lib/workspace-types";
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const MAX_PREVIEW_BYTES = 3 * 1024 * 1024;
+
+type ImageUploadRequest = {
+  name?: string;
+  type?: string;
+  size?: number;
+  previewSize?: number;
+  month?: string;
+  bookstoreId?: number;
+  newsId?: number;
+};
 
 // 사용자 파일명과 폼 값을 Storage 경로에 안전한 한 구간으로 제한합니다.
 function safeSegment(value: string) {
@@ -16,42 +27,48 @@ function configurationResponse() {
 
 export async function POST(request: NextRequest) {
   try {
-    // 입력자만 원본(비공개)과 모바일 미리보기(공개)를 한 쌍으로 업로드할 수 있습니다.
+    // 큰 파일이 GPT 임시 서버의 본문 제한을 통과하지 않도록, 입력자에게 Storage 직접 업로드용 서명 URL만 발급합니다.
     if (await readWorkerSession(request) !== "input") return NextResponse.json({ error: "사진 업로드 권한을 다시 확인해 주세요." }, { status: 403 });
-    const form = await request.formData();
-    const original = form.get("original");
-    const preview = form.get("preview");
-    if (!(original instanceof File) || !(preview instanceof File) || !original.type.startsWith("image/") || !preview.type.startsWith("image/")) {
+    const body = await request.json() as ImageUploadRequest;
+    const originalSize = Number(body.size || 0);
+    const previewSize = Number(body.previewSize || 0);
+    if (!body.name || !body.type?.startsWith("image/") || !Number.isFinite(originalSize) || originalSize <= 0 || !Number.isFinite(previewSize) || previewSize <= 0) {
       return NextResponse.json({ error: "올바른 이미지 파일을 선택해 주세요." }, { status: 400 });
     }
-    if (original.size > MAX_IMAGE_BYTES) return NextResponse.json({ error: "사진 한 장은 20MB 이하로 업로드해 주세요." }, { status: 413 });
+    if (originalSize > MAX_IMAGE_BYTES) return NextResponse.json({ error: "사진 한 장은 20MB 이하로 업로드해 주세요." }, { status: 413 });
+    if (previewSize > MAX_PREVIEW_BYTES) return NextResponse.json({ error: "사진 미리보기를 3MB 이하로 만들어 주세요." }, { status: 413 });
 
-    const month = safeSegment(String(form.get("month") || "unknown-month"));
-    const bookstoreId = safeSegment(String(form.get("bookstoreId") || "unknown-bookstore"));
-    const newsId = safeSegment(String(form.get("newsId") || "unknown-news"));
+    const month = safeSegment(String(body.month || "unknown-month"));
+    const bookstoreId = safeSegment(String(body.bookstoreId || "unknown-bookstore"));
+    const newsId = safeSegment(String(body.newsId || "unknown-news"));
     const uniqueId = crypto.randomUUID();
-    const originalName = safeSegment(original.name);
+    const originalName = safeSegment(body.name);
     const originalPath = `originals/${month}/${bookstoreId}/${newsId}/${uniqueId}-${originalName}`;
     const previewPath = `previews/${month}/${bookstoreId}/${newsId}/${uniqueId}.jpg`;
     const supabase = getSupabaseAdmin();
-    const originalUpload = await supabase.storage.from(ORIGINAL_IMAGE_BUCKET).upload(originalPath, original, { contentType: original.type, upsert: false });
+    const [originalUpload, previewUpload] = await Promise.all([
+      supabase.storage.from(ORIGINAL_IMAGE_BUCKET).createSignedUploadUrl(originalPath),
+      supabase.storage.from(PREVIEW_IMAGE_BUCKET).createSignedUploadUrl(previewPath),
+    ]);
     if (originalUpload.error) throw originalUpload.error;
-    const previewUpload = await supabase.storage.from(PREVIEW_IMAGE_BUCKET).upload(previewPath, preview, { contentType: "image/jpeg", cacheControl: "300", upsert: false });
-    if (previewUpload.error) {
-      // 두 파일 중 하나만 남지 않도록 미리보기 실패 시 먼저 올라간 원본을 되돌립니다.
-      await supabase.storage.from(ORIGINAL_IMAGE_BUCKET).remove([originalPath]);
-      throw previewUpload.error;
-    }
+    if (previewUpload.error) throw previewUpload.error;
     const image: NewsImage = {
       id: Date.now() + Math.random(),
-      name: original.name,
+      name: body.name,
       originalPath,
       previewPath,
       originalUrl: "",
       url: supabase.storage.from(PREVIEW_IMAGE_BUCKET).getPublicUrl(previewPath).data.publicUrl,
       caption: "",
     };
-    return NextResponse.json(image, { status: 201 });
+    // 서명 URL은 2시간만 유효하며 Workspace에는 저장하지 않습니다.
+    return NextResponse.json({
+      image,
+      uploads: {
+        originalUrl: originalUpload.data.signedUrl,
+        previewUrl: previewUpload.data.signedUrl,
+      },
+    }, { status: 201 });
   } catch (error) {
     if (error instanceof SupabaseConfigurationError) return configurationResponse();
     console.error("image upload failed", error);

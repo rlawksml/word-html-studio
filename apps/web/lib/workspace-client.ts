@@ -1,4 +1,14 @@
-import type { Bookstore, Submission, Workspace } from "@/lib/workspace-types";
+import type { Bookstore, NewsImage, Submission, Workspace } from "@/lib/workspace-types";
+
+export const MAX_ORIGINAL_IMAGE_BYTES = 20 * 1024 * 1024;
+
+type ImageUploadReservation = {
+  image: NewsImage;
+  uploads: {
+    originalUrl: string;
+    previewUrl: string;
+  };
+};
 
 // 브라우저와 Next.js API Route 사이의 통신 경계입니다. Supabase SDK는 이 파일에서 직접 사용하지 않습니다.
 export function triggerDownload(filename: string, blob: Blob) {
@@ -40,6 +50,40 @@ export async function persistWorkspace(bookstores: Bookstore[], submissions: Sub
     body: JSON.stringify({ bookstores, submissions }),
   });
   if (!response.ok) throw new Error(await responseMessage(response, "공용 저장소에 저장하지 못했습니다."));
+}
+
+export async function reserveImageUpload(file: File, preview: File, month: string, bookstoreId: number, newsId: number) {
+  // 파일 자체는 보내지 않고, 짧게 유효한 Supabase Storage 업로드 주소만 서버에서 발급받습니다.
+  const response = await fetch("/api/images", {
+    method: "POST",
+    headers: { "content-type": "application/json", ...workspaceSessionHeaders() },
+    body: JSON.stringify({
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      previewSize: preview.size,
+      month,
+      bookstoreId,
+      newsId,
+    }),
+  });
+  if (!response.ok) throw new Error(await responseMessage(response, "사진 업로드를 준비하지 못했습니다."));
+  return response.json() as Promise<ImageUploadReservation>;
+}
+
+export async function uploadFileToSignedUrl(signedUrl: string, file: File, cacheControl: string) {
+  // 큰 원본이 Next.js/GPT 임시 서버의 요청 크기 제한에 걸리지 않도록 Storage로 바로 전송합니다.
+  const form = new FormData();
+  form.append("cacheControl", cacheControl);
+  form.append("", file);
+  const response = await fetch(signedUrl, {
+    method: "PUT",
+    headers: { "x-upsert": "false" },
+    body: form,
+  });
+  if (response.ok) return;
+  if (response.status === 413) throw new Error(`${file.name}: 사진 용량이 저장소의 허용 범위를 넘었습니다. 20MB 이하 사진을 사용해 주세요.`);
+  throw new Error(`${file.name}: 사진 파일을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.`);
 }
 
 export function persistWorkspaceOnUnload(bookstores: Bookstore[], submissions: Submission[]) {
