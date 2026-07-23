@@ -488,7 +488,11 @@ export function useStudioController(initialMonth: string) {
       }
     }
     if (withHtml) {
-      zip.file(`${submission.month}_${safeFilename(bookstore.name)}.html`, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${bookstore.name}</title></head><body>${generatedHtml(submission, bookstore, false)}</body></html>`);
+      const pasteReadyHtml = generatedHtml(submission, bookstore, false);
+      const baseFilename = `${submission.month}_${safeFilename(bookstore.name)}`;
+      // HTML은 브라우저 미리보기용 전체 문서, TXT는 외부 HTML 편집기에 그대로 붙여넣는 본문 마크업입니다.
+      zip.file(`${baseFilename}.html`, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${bookstore.name}</title></head><body>${pasteReadyHtml}</body></html>`);
+      zip.file(`${baseFilename}_HTML코드_복사용.txt`, pasteReadyHtml);
       zip.file("사진배치안내.txt", submission.news.map((news, index) => `${index + 1}. ${news.title}\n${news.images.map((image, imageIndex) => `- ${submission.month}_${safeFilename(bookstore.name)}_${String(index + 1).padStart(2, "0")}_${String(imageIndex + 1).padStart(2, "0")}_${safeFilename(news.title)}.${image.name.split(".").pop() || "jpg"}`).join("\n")}`).join("\n\n"));
     }
     triggerDownload(`${submission.month}_${safeFilename(bookstore.name)}_${withHtml ? "작업파일" : "사진"}.zip`, await zip.generateAsync({ type: "blob" }));
