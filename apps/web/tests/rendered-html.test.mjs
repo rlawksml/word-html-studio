@@ -204,6 +204,15 @@ test("supports Word-like optional fields, detail views, and photo ordering", asy
   assert.doesNotMatch(source, /news\.description\.slice\(0, 80\)/);
 });
 
+test("packages a preview document and paste-ready HTML text for editors", async () => {
+  const source = await readApplicationSource();
+  assert.match(source, /const pasteReadyHtml = generatedHtml\(submission, bookstore, false\)/);
+  assert.match(source, /_HTML코드_복사용\.txt`\, pasteReadyHtml\)/);
+  assert.match(source, /<body>\$\{pasteReadyHtml\}<\/body>/);
+  assert.match(source, /HTML·TXT·사진 ZIP/);
+  assert.match(source, /미리보기 HTML, 복사용 TXT, 원본 사진을 한 번에 받습니다/);
+});
+
 test("guides input work and focuses the first missing required field", async () => {
   const source = await readApplicationSource();
   assert.match(source, /① 발행 월 확인/);
