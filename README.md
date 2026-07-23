@@ -123,6 +123,8 @@ npm run test:integration:local
 - [입력 항목 분류](docs/FIELD_REQUIREMENTS.md)
 - [실제 Word 4개 비교 분석](docs/MULTI_DOC_ANALYSIS.md)
 - [Word 작성 가이드](docs/WORD_AUTHORING_GUIDE.md)
+- [책방 소식 입력 사용자 가이드 PDF](docs/guides/동네책방_소식입력_사용가이드.pdf)
+- [사용자 가이드 PDF 제작 안내](docs/guides/README.md)
 - [구현 일정](TODO.md)
 
 ## 저장소 구조
