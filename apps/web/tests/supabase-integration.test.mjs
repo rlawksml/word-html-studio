@@ -70,7 +70,10 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
     assert.equal((await firstLease.json()).owned, true);
     const occupiedLease = await appFetch("/api/presence", { method: "POST", headers: secondWorkerHeaders, body: JSON.stringify(presenceTarget) });
     await assertStatus(occupiedLease, 200);
-    assert.equal((await occupiedLease.json()).owned, false);
+    const occupiedLeaseBody = await occupiedLease.json();
+    assert.equal(occupiedLeaseBody.owned, false);
+    assert.equal(occupiedLeaseBody.activeRole, "input");
+    assert.ok(Date.parse(occupiedLeaseBody.expiresAt) > Date.now());
     const releaseLease = await appFetch("/api/presence", { method: "DELETE", headers: workerHeaders, body: JSON.stringify(presenceTarget) });
     await assertStatus(releaseLease, 204);
     const handedOffLease = await appFetch("/api/presence", { method: "POST", headers: secondWorkerHeaders, body: JSON.stringify(presenceTarget) });

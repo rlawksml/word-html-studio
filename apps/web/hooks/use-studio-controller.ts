@@ -20,6 +20,7 @@ import {
 import {
   createImagePreview,
   deleteStoredImages,
+  heartbeatEditingPresence,
   loadWorkspace,
   MAX_ORIGINAL_IMAGE_BYTES,
   persistSubmissionOnUnload,
@@ -58,8 +59,15 @@ export function useStudioController(initialMonth: string) {
   const [draggedDigestId, setDraggedDigestId] = useState<number | null>(null);
   const [publicDetail, setPublicDetail] = useState<{ submissionId: number; newsId: number } | null>(null);
   const [leaveTarget, setLeaveTarget] = useState<LeaveTarget | null>(null);
+  const [editingEntryBlock, setEditingEntryBlock] = useState<{
+    bookstoreName: string;
+    reason: "occupied" | "unavailable";
+    activeRole: "input" | "html" | null;
+  } | null>(null);
+  const [openingBookstoreId, setOpeningBookstoreId] = useState<number | null>(null);
   const [storageError, setStorageError] = useState("");
   const submissionsRef = useRef(submissions);
+  const openingBookstoreRef = useRef<number | null>(null);
   const pendingImageDeletesRef = useRef(new Map<number, NewsImage[]>());
   const imageUploadInProgressRef = useRef(false);
   useEffect(() => { submissionsRef.current = submissions; }, [submissions]);
@@ -250,10 +258,38 @@ export function useStudioController(initialMonth: string) {
     return next.id;
   };
 
-  const openBookstore = (bookstoreId: number) => {
-    ensureSubmission(bookstoreId);
-    setSelectedBookstoreId(bookstoreId);
-    setInputView("edit");
+  const openBookstore = async (bookstoreId: number) => {
+    if (openingBookstoreRef.current !== null) return;
+    const bookstore = bookstores.find((item) => item.id === bookstoreId);
+    if (!bookstore) return;
+
+    openingBookstoreRef.current = bookstoreId;
+    setOpeningBookstoreId(bookstoreId);
+    try {
+      // 편집 화면을 먼저 연 뒤 경고하지 않고, Supabase의 원자적 임대를 확보한 탭만 진입시킵니다.
+      const result = await heartbeatEditingPresence({ scope: "submission", month, bookstoreId });
+      if (!result.owned) {
+        setEditingEntryBlock({
+          bookstoreName: bookstore.name,
+          reason: "occupied",
+          activeRole: result.activeRole,
+        });
+        return;
+      }
+      ensureSubmission(bookstoreId);
+      setSelectedBookstoreId(bookstoreId);
+      setInputView("edit");
+    } catch {
+      // 상태 확인 실패 때 진입을 허용하면 중복 편집이 생길 수 있으므로 안전하게 목록에 머뭅니다.
+      setEditingEntryBlock({
+        bookstoreName: bookstore.name,
+        reason: "unavailable",
+        activeRole: null,
+      });
+    } finally {
+      openingBookstoreRef.current = null;
+      setOpeningBookstoreId(null);
+    }
   };
 
   // 모든 소식 수정은 이 함수를 통과합니다. 완료본을 수정하면 draft로 돌리고 제거된 사진도 정리합니다.
@@ -509,7 +545,8 @@ export function useStudioController(initialMonth: string) {
   return {
     role, accessRole, password, bookstores, submissions, month, selectedBookstoreId, inputView,
     selectedSubmissionId, htmlView, previewMode, search, selectedDay, toast, saveState,
-    draggedNewsId, draggedImageId, draggedDigestId, publicDetail, leaveTarget, storageError, editingPresence,
+    draggedNewsId, draggedImageId, draggedDigestId, publicDetail, leaveTarget, editingEntryBlock,
+    openingBookstoreId, storageError, editingPresence,
     initialLoadState,
     currentSubmission, htmlReady, selectedHtmlSubmission, selectedHtmlBookstore, generatedCode,
     generatedPreview, combinedHtml, monthSubmissions, completedBookstoreCount, completionPercent,
@@ -517,6 +554,7 @@ export function useStudioController(initialMonth: string) {
     setAccessRole, setPassword, setBookstores, setSubmissions, setMonth, setSelectedBookstoreId,
     setInputView, setSelectedSubmissionId, setHtmlView, setPreviewMode, setSearch, setSelectedDay,
     setDraggedNewsId, setDraggedImageId, setDraggedDigestId, setPublicDetail, setLeaveTarget,
+    setEditingEntryBlock,
     login, returnToVisitor, confirmLeave, openBookstore, updateCurrent, updateNews, updateNewsValue,
     addImages, reorderNews, moveNews, reorderImages, moveImage, copyPrevious, manualSave,
     completeSubmission, completionShareMessage, copyText, downloadPhotoZip, reorderDigest,
