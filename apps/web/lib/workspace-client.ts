@@ -130,8 +130,19 @@ export async function uploadFileToSignedUrl(signedUrl: string, file: File, cache
     body: form,
   });
   if (response.ok) return;
+  const storageError = await response.json().catch(() => null) as { statusCode?: string | number; error?: string; message?: string } | null;
+  const errorText = `${storageError?.error || ""} ${storageError?.message || ""}`.toLowerCase();
+  // Chrome가 완료된 PUT 응답을 놓쳐 같은 서명 URL을 다시 보내면 Storage는 HTTP 400 안에
+  // 실제 409 Duplicate를 담아 돌려줍니다. 경로는 예약마다 UUID로 만들어지므로 이 경우 파일은 이미 안전하게 저장됐습니다.
+  if (
+    (response.status === 400 || response.status === 409)
+    && (String(storageError?.statusCode) === "409" || errorText.includes("duplicate") || errorText.includes("already exists"))
+  ) return;
   if (response.status === 413) throw new Error(`${file.name}: 사진 용량이 저장소의 허용 범위를 넘었습니다. 20MB 이하 사진을 사용해 주세요.`);
-  throw new Error(`${file.name}: 사진 파일을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.`);
+  if (response.status === 400 && (errorText.includes("mime") || errorText.includes("content type"))) {
+    throw new Error(`${file.name}: 지원하지 않는 사진 형식입니다. JPG, PNG, WEBP, GIF 또는 HEIC 파일을 사용해 주세요.`);
+  }
+  throw new Error(`${file.name}: 사진 파일을 저장하지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요. (${response.status})`);
 }
 
 export function persistSubmissionOnUnload(submission: Submission) {
