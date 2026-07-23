@@ -264,6 +264,11 @@ test("uses record-scoped Supabase writes with private originals and public mobil
   assert.match(imageRoute, /PREVIEW_IMAGE_BUCKET/);
   assert.match(imageRoute, /createSignedUploadUrl\(originalPath\)/);
   assert.match(imageRoute, /createSignedUploadUrl\(previewPath\)/);
+  assert.match(imageRoute, /STORAGE_EXTENSION_BY_TYPE/);
+  assert.match(imageRoute, /const originalExtension = STORAGE_EXTENSION_BY_TYPE\[body\.type\]/);
+  assert.match(imageRoute, /\$\{uniqueId\}\.\$\{originalExtension\}/);
+  assert.doesNotMatch(imageRoute, /`\$\{uniqueId\}-\$\{originalName\}`/);
+  assert.doesNotMatch(imageRoute, /\uAC00-\uD7A3/);
   assert.match(imageRoute, /validStoragePath/);
   assert.match(imageRoute, /body\.images\.length > 500/);
   assert.doesNotMatch(imageRoute, /request\.formData\(\)/);

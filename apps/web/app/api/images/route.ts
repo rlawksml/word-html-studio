@@ -6,6 +6,14 @@ import type { NewsImage } from "@/lib/workspace-types";
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_PREVIEW_BYTES = 3 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"]);
+const STORAGE_EXTENSION_BY_TYPE: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/heic": "heic",
+  "image/heif": "heif",
+};
 
 type ImageUploadRequest = {
   name?: string;
@@ -17,9 +25,10 @@ type ImageUploadRequest = {
   newsId?: number;
 };
 
-// 사용자 파일명과 폼 값을 Storage 경로에 안전한 한 구간으로 제한합니다.
+// Storage 객체 경로는 Supabase가 허용하는 ASCII 문자만 사용합니다.
+// 원래 파일명은 NewsImage.name에만 보존해 화면과 다운로드 이름으로 사용합니다.
 function safeSegment(value: string) {
-  return value.normalize("NFC").replace(/[^0-9A-Za-z가-힣._-]/g, "-").replace(/-+/g, "-").slice(0, 80) || "image";
+  return value.replace(/[^0-9A-Za-z._-]/g, "-").replace(/-+/g, "-").slice(0, 80) || "image";
 }
 
 function validStoragePath(value: unknown, prefix: "originals/" | "previews/") {
@@ -50,8 +59,8 @@ export async function POST(request: NextRequest) {
     const bookstoreId = safeSegment(String(body.bookstoreId));
     const newsId = safeSegment(String(body.newsId));
     const uniqueId = crypto.randomUUID();
-    const originalName = safeSegment(body.name);
-    const originalPath = `originals/${month}/${bookstoreId}/${newsId}/${uniqueId}-${originalName}`;
+    const originalExtension = STORAGE_EXTENSION_BY_TYPE[body.type];
+    const originalPath = `originals/${month}/${bookstoreId}/${newsId}/${uniqueId}.${originalExtension}`;
     const previewPath = `previews/${month}/${bookstoreId}/${newsId}/${uniqueId}.jpg`;
     const supabase = getSupabaseAdmin();
     const [originalUpload, previewUpload] = await Promise.all([
