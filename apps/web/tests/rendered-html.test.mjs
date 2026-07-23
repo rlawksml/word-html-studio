@@ -154,9 +154,11 @@ test("keeps passcodes in server environment variables and uses a tab-scoped work
   assert.doesNotMatch(source, /장의 사진 업로드|월별 현황 메시지 복사|completion-modal|재게시를 알려주세요|setCompletion/);
 });
 
-test("warns about active editors with a short database lease", async () => {
-  const [source, presenceRoute, migration, globalStyles] = await Promise.all([
+test("blocks bookstore entry while another worker owns the short database lease", async () => {
+  const [source, controller, inputWorkspace, presenceRoute, migration, globalStyles] = await Promise.all([
     readApplicationSource(),
+    readFile(new URL("../hooks/use-studio-controller.ts", import.meta.url), "utf8"),
+    readFile(new URL("../components/organisms/InputWorkspace.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/presence/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/202607220002_editing_leases.sql", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -165,6 +167,18 @@ test("warns about active editors with a short database lease", async () => {
   assert.match(source, /const HEARTBEAT_MS = 60_000/);
   assert.match(source, /다른 .*가 이 내용을 편집 중입니다/);
   assert.match(source, /저장 충돌이 발생할 수 있습니다/);
+  assert.match(controller, /await heartbeatEditingPresence\(\{ scope: "submission", month, bookstoreId \}\)/);
+  assert.match(controller, /if \(!result\.owned\) \{[\s\S]+setEditingEntryBlock\([\s\S]+reason: "occupied"[\s\S]+return;/);
+  assert.ok(
+    controller.indexOf("await heartbeatEditingPresence") < controller.indexOf("ensureSubmission(bookstoreId);"),
+    "편집 임대를 확보하기 전에 Submission을 만들거나 편집 화면으로 진입하면 안 됩니다.",
+  );
+  assert.match(inputWorkspace, /onClick=\{\(\) => void openBookstore\(bookstore\.id\)\}/);
+  assert.match(inputWorkspace, /disabled=\{openingBookstoreId !== null\}/);
+  assert.match(source, /role="alertdialog"/);
+  assert.match(source, /에 지금 들어갈 수 없습니다/);
+  assert.match(source, /약 3분 뒤 자동으로 편집할 수 있습니다/);
+  assert.match(source, /편집 상태를 확인하지 못해 안전하게 진입을 멈췄습니다/);
   assert.match(presenceRoute, /const LEASE_SECONDS = 180/);
   assert.match(presenceRoute, /acquire_editing_lease/);
   assert.match(presenceRoute, /workspaceSessionFingerprint/);

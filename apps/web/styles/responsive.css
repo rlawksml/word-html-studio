@@ -89,7 +89,7 @@
   .digest-work { display:block; height:auto; padding:14px; }
   .digest-control { max-height:none; }
   .digest-output { height:700px; margin-top:14px; }
-  .access-modal,.leave-modal { padding:28px 20px; }
+  .access-modal,.leave-modal,.editing-blocked-modal { padding:28px 20px; }
   .leave-modal-actions { flex-direction:column-reverse; }
   .leave-modal-actions button { width:100%; }
   .toast { left:14px; right:14px; bottom:14px; text-align:center; }

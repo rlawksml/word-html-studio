@@ -8,7 +8,7 @@ import { formatMonth, formatSavedAt, shiftMonth } from "@/lib/workspace-formatte
 export function InputWorkspace({ studio }: { studio: StudioController }) {
   const {
     bookstores, submissions, month, inputView, monthSubmissions, completedBookstoreCount,
-    completionPercent, setBookstores, setMonth, setInputView, openBookstore,
+    completionPercent, openingBookstoreId, setBookstores, setMonth, setInputView, openBookstore,
     completionShareMessage, copyText, notify,
   } = studio;
   return <section className="input-area">
@@ -32,7 +32,8 @@ export function InputWorkspace({ studio }: { studio: StudioController }) {
       {bookstores.length ? <div className="bookstore-work-list">{bookstores.map((bookstore) => {
         const submission = submissions.find((item) => item.bookstoreId === bookstore.id && item.month === month);
         const images = submission?.news.reduce((sum, news) => sum + news.images.length, 0) || 0;
-        return <button key={bookstore.id} onClick={() => openBookstore(bookstore.id)}><div><span>{bookstore.region}</span><h2>{bookstore.name}</h2><p>{submission ? `소식 ${submission.news.length}건 · 사진 ${images}장` : "이번 달 소식 없음"}</p></div><div><WorkStatusBadge submission={submission} /><small>{submission ? formatSavedAt(submission.updatedAt) : "작성 시작하기"}</small></div></button>;
+        const isOpening = openingBookstoreId === bookstore.id;
+        return <button key={bookstore.id} onClick={() => void openBookstore(bookstore.id)} disabled={openingBookstoreId !== null} aria-busy={isOpening || undefined}><div><span>{bookstore.region}</span><h2>{bookstore.name}</h2><p>{submission ? `소식 ${submission.news.length}건 · 사진 ${images}장` : "이번 달 소식 없음"}</p></div><div><WorkStatusBadge submission={submission} /><small>{isOpening ? "편집 가능 여부 확인 중..." : submission ? formatSavedAt(submission.updatedAt) : "작성 시작하기"}</small></div></button>;
       })}</div> : <div className="empty-state input-empty-state"><h2>등록된 책방이 없습니다.</h2><p>책방 관리에서 첫 책방의 기본정보를 등록해 주세요.</p><button className="primary-button" onClick={() => setInputView("bookstores")}>책방 등록하기</button></div>}
     </>}
 
