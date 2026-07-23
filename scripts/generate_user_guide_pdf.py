@@ -8,6 +8,7 @@ current production UI and explains only the information-entry workflow.
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 from typing import Iterable
 
 from reportlab.graphics import renderPDF
@@ -27,6 +28,7 @@ from reportlab.platypus import Paragraph
 ROOT = Path(__file__).resolve().parents[1]
 ASSET_DIR = ROOT / "docs" / "guides" / "assets"
 OUTPUT = ROOT / "docs" / "guides" / "동네책방_소식입력_사용가이드.pdf"
+PUBLIC_OUTPUT = ROOT / "apps" / "web" / "public" / "guides" / "bookstore-news-input-guide.pdf"
 
 PAGE_W, PAGE_H = A4
 MARGIN = 42
@@ -642,7 +644,7 @@ def page_faq(c: canvas.Canvas) -> None:
         ("저장됐는지 모르겠어요.", "화면 상단이나 하단의 저장 상태를 확인하고, 불안하면 임시 저장을 누르세요."),
         ("사진 업로드가 안 돼요.", "한 장이 20MB 이하인지 확인하고, 네트워크 연결 후 다시 시도하세요."),
         ("완료 후 수정할 수 있나요?", "가능합니다. 다만 상태가 작성 중 또는 재게시 필요로 표시될 수 있으므로 다시 입력 마무리를 확인하세요."),
-        ("다른 사람이 편집 중이라고 나와요.", "가능하면 상대방이 마친 뒤 작업하세요. 다른 책방을 작성하는 것은 서로 영향을 주지 않습니다."),
+        ("다른 사람이 편집 중이라고 나와요.", "해당 책방에는 들어갈 수 없습니다. 상대방이 나가면 바로, 비정상 종료라면 약 3분 뒤 다시 시도하세요."),
         ("HTML을 몰라도 되나요?", "네. 입력자는 폼 작성과 사진 첨부, 미리보기, 입력 마무리까지만 하면 됩니다."),
     ]
     for question, answer in faqs:
@@ -688,6 +690,8 @@ def build() -> None:
     page_finish(c)
     page_faq(c)
     c.save()
+    PUBLIC_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(OUTPUT, PUBLIC_OUTPUT)
     print(OUTPUT)
 
 

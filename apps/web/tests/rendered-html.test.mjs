@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
 const applicationSourceFiles = [
@@ -9,9 +9,14 @@ const applicationSourceFiles = [
   "../hooks/use-workspace-persistence.ts",
   "../hooks/use-editing-presence.ts",
   "../lib/html-generators.ts",
+  "../lib/improvement-export.ts",
+  "../lib/improvement-types.ts",
+  "../lib/improvements-client.ts",
   "../lib/workspace-client.ts",
   "../lib/workspace-formatters.ts",
+  "../components/atoms/BrandIdentity.tsx",
   "../components/atoms/BrandButton.tsx",
+  "../components/atoms/ImprovementStatusChip.tsx",
   "../components/atoms/LoadingBooks.tsx",
   "../components/atoms/WorkStatusBadge.tsx",
   "../components/molecules/AppHeader.tsx",
@@ -22,8 +27,11 @@ const applicationSourceFiles = [
   "../components/molecules/SubmissionPreviewDialog.tsx",
   "../components/molecules/StudioFeedback.tsx",
   "../components/molecules/StorageLoadingOverlay.tsx",
+  "../components/molecules/UtilityPageHeader.tsx",
   "../components/organisms/BookstoreManagement.tsx",
   "../components/organisms/HtmlWorkspace.tsx",
+  "../components/organisms/HelpWorkspace.tsx",
+  "../components/organisms/ImprovementsWorkspace.tsx",
   "../components/organisms/InputWorkspace.tsx",
   "../components/organisms/NewsEditorWorkspace.tsx",
   "../components/organisms/VisitorWorkspace.tsx",
@@ -56,6 +64,10 @@ test("renders the public bookstore news calendar", async () => {
   assert.match(html, /동네책방 소식/);
   assert.match(html, />소식 입력<\/button>/);
   assert.match(html, />HTML 편집<\/button>/);
+  assert.match(html, /href="\/improvements"/);
+  assert.match(html, />개선사항<\/a>/);
+  assert.match(html, /href="\/help"/);
+  assert.match(html, />도움말<\/a>/);
   assert.doesNotMatch(html, /작업자 접속/);
   assert.match(html, /2026년 7월/);
   assert.match(html, /aria-label="이전 달"/);
@@ -65,6 +77,53 @@ test("renders the public bookstore news calendar", async () => {
   assert.doesNotMatch(html, /상반기 문학 독서모임 마무리|소담쓰담|수연목서/);
   assert.doesNotMatch(html, /가까운 동네책방에서 열리는|<small>일정<\/small>|전체 일정|소식 월/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/);
+});
+
+test("renders a responsive help page with the downloadable PDF guide", async () => {
+  const response = await render("/help");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /<title>사용 가이드 \| 지관서가 동네책방 소식<\/title>/);
+  assert.match(html, /Word를 작성하듯, 책방 소식을 한 곳씩 입력하세요/);
+  assert.match(html, /PDF 가이드 열기/);
+  assert.match(html, /href="\/guides\/bookstore-news-input-guide\.pdf"/);
+  assert.match(html, /소식 제목, 상세 내용/);
+  assert.match(html, /자동 저장을 확인하고 책방별로 입력을 마무리합니다/);
+  assert.doesNotMatch(html, /wlrhkstjrk|SUPABASE_SECRET_KEY/);
+  const guide = await stat(new URL("../public/guides/bookstore-news-input-guide.pdf", import.meta.url));
+  assert.ok(guide.size > 100_000, "배포용 사용자 가이드 PDF가 비어 있으면 안 됩니다.");
+});
+
+test("renders public improvement intake with worker-only management and portable exports", async () => {
+  const [response, route, migration, globalStyles] = await Promise.all([
+    render("/improvements"),
+    readFile(new URL("../app/api/improvements/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202607240001_improvement_requests.sql", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /<title>개선사항 \| 지관서가 동네책방 소식<\/title>/);
+  assert.match(html, /개선사항 접수하기/);
+  assert.match(html, /접수된 개선사항/);
+  assert.match(html, /제목과 내용만 적으면 됩니다/);
+  assert.match(route, /export async function (GET|POST|PUT)/);
+  assert.match(route, /canManage: Boolean\(await readWorkerSession\(request\)\)/);
+  assert.match(route, /if \(!await readWorkerSession\(request\)\)/);
+  assert.match(route, /\.eq\("updated_at", updatedAt\)/);
+  assert.match(route, /crypto\.randomUUID\(\)/);
+  assert.match(migration, /create table if not exists public\.improvement_requests/);
+  assert.match(migration, /check \(status in \('received', 'checking', 'in_progress', 'resolved'\)\)/);
+  assert.match(migration, /enable row level security/);
+  assert.match(migration, /revoke all on public\.improvement_requests from anon, authenticated/);
+  assert.match(globalStyles, /styles\/utility-pages\.css/);
+
+  const source = await readApplicationSource();
+  assert.match(source, /통합본 복사/);
+  assert.match(source, /MD 다운로드/);
+  assert.match(source, /JSON 다운로드/);
+  assert.match(source, /IMPROVEMENT_STATUS_LABELS/);
+  assert.match(source, /improvement-honeypot/);
 });
 
 test("guards the first visit with a three-attempt storage loading screen", async () => {

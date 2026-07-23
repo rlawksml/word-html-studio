@@ -14,6 +14,8 @@
 - HTML 편집자: 입력 완료 자료만 열람, 개별 HTML 복사·미리보기, 사진 ZIP과 HTML·복사용 TXT·사진 ZIP
 - 통합본: 포함 소식 선택, 책방 순서 드래그 변경, 책방·지역·소식 제목 중심 통합 HTML 복사·미리보기
 - 게시: 선택적 게시 URL 저장, 게시 완료·재게시 상태 표시
+- 개선사항: 방문자 공개 접수와 진행 상태 확인, 작업자 상태·예정일 관리, Markdown·JSON 다운로드와 통합본 복사
+- 도움말: 모바일 웹 사용 가이드와 기존 PDF 새 창 열기·다운로드
 
 방문자 헤더의 `소식 입력` 또는 `HTML 편집` 버튼을 먼저 선택한 뒤 서버 환경변수에 등록한 역할별 암호를 입력합니다. 실제 작업 암호는 공개 저장소와 브라우저 코드에 포함하지 않습니다. 방문자는 암호 없이 바로 이용합니다.
 
@@ -23,7 +25,7 @@
 
 공용 저장소는 **Supabase**를 사용하며 기존 브라우저 `localStorage`의 샘플·임시 데이터는 가져오지 않습니다. Supabase가 연결되면 빈 운영 데이터에서 책방을 새로 등록해 시작합니다.
 
-- Supabase Database: 책방 기본정보, 월별 소식, 일정과 작업 상태
+- Supabase Database: 책방 기본정보, 월별 소식, 일정·작업 상태와 개선사항
 - Supabase Storage: 비공개 원본 사진 버킷과 공개 모바일 미리보기 버킷
 - 로그인: Supabase Auth는 도입하지 않고 현재의 입력자·HTML 편집자 작업 암호와 세션 방식을 유지
 
@@ -67,7 +69,7 @@ page.tsx
     → 역할별 Workspace 컴포넌트
       → useStudioController
         → workspace-client
-          → /api/session, /api/workspace, /api/bookstores, /api/submissions, /api/images, /api/presence
+          → /api/session, /api/workspace, /api/bookstores, /api/submissions, /api/images, /api/presence, /api/improvements
             → workspace-session, supabase-server
               → Supabase Database / Storage
 ```
@@ -89,6 +91,8 @@ page.tsx
 | 사진 업로드·삭제·원본 다운로드 | `app/api/images/route.ts` |
 | 작업 암호와 탭 세션 | `app/api/session/route.ts`, `lib/workspace-session.ts` |
 | 동시 편집 안내 | `hooks/use-editing-presence.ts`, `app/api/presence/route.ts`, `styles/presence.css` |
+| 개선사항 접수·상태·내보내기 | `components/organisms/ImprovementsWorkspace.tsx`, `app/api/improvements/route.ts`, `lib/improvement-export.ts` |
+| 웹 도움말과 PDF 연결 | `components/organisms/HelpWorkspace.tsx`, `app/help/page.tsx`, `public/guides/` |
 | 화면 스타일 | `styles/foundations.css`와 역할별 CSS 파일 |
 
 코드 주석은 문법이나 JSX 내용을 그대로 번역하지 않고, 파일의 책임과 보안·저장·상태 전환의 이유를 설명합니다. 기능을 옮기거나 경계를 변경할 때 관련 주석과 위 표도 함께 수정합니다.
