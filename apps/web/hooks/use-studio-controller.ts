@@ -61,6 +61,7 @@ export function useStudioController(initialMonth: string) {
   const [storageError, setStorageError] = useState("");
   const submissionsRef = useRef(submissions);
   const pendingImageDeletesRef = useRef(new Map<number, NewsImage[]>());
+  const imageUploadInProgressRef = useRef(false);
   useEffect(() => { submissionsRef.current = submissions; }, [submissions]);
 
   const notify = useCallback((message: string) => {
@@ -283,6 +284,12 @@ export function useStudioController(initialMonth: string) {
     const images = files.filter((file) => file.type.startsWith("image/"));
     if (!images.length) { notify("이미지 파일만 첨부할 수 있습니다."); return; }
     if (!selectedBookstoreId) return;
+    // 투명한 파일 입력 영역에 드롭할 때 일부 브라우저가 drop과 change를 연달아 발생시켜도 같은 파일을 두 번 올리지 않습니다.
+    if (imageUploadInProgressRef.current) {
+      notify("사진을 업로드하는 중입니다. 완료된 뒤 다음 사진을 추가해 주세요.");
+      return;
+    }
+    imageUploadInProgressRef.current = true;
     const uploaded: NewsImage[] = [];
     const reserved: NewsImage[] = [];
     try {
@@ -315,6 +322,8 @@ export function useStudioController(initialMonth: string) {
       setStorageError(message);
       setSaveState("사진 업로드 실패");
       notify(message);
+    } finally {
+      imageUploadInProgressRef.current = false;
     }
   };
 

@@ -241,6 +241,10 @@ test("uses record-scoped Supabase writes with private originals and public mobil
   assert.match(pageSource, /createImagePreview/);
   assert.match(pageSource, /reserveImageUpload/);
   assert.match(pageSource, /uploadFileToSignedUrl/);
+  assert.match(pageSource, /imageUploadInProgressRef/);
+  assert.match(pageSource, /사진을 업로드하는 중입니다/);
+  assert.match(pageSource, /errorText\.includes\("already exists"\)/);
+  assert.match(pageSource, /String\(storageError\?\.statusCode\) === "409"/);
   assert.match(pageSource, /item\.originalUrl \|\| item\.url/);
   assert.doesNotMatch(pageSource, /localStorage|seedBookstores|seedSubmissions|readAsDataURL/);
   assert.match(workspaceRoute, /전체 Workspace API는 읽기 전용/);
