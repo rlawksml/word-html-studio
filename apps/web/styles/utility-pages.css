@@ -1,0 +1,120 @@
+/* 공통 헤더의 도움 메뉴와 개선사항·가이드 전용 페이지 */
+.header-actions,.utility-nav { display:flex; align-items:center; }
+.header-actions { gap:18px; }
+.utility-nav { gap:4px; }
+.utility-nav a { padding:8px 9px; color:#777; font-size:11px; text-decoration:none; white-space:nowrap; }
+.utility-nav a:hover,.utility-nav a:focus-visible,.utility-nav a[aria-current="page"] { color:#222; background:#f1f1ee; }
+.utility-page-header .brand { text-decoration:none; }
+.utility-shell { min-height:100vh; background:var(--paper); }
+.utility-hero { padding:72px max(24px,calc((100vw - 1120px)/2)) 58px; background:#292c2a; color:white; }
+.utility-hero>span,.improvement-form>div:first-child>span,.improvement-board>header span,.help-guide>section>span { color:#aeb3af; font-size:10px; letter-spacing:.18em; }
+.utility-hero h1 { max-width:780px; margin:12px 0 17px; font-size:42px; line-height:1.18; font-weight:500; letter-spacing:-.045em; }
+.utility-hero p { max-width:680px; margin:0; color:#c6cbc7; font-size:14px; line-height:1.8; }
+
+/* 개선사항 접수와 상태 보드 */
+.improvements-layout { display:grid; grid-template-columns:minmax(300px,.72fr) minmax(0,1.35fr); gap:20px; align-items:start; max-width:1120px; margin:0 auto; padding:42px 24px 100px; }
+.improvement-form,.improvement-board { background:white; border:1px solid #deded9; }
+.improvement-form { position:sticky; top:100px; display:grid; gap:18px; padding:28px; }
+.improvement-form h2,.improvement-board h2 { margin:6px 0 7px; font-size:24px; font-weight:550; }
+.improvement-form>div:first-child p,.improvement-board>header p { margin:0; color:#888; font-size:11px; line-height:1.6; }
+.improvement-form textarea { min-height:170px; }
+.improvement-honeypot { position:absolute; left:-10000px; width:1px; height:1px; overflow:hidden; }
+.improvement-form-footer { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.improvement-form-footer small { color:#999; font-size:10px; }
+.improvement-form-footer button:disabled,.improvement-manager button:disabled { cursor:wait; opacity:.55; }
+.improvement-message,.improvement-error { margin:0; padding:11px 12px; font-size:11px; line-height:1.6; }
+.improvement-message { background:#edf2ed; color:#3f5f46; }
+.improvement-error { background:#f6e8df; color:#7b4532; }
+.improvement-board { padding:28px; }
+.improvement-board>header { display:flex; justify-content:space-between; align-items:end; gap:20px; padding-bottom:22px; border-bottom:1px solid #e8e8e4; }
+.improvement-export-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; }
+.improvement-export-actions button { border:1px solid #ccc; background:white; padding:8px 10px; color:#555; font-size:10px; }
+.manager-mode { margin:16px 0 0; padding:10px 12px; background:#f0eee5; color:#715f3e; font-size:10px; }
+.improvement-list { display:grid; gap:12px; margin-top:18px; }
+.improvement-list article { padding:22px; border:1px solid #deded9; background:#fcfcfb; }
+.improvement-list article.resolved { background:#f5f5f2; }
+.improvement-card-head { display:flex; justify-content:space-between; align-items:center; gap:15px; }
+.improvement-card-head time { color:#999; font-size:9px; white-space:nowrap; }
+.improvement-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.improvement-status,.target-date-chip { display:inline-flex; align-items:center; min-height:25px; padding:4px 8px; border-radius:999px; font-size:9px; font-weight:650; }
+.status-received { background:#ececeb; color:#666; }
+.status-checking { background:#efe9d8; color:#725e30; }
+.status-in_progress { background:#e1e9ec; color:#335c6a; }
+.status-resolved { background:#e2ece4; color:#3f6548; }
+.target-date-chip { background:#f2e8e2; color:#86533d; }
+.improvement-list h3 { margin:15px 0 9px; font-size:19px; font-weight:600; }
+.improvement-content { margin:0; color:#555; font-size:12px; line-height:1.8; white-space:pre-wrap; overflow-wrap:anywhere; }
+.improvement-manager { display:grid; grid-template-columns:1fr 1fr auto; gap:9px; align-items:end; margin-top:20px; padding-top:18px; border-top:1px solid #e6e6e2; }
+.improvement-manager label>span { font-size:10px; }
+.improvement-manager select,.improvement-manager input { min-height:43px; }
+.improvement-manager button { min-height:43px; white-space:nowrap; }
+.improvement-empty { padding:60px 20px; text-align:center; }
+.improvement-empty strong { font-size:16px; }
+.improvement-empty p { margin:8px 0 0; color:#888; font-size:11px; }
+
+/* PDF와 같은 내용을 모바일에서도 읽기 쉽게 재구성한 도움말 */
+.help-hero-actions { display:flex; gap:8px; margin-top:26px; }
+.help-hero-actions a { display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
+.help-content { display:grid; grid-template-columns:220px minmax(0,1fr); gap:38px; max-width:1060px; margin:0 auto; padding:48px 24px 110px; }
+.help-toc { position:sticky; top:104px; display:grid; align-self:start; padding:20px; border:1px solid #deded9; background:white; }
+.help-toc strong { margin-bottom:12px; font-size:12px; }
+.help-toc a { padding:9px 0; border-top:1px solid #eee; color:#777; font-size:11px; text-decoration:none; }
+.help-toc a:hover { color:#222; }
+.help-guide { display:grid; gap:16px; }
+.help-guide>section { scroll-margin-top:96px; padding:32px; border:1px solid #deded9; background:white; }
+.help-guide h2 { margin:7px 0 22px; font-size:25px; font-weight:550; }
+.help-guide ol,.help-guide ul { margin:0; padding-left:22px; color:#4f534f; font-size:13px; line-height:1.85; }
+.help-guide li+li { margin-top:8px; }
+.help-note { margin:22px 0 0; padding:15px 17px; border-left:3px solid #99835d; background:#f5f1e7; color:#6d614c; font-size:11px; line-height:1.7; }
+.help-field-table { display:grid; grid-template-columns:1fr 1fr; gap:1px; margin-bottom:22px; background:#ddd; border:1px solid #ddd; }
+.help-field-table>div { padding:18px; background:#fafaf8; }
+.help-field-table strong { display:block; margin-bottom:6px; font-size:12px; }
+.help-field-table p { margin:0; color:#666; font-size:11px; line-height:1.65; }
+.help-guide details { border-top:1px solid #e2e2de; }
+.help-guide details:last-child { border-bottom:1px solid #e2e2de; }
+.help-guide summary { padding:17px 2px; cursor:pointer; font-size:13px; font-weight:600; }
+.help-guide details p { margin:0 0 18px; color:#666; font-size:12px; line-height:1.75; }
+.help-guide details a { font-weight:650; }
+
+@media (max-width:820px) {
+  .improvements-layout { grid-template-columns:1fr; }
+  .improvement-form { position:static; }
+  .help-content { grid-template-columns:1fr; gap:16px; }
+  .help-toc { position:static; grid-template-columns:repeat(3,1fr); gap:1px; padding:10px; }
+  .help-toc strong { grid-column:1/-1; padding:5px 7px; }
+  .help-toc a { padding:9px 7px; }
+}
+
+@media (max-width:680px) {
+  .header-actions { gap:3px; }
+  .utility-nav { gap:1px; }
+  .utility-nav a { padding:7px 5px; font-size:9px; }
+  .utility-page-header { height:64px; }
+  .utility-hero { padding:44px 18px 38px; }
+  .utility-hero h1 { font-size:31px; }
+  .utility-hero p { font-size:12px; }
+  .improvements-layout { padding:20px 14px 70px; }
+  .improvement-form,.improvement-board { padding:20px 16px; }
+  .improvement-board>header { align-items:flex-start; flex-direction:column; }
+  .improvement-export-actions { justify-content:flex-start; }
+  .improvement-list article { padding:18px 15px; }
+  .improvement-card-head { align-items:flex-start; flex-direction:column; gap:8px; }
+  .improvement-manager { grid-template-columns:1fr; }
+  .help-content { padding:20px 14px 70px; }
+  .help-toc { grid-template-columns:1fr 1fr; }
+  .help-guide>section { padding:23px 18px; }
+  .help-guide h2 { font-size:21px; }
+  .help-field-table { grid-template-columns:1fr; }
+  .help-hero-actions { flex-direction:column; }
+  .help-hero-actions a { width:100%; }
+}
+
+@media (max-width:420px) {
+  .brand { gap:7px; }
+  .brand-mark { width:29px; height:29px; }
+  .brand strong { font-size:12px; letter-spacing:.06em; }
+  .brand small { display:none; }
+  .worker-nav { gap:6px; }
+  .worker-nav>span { display:none; }
+  .staff-access { padding:7px 5px; font-size:9px; }
+}

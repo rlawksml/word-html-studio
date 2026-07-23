@@ -4,6 +4,7 @@
 실제 운영 화면 기반 A4 가이드입니다.
 
 - 완성본: [동네책방_소식입력_사용가이드.pdf](동네책방_소식입력_사용가이드.pdf)
+- 웹 공개본: [`apps/web/public/guides/bookstore-news-input-guide.pdf`](../../apps/web/public/guides/bookstore-news-input-guide.pdf)
 - 생성 스크립트: [`scripts/generate_user_guide_pdf.py`](../../scripts/generate_user_guide_pdf.py)
 - 화면 자료: [`assets/`](assets/)
 
@@ -30,7 +31,8 @@ macOS의 `AppleGothic.ttf`와 Python `reportlab`, `Pillow`가 필요합니다.
 python3 scripts/generate_user_guide_pdf.py
 ```
 
-결과는 `docs/guides/동네책방_소식입력_사용가이드.pdf`에 덮어씁니다. 화면 구조가
+결과는 `docs/guides/동네책방_소식입력_사용가이드.pdf`에 덮어쓰고 웹 공개 자산
+`apps/web/public/guides/bookstore-news-input-guide.pdf`에도 복사합니다. 화면 구조가
 바뀌면 먼저 `assets/`의 스크린샷을 현재 운영 화면으로 교체한 뒤 PDF를 다시 만듭니다.
 
 ## 검수 기준
