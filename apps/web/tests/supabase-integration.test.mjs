@@ -107,14 +107,18 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
     const staleSubmission = await appFetch("/api/submissions", { method: "PUT", headers: workerHeaders, body: JSON.stringify({ submission: { ...firstSubmission, monthlyNotice: "뒤늦은 저장" } }) });
     assert.equal(staleSubmission.status, 409);
 
+    const originalDisplayName = "수연목서 1(최종).jpg";
     const reserve = await appFetch("/api/images", {
       method: "POST", headers: workerHeaders,
-      body: JSON.stringify({ name: "integration.jpg", type: "image/jpeg", size: 4, previewSize: 4, month: "2099-12", bookstoreId, newsId }),
+      body: JSON.stringify({ name: originalDisplayName, type: "image/jpeg", size: 4, previewSize: 4, month: "2099-12", bookstoreId, newsId }),
     });
     await assertStatus(reserve, 201);
     const reservation = await reserve.json();
     uploadedImage = reservation.image;
-    const jpeg = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], "integration.jpg", { type: "image/jpeg" });
+    assert.equal(uploadedImage.name, originalDisplayName);
+    assert.match(uploadedImage.originalPath, /^originals\/2099-12\/\d+\/\d+\/[0-9a-f-]+\.jpg$/);
+    assert.doesNotMatch(uploadedImage.originalPath, /[^\x00-\x7F]/);
+    const jpeg = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], originalDisplayName, { type: "image/jpeg" });
     for (const signedUrl of [reservation.uploads.originalUrl, reservation.uploads.previewUrl]) {
       const form = new FormData();
       form.append("cacheControl", "60");
