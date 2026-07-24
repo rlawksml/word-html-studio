@@ -57,7 +57,7 @@ components
     → lib/workspace-types        # 공용 데이터 타입
 
 improvements page
-  → lib/improvements-client      # 공개 접수·목록과 작업자 상태 변경 요청
+  → lib/improvements-client      # 공개 버그·개선 접수·목록과 HTML 편집자 상태 변경 요청
   → lib/improvement-export      # Markdown·JSON 통합본 생성
 
 Next.js API
@@ -67,7 +67,7 @@ Next.js API
   → app/api/submissions/route    # 월별 소식 하나 저장 + 역할별 필드 제한
   → app/api/images/route         # Storage 업로드·삭제·다운로드 경계
   → app/api/presence/route       # 책방·월·통합본 편집 임대 갱신과 해제
-  → app/api/improvements/route   # 공개 개선사항 접수·목록, 작업자 상태 변경
+  → app/api/improvements/route   # 공개 버그·개선 접수·목록, HTML 편집자 상태 변경
     → lib/workspace-validation   # 요청 크기·필드·URL·Storage 경로 검증
     → lib/workspace-records      # Supabase 행 ↔ Workspace 변환
     → lib/workspace-session      # HttpOnly 쿠키 + 탭 sessionId 검증
@@ -102,7 +102,7 @@ Next.js API
 - 원본 사진은 비공개, 모바일 미리보기는 공개 버킷으로 분리합니다.
 - 사용자 입력 링크와 생성 HTML은 허용된 URL scheme만 사용합니다.
 - 공개 방문자는 데이터를 읽을 수 있지만 수정 API는 작업자 세션을 요구합니다.
-- 개선사항 제목·내용은 공개 접수를 허용하지만 상태·예정일 변경은 기존 작업자 세션을 요구하며, Supabase 테이블에는 RLS를 적용합니다.
+- 버그는 제목·발생 위치·내용, 개선은 제목·내용·이유를 공개 접수합니다. 상태·예정일 변경과 내보내기는 HTML 편집자 세션만 허용하며, Supabase 테이블에는 RLS를 적용합니다.
 
 ## 이후 확장
 

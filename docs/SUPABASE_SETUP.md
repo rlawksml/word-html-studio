@@ -11,10 +11,14 @@ apps/web/supabase/migrations/202607210001_initial_workspace.sql
 apps/web/supabase/migrations/202607220001_secure_media_and_flexible_fields.sql
 apps/web/supabase/migrations/202607220002_editing_leases.sql
 apps/web/supabase/migrations/202607240001_improvement_requests.sql
+apps/web/supabase/migrations/202607240002_improvement_request_types.sql
 ```
 
-기존 세 파일을 적용한 운영 프로젝트에는 네 번째 파일만 추가로 실행합니다. 네 번째
-마이그레이션은 공개 개선사항 접수와 작업자 진행 상태·예정일 관리를 위한 테이블을
+`202607240001_improvement_requests.sql`까지 적용한 운영 프로젝트에는 마지막 파일만
+추가로 실행합니다. 다섯 번째 마이그레이션은 기존 접수 자료를 보존하면서 버그·개선
+유형, 버그 발생 위치/사용 경로, 개선이 필요한 이유 필드를 추가합니다.
+
+네 번째 마이그레이션은 공개 개선사항 접수와 진행 상태·예정일 관리를 위한 테이블을
 추가합니다. `anon`, `authenticated`의 직접 접근은 허용하지 않고 서버 API만 사용합니다.
 
 세 번째 마이그레이션은 같은 책방·월 또는 통합본을 열어둔 다른 작업자가 있는지
@@ -57,7 +61,7 @@ HTML_ACCESS_CODES=편집자-암호,편집자-암호의-다른-자판값
 7. HTML 편집자만 원본 사진 ZIP을 받을 수 있는지 확인합니다.
 8. 다른 브라우저에서 같은 책방·월을 열었을 때 동시 작업 안내가 표시되는지 확인합니다.
 9. Supabase Storage에서 원본 버킷이 `Private`, 미리보기 버킷이 `Public`인지 확인합니다.
-10. 개선사항 페이지에서 공개 접수 후 작업자 세션으로 상태와 예정일을 변경합니다.
+10. 개선사항 페이지에서 버그와 개선을 각각 접수하고 HTML 편집자 세션에서만 상태와 예정일을 변경합니다.
 
 공개 미리보기는 모바일 속도를 위해 CDN에 최대 5분 캐시됩니다. 사진 삭제는 변경된 소식이 Database에 저장된 뒤 Storage에서 처리됩니다. 이렇게 하면 Database 저장이 실패했을 때 기존 게시물의 사진이 먼저 사라지는 문제를 피할 수 있습니다. 이미 열린 공개 URL은 캐시가 만료될 때까지 잠시 보일 수 있습니다.
 
@@ -71,9 +75,9 @@ npm run build
 npm run test:integration:local
 ```
 
-테스트는 두 작업 세션의 편집 임대·인계, 책방·소식 생성, 정상 수정, 오래된 `updated_at` 요청의 `409 Conflict`, 원본·미리보기 직접 업로드와 일괄 삭제를 확인합니다. 실제 운영 책방과 구분되는 먼 미래 월과 임시 ID를 사용하며 `finally` 단계에서 Database와 Storage를 정리합니다.
+테스트는 두 작업 세션의 편집 임대·인계, 책방·소식 생성, 정상 수정, 오래된 `updated_at` 요청의 `409 Conflict`, 원본·미리보기 직접 업로드와 일괄 삭제, 공개 버그 접수와 HTML 편집자 전용 상태 변경을 확인합니다. 실제 운영 책방과 구분되는 먼 미래 월과 임시 ID를 사용하며 `finally` 단계에서 Database와 Storage를 정리합니다.
 
-GitHub 저장소의 Actions Secret에 `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `INPUT_ACCESS_CODES`, `WORKSPACE_SESSION_SECRET`을 등록하면 `CI` 워크플로를 수동 실행해 같은 검증을 수행할 수 있습니다. Pull Request에서는 외부 Secret 없이 lint·build·회귀 테스트만 실행합니다.
+GitHub 저장소의 Actions Secret에 `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `INPUT_ACCESS_CODES`, `HTML_ACCESS_CODES`, `WORKSPACE_SESSION_SECRET`을 등록하면 `CI` 워크플로를 수동 실행해 같은 검증을 수행할 수 있습니다. Pull Request에서는 외부 Secret 없이 lint·build·회귀 테스트만 실행합니다.
 
 ## 5. 기존 단일 버킷 자료가 있을 때
 

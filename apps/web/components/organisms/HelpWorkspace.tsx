@@ -65,7 +65,7 @@ export function HelpWorkspace() {
           <details><summary>사진 업로드가 끝나지 않아요.</summary><p>한 장이 20MB를 넘지 않는지 확인하고, 업로드가 끝난 뒤 다음 사진을 추가해 주세요. 계속 실패하면 새로고침 후 다시 시도합니다.</p></details>
           <details><summary>필수로 입력해야 하는 내용은 무엇인가요?</summary><p>각 소식의 제목과 상세 내용 두 가지입니다. 날짜·장소·신청 정보·사진은 필요한 경우에만 입력합니다.</p></details>
           <details><summary>페이지를 나가도 작성 내용이 남나요?</summary><p>자동 저장되며, 작성 중에 메인 화면이나 뒤로가기를 누르면 임시 저장 후 나갈 수 있도록 안내합니다.</p></details>
-          <details><summary>사용 중 불편한 점이 생기면 어디에 남기나요?</summary><p>헤더의 <Link href="/improvements">개선사항</Link>에서 제목과 내용을 접수하고 진행 상태를 확인할 수 있습니다.</p></details>
+          <details><summary>사용 중 불편한 점이 생기면 어디에 남기나요?</summary><p>헤더의 <Link href="/improvements">개선사항</Link>에서 버그 또는 개선을 고른 뒤 안내되는 항목을 작성합니다. 접수 후에는 누구나 진행 상태를 볼 수 있고, HTML 편집자가 확인·진행·해결 상태를 관리합니다.</p></details>
         </section>
       </div>
     </section>

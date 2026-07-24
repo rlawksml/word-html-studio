@@ -218,7 +218,7 @@ test("rejects unauthorized operations and safely hands off exceptional editing l
 });
 
 test("accepts public improvements and protects workflow status updates", { skip: !enabled }, async () => {
-  const required = ["SUPABASE_URL", "SUPABASE_SECRET_KEY", "INPUT_ACCESS_CODES"];
+  const required = ["SUPABASE_URL", "SUPABASE_SECRET_KEY", "INPUT_ACCESS_CODES", "HTML_ACCESS_CODES"];
   for (const key of required) assert.ok(process.env[key], `${key} is required`);
 
   const worker = await loadWorker();
@@ -226,25 +226,29 @@ test("accepts public improvements and protects workflow status updates", { skip:
     auth: { autoRefreshToken: false, persistSession: false },
   });
   const appFetch = (path, init = {}) => worker.fetch(new Request(`http://localhost${path}`, init), runtime(), context());
-  const sessionId = crypto.randomUUID();
-  const login = await appFetch("/api/session", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ role: "input", code: process.env.INPUT_ACCESS_CODES.split(",")[0].trim(), sessionId }),
-  });
-  await assertStatus(login, 200);
-  const workerHeaders = {
-    "content-type": "application/json",
-    cookie: login.headers.get("set-cookie").split(";")[0],
-    "x-workspace-session-id": sessionId,
+  const loginRole = async (role, code) => {
+    const sessionId = crypto.randomUUID();
+    const login = await appFetch("/api/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ role, code, sessionId }),
+    });
+    await assertStatus(login, 200);
+    return {
+      "content-type": "application/json",
+      cookie: login.headers.get("set-cookie").split(";")[0],
+      "x-workspace-session-id": sessionId,
+    };
   };
+  const inputHeaders = await loginRole("input", process.env.INPUT_ACCESS_CODES.split(",")[0].trim());
+  const htmlHeaders = await loginRole("html", process.env.HTML_ACCESS_CODES.split(",")[0].trim());
   let improvementId = "";
 
   try {
     const invalid = await appFetch("/api/improvements", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title: "짧", content: "짧음", website: "" }),
+      body: JSON.stringify({ requestType: "improvement", title: "개선 제목", content: "개선 내용입니다.", reason: "", website: "" }),
     });
     assert.equal(invalid.status, 400);
 
@@ -252,14 +256,19 @@ test("accepts public improvements and protects workflow status updates", { skip:
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        title: `통합 테스트 개선사항 ${Date.now()}`,
-        content: "공개 접수와 작업자 상태 변경을 확인한 뒤 자동으로 삭제합니다.",
+        requestType: "bug",
+        title: `통합 테스트 버그 ${Date.now()}`,
+        location: "소식 입력 → 사진 첨부",
+        content: "공개 접수와 HTML 편집자 상태 변경을 확인한 뒤 자동으로 삭제합니다.",
+        reason: "",
         website: "",
       }),
     });
     await assertStatus(create, 201);
     const created = (await create.json()).improvement;
     improvementId = created.id;
+    assert.equal(created.requestType, "bug");
+    assert.equal(created.location, "소식 입력 → 사진 첨부");
     assert.equal(created.status, "received");
 
     const publicList = await appFetch("/api/improvements");
@@ -268,9 +277,13 @@ test("accepts public improvements and protects workflow status updates", { skip:
     assert.equal(publicBody.canManage, false);
     assert.ok(publicBody.improvements.some((item) => item.id === improvementId));
 
-    const workerList = await appFetch("/api/improvements", { headers: workerHeaders });
-    await assertStatus(workerList, 200);
-    assert.equal((await workerList.json()).canManage, true);
+    const inputList = await appFetch("/api/improvements", { headers: inputHeaders });
+    await assertStatus(inputList, 200);
+    assert.equal((await inputList.json()).canManage, false);
+
+    const htmlList = await appFetch("/api/improvements", { headers: htmlHeaders });
+    await assertStatus(htmlList, 200);
+    assert.equal((await htmlList.json()).canManage, true);
 
     const unauthorized = await appFetch("/api/improvements", {
       method: "PUT",
@@ -279,9 +292,16 @@ test("accepts public improvements and protects workflow status updates", { skip:
     });
     assert.equal(unauthorized.status, 401);
 
+    const forbidden = await appFetch("/api/improvements", {
+      method: "PUT",
+      headers: inputHeaders,
+      body: JSON.stringify({ id: improvementId, status: "checking", targetDate: "", updatedAt: created.updatedAt }),
+    });
+    assert.equal(forbidden.status, 403);
+
     const update = await appFetch("/api/improvements", {
       method: "PUT",
-      headers: workerHeaders,
+      headers: htmlHeaders,
       body: JSON.stringify({ id: improvementId, status: "in_progress", targetDate: "2099-10-10", updatedAt: created.updatedAt }),
     });
     await assertStatus(update, 200);
@@ -291,7 +311,7 @@ test("accepts public improvements and protects workflow status updates", { skip:
 
     const staleUpdate = await appFetch("/api/improvements", {
       method: "PUT",
-      headers: workerHeaders,
+      headers: htmlHeaders,
       body: JSON.stringify({ id: improvementId, status: "resolved", targetDate: "", updatedAt: created.updatedAt }),
     });
     assert.equal(staleUpdate.status, 409);

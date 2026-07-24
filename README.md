@@ -14,7 +14,7 @@
 - HTML 편집자: 입력 완료 자료만 열람, 개별 HTML 복사·미리보기, 사진 ZIP과 HTML·복사용 TXT·사진 ZIP
 - 통합본: 포함 소식 선택, 책방 순서 드래그 변경, 책방·지역·소식 제목 중심 통합 HTML 복사·미리보기
 - 게시: 선택적 게시 URL 저장, 게시 완료·재게시 상태 표시
-- 개선사항: 방문자 공개 접수와 진행 상태 확인, 작업자 상태·예정일 관리, Markdown·JSON 다운로드와 통합본 복사
+- 버그·개선사항: 유형별 안내 폼과 공개 진행 상태, HTML 편집자 전용 상태·예정일 관리, Markdown·JSON 다운로드와 통합본 복사
 - 도움말: 모바일 웹 사용 가이드와 기존 PDF 새 창 열기·다운로드
 
 방문자 헤더의 `소식 입력` 또는 `HTML 편집` 버튼을 먼저 선택한 뒤 서버 환경변수에 등록한 역할별 암호를 입력합니다. 실제 작업 암호는 공개 저장소와 브라우저 코드에 포함하지 않습니다. 방문자는 암호 없이 바로 이용합니다.
@@ -91,7 +91,7 @@ page.tsx
 | 사진 업로드·삭제·원본 다운로드 | `app/api/images/route.ts` |
 | 작업 암호와 탭 세션 | `app/api/session/route.ts`, `lib/workspace-session.ts` |
 | 동시 편집 안내 | `hooks/use-editing-presence.ts`, `app/api/presence/route.ts`, `styles/presence.css` |
-| 개선사항 접수·상태·내보내기 | `components/organisms/ImprovementsWorkspace.tsx`, `app/api/improvements/route.ts`, `lib/improvement-export.ts` |
+| 버그·개선 접수·상태·내보내기 | `components/organisms/ImprovementsWorkspace.tsx`, `app/api/improvements/route.ts`, `lib/improvement-export.ts` |
 | 웹 도움말과 PDF 연결 | `components/organisms/HelpWorkspace.tsx`, `app/help/page.tsx`, `public/guides/` |
 | 화면 스타일 | `styles/foundations.css`와 역할별 CSS 파일 |
 

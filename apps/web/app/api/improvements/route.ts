@@ -1,15 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, SupabaseConfigurationError } from "@/lib/supabase-server";
-import { IMPROVEMENT_STATUSES, isImprovementStatus, type ImprovementRequest, type ImprovementStatus } from "@/lib/improvement-types";
+import {
+  IMPROVEMENT_STATUSES,
+  isImprovementRequestType,
+  isImprovementStatus,
+  type ImprovementRequest,
+  type ImprovementRequestType,
+  type ImprovementStatus,
+} from "@/lib/improvement-types";
 import { readWorkerSession } from "@/lib/workspace-session";
 import { readWorkspaceJson, WorkspaceValidationError } from "@/lib/workspace-validation";
 
-const IMPROVEMENT_SELECT = "id,title,content,status,target_date,created_at,updated_at,resolved_at";
+const IMPROVEMENT_SELECT = "id,request_type,title,content,location,reason,status,target_date,created_at,updated_at,resolved_at";
 
 type ImprovementRow = {
   id: string;
+  request_type: ImprovementRequestType;
   title: string;
   content: string;
+  location: string | null;
+  reason: string | null;
   status: ImprovementStatus;
   target_date: string | null;
   created_at: string;
@@ -20,8 +30,11 @@ type ImprovementRow = {
 function mapImprovement(row: ImprovementRow): ImprovementRequest {
   return {
     id: row.id,
+    requestType: row.request_type,
     title: row.title,
     content: row.content,
+    location: row.location || "",
+    reason: row.reason || "",
     status: row.status,
     targetDate: row.target_date || "",
     createdAt: row.created_at,
@@ -54,7 +67,7 @@ function configurationResponse() {
   return NextResponse.json({ error: "개선사항 저장소를 준비하지 못했습니다." }, { status: 503 });
 }
 
-// 목록은 공개하되 상태 변경 권한은 현재 탭의 작업자 세션으로 서버에서 판별합니다.
+// 목록은 공개하되 관리 권한은 현재 탭의 HTML 편집자 세션으로 서버에서 판별합니다.
 export async function GET(request: NextRequest) {
   try {
     const result = await getSupabaseAdmin().from("improvement_requests")
@@ -64,9 +77,10 @@ export async function GET(request: NextRequest) {
     const improvements = (result.data as ImprovementRow[])
       .map(mapImprovement)
       .sort((left, right) => Number(left.status === "resolved") - Number(right.status === "resolved"));
+    const workerRole = await readWorkerSession(request);
     return NextResponse.json({
       improvements,
-      canManage: Boolean(await readWorkerSession(request)),
+      canManage: workerRole === "html",
     });
   } catch (error) {
     if (error instanceof SupabaseConfigurationError) return configurationResponse();
@@ -75,17 +89,33 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// 공개 접수는 제목·내용만 받습니다. 숨은 website 필드는 자동 입력 봇의 단순 제출을 걸러냅니다.
+// 공개 접수는 유형에 맞는 필수 항목만 받습니다. 숨은 website 필드는 자동 입력 봇의 단순 제출을 걸러냅니다.
 export async function POST(request: NextRequest) {
   try {
-    const body = await readWorkspaceJson(request) as { title?: unknown; content?: unknown; website?: unknown };
+    const body = await readWorkspaceJson(request) as {
+      requestType?: unknown;
+      title?: unknown;
+      content?: unknown;
+      location?: unknown;
+      reason?: unknown;
+      website?: unknown;
+    };
     const website = text(body.website ?? "", "확인 항목", 200);
     if (website) return NextResponse.json({ improvement: null }, { status: 201 });
+    if (!isImprovementRequestType(body.requestType)) {
+      throw new WorkspaceValidationError("접수 유형은 버그 또는 개선 중에서 선택해 주세요.");
+    }
+    const requestType = body.requestType;
+    const location = requestType === "bug" ? text(body.location, "발생 위치 또는 사용 경로", 500, 2) : "";
+    const reason = requestType === "improvement" ? text(body.reason, "필요한 이유", 1_000, 2) : "";
     const now = new Date().toISOString();
     const values = {
       id: crypto.randomUUID(),
+      request_type: requestType,
       title: text(body.title, "제목", 120, 2),
       content: text(body.content, "내용", 4_000, 5),
+      location: location || null,
+      reason: reason || null,
       status: "received" satisfies ImprovementStatus,
       target_date: null,
       created_at: now,
@@ -106,7 +136,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// 기존 입력자·HTML 편집자 작업 세션만 상태와 예정일을 바꿀 수 있습니다.
+// 버그와 개선사항을 처리하는 HTML 편집자만 상태와 예정일을 바꿀 수 있습니다.
 export async function PUT(request: NextRequest) {
   try {
     const body = await readWorkspaceJson(request) as {
@@ -115,8 +145,12 @@ export async function PUT(request: NextRequest) {
       targetDate?: unknown;
       updatedAt?: unknown;
     };
-    if (!await readWorkerSession(request)) {
+    const workerRole = await readWorkerSession(request);
+    if (!workerRole) {
       return NextResponse.json({ error: "개선사항 관리 권한을 다시 확인해 주세요." }, { status: 401 });
+    }
+    if (workerRole !== "html") {
+      return NextResponse.json({ error: "버그와 개선사항 상태는 HTML 편집자만 관리할 수 있습니다." }, { status: 403 });
     }
     const id = text(body.id, "개선사항 ID", 80, 20);
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw new WorkspaceValidationError("개선사항 ID가 올바르지 않습니다.");
