@@ -1,7 +1,11 @@
 "use client";
 
 import { responseMessage, workspaceSessionHeaders } from "@/lib/workspace-client";
-import type { ImprovementRequest, ImprovementStatus } from "@/lib/improvement-types";
+import type {
+  ImprovementRequest,
+  ImprovementRequestType,
+  ImprovementStatus,
+} from "@/lib/improvement-types";
 
 type ImprovementListResponse = {
   improvements: ImprovementRequest[];
@@ -17,11 +21,20 @@ export async function loadImprovements() {
   return response.json() as Promise<ImprovementListResponse>;
 }
 
-export async function createImprovement(title: string, content: string, website: string) {
+type ImprovementSubmission = {
+  requestType: ImprovementRequestType;
+  title: string;
+  content: string;
+  location: string;
+  reason: string;
+  website: string;
+};
+
+export async function createImprovement(submission: ImprovementSubmission) {
   const response = await fetch("/api/improvements", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ title, content, website }),
+    body: JSON.stringify(submission),
   });
   if (!response.ok) throw new Error(await responseMessage(response, "개선사항을 접수하지 못했습니다."));
   return response.json() as Promise<{ improvement: ImprovementRequest | null }>;

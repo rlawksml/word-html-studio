@@ -17,6 +17,7 @@ const applicationSourceFiles = [
   "../components/atoms/BrandIdentity.tsx",
   "../components/atoms/BrandButton.tsx",
   "../components/atoms/ImprovementStatusChip.tsx",
+  "../components/atoms/ImprovementTypeChip.tsx",
   "../components/atoms/LoadingBooks.tsx",
   "../components/atoms/WorkStatusBadge.tsx",
   "../components/molecules/AppHeader.tsx",
@@ -94,31 +95,41 @@ test("renders a responsive help page with the downloadable PDF guide", async () 
   assert.ok(guide.size > 100_000, "배포용 사용자 가이드 PDF가 비어 있으면 안 됩니다.");
 });
 
-test("renders public improvement intake with worker-only management and portable exports", async () => {
-  const [response, route, migration, globalStyles] = await Promise.all([
+test("renders typed bug and improvement intake with HTML-editor-only management", async () => {
+  const [response, route, initialMigration, typeMigration, globalStyles] = await Promise.all([
     render("/improvements"),
     readFile(new URL("../app/api/improvements/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/202607240001_improvement_requests.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/202607240002_improvement_request_types.sql", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /<title>개선사항 \| 지관서가 동네책방 소식<\/title>/);
-  assert.match(html, /개선사항 접수하기/);
-  assert.match(html, /접수된 개선사항/);
-  assert.match(html, /제목과 내용만 적으면 됩니다/);
+  assert.match(html, /버그·개선 접수/);
+  assert.match(html, /role="tablist"/);
+  assert.match(html, /버그 위치 또는 사용 경로/);
+  assert.match(html, /버그 접수하기/);
+  assert.match(html, /접수된 버그와 개선/);
   assert.match(route, /export async function (GET|POST|PUT)/);
-  assert.match(route, /canManage: Boolean\(await readWorkerSession\(request\)\)/);
-  assert.match(route, /if \(!await readWorkerSession\(request\)\)/);
+  assert.match(route, /canManage: workerRole === "html"/);
+  assert.match(route, /if \(workerRole !== "html"\)/);
+  assert.match(route, /HTML 편집자만 관리할 수 있습니다/);
+  assert.match(route, /isImprovementRequestType/);
   assert.match(route, /\.eq\("updated_at", updatedAt\)/);
   assert.match(route, /crypto\.randomUUID\(\)/);
-  assert.match(migration, /create table if not exists public\.improvement_requests/);
-  assert.match(migration, /check \(status in \('received', 'checking', 'in_progress', 'resolved'\)\)/);
-  assert.match(migration, /enable row level security/);
-  assert.match(migration, /revoke all on public\.improvement_requests from anon, authenticated/);
+  assert.match(initialMigration, /create table if not exists public\.improvement_requests/);
+  assert.match(initialMigration, /check \(status in \('received', 'checking', 'in_progress', 'resolved'\)\)/);
+  assert.match(initialMigration, /enable row level security/);
+  assert.match(initialMigration, /revoke all on public\.improvement_requests from anon, authenticated/);
+  assert.match(typeMigration, /add column if not exists request_type/);
+  assert.match(typeMigration, /check \(request_type in \('bug', 'improvement'\)\)/);
   assert.match(globalStyles, /styles\/utility-pages\.css/);
 
   const source = await readApplicationSource();
+  assert.match(source, /사진을 첨부하면 400 오류가 나요/);
+  assert.match(source, /필요한 이유/);
+  assert.match(source, /ImprovementTypeChip/);
   assert.match(source, /통합본 복사/);
   assert.match(source, /MD 다운로드/);
   assert.match(source, /JSON 다운로드/);

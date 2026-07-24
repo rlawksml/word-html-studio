@@ -18,6 +18,12 @@
 .improvement-form h2,.improvement-board h2 { margin:6px 0 7px; font-size:24px; font-weight:550; }
 .improvement-form>div:first-child p,.improvement-board>header p { margin:0; color:#888; font-size:11px; line-height:1.6; }
 .improvement-form textarea { min-height:170px; }
+.improvement-type-tabs { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+.improvement-type-tabs button { display:grid; gap:4px; min-height:72px; padding:13px; border:1px solid #d8d8d3; background:#fafaf8; color:#777; text-align:left; }
+.improvement-type-tabs button[aria-selected="true"] { border-color:#5f665f; background:#eef0eb; color:#303830; box-shadow:inset 0 0 0 1px #5f665f; }
+.improvement-type-tabs strong { font-size:13px; }
+.improvement-type-tabs small { font-size:9px; line-height:1.5; }
+.improvement-type-guide { margin:-6px 0 0; padding:12px 14px; border-left:3px solid #8b927f; background:#f4f4ef; color:#65695f; font-size:10px; line-height:1.7; }
 .improvement-honeypot { position:absolute; left:-10000px; width:1px; height:1px; overflow:hidden; }
 .improvement-form-footer { display:flex; justify-content:space-between; align-items:center; gap:12px; }
 .improvement-form-footer small { color:#999; font-size:10px; }
@@ -36,7 +42,9 @@
 .improvement-card-head { display:flex; justify-content:space-between; align-items:center; gap:15px; }
 .improvement-card-head time { color:#999; font-size:9px; white-space:nowrap; }
 .improvement-chips { display:flex; flex-wrap:wrap; gap:6px; }
-.improvement-status,.target-date-chip { display:inline-flex; align-items:center; min-height:25px; padding:4px 8px; border-radius:999px; font-size:9px; font-weight:650; }
+.improvement-status,.improvement-type,.target-date-chip { display:inline-flex; align-items:center; min-height:25px; padding:4px 8px; border-radius:999px; font-size:9px; font-weight:650; }
+.type-bug { background:#f2dfdc; color:#8a433b; }
+.type-improvement { background:#e3e8dc; color:#536643; }
 .status-received { background:#ececeb; color:#666; }
 .status-checking { background:#efe9d8; color:#725e30; }
 .status-in_progress { background:#e1e9ec; color:#335c6a; }
@@ -44,6 +52,8 @@
 .target-date-chip { background:#f2e8e2; color:#86533d; }
 .improvement-list h3 { margin:15px 0 9px; font-size:19px; font-weight:600; }
 .improvement-content { margin:0; color:#555; font-size:12px; line-height:1.8; white-space:pre-wrap; overflow-wrap:anywhere; }
+.improvement-context { display:grid; gap:4px; margin:12px 0; padding:12px 14px; background:#f2f2ef; color:#5e625d; font-size:11px; line-height:1.7; white-space:pre-wrap; overflow-wrap:anywhere; }
+.improvement-context strong { color:#303430; font-size:9px; }
 .improvement-manager { display:grid; grid-template-columns:1fr 1fr auto; gap:9px; align-items:end; margin-top:20px; padding-top:18px; border-top:1px solid #e6e6e2; }
 .improvement-manager label>span { font-size:10px; }
 .improvement-manager select,.improvement-manager input { min-height:43px; }
