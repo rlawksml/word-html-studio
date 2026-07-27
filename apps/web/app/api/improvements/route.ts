@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin, SupabaseConfigurationError } from "@/lib/supabase-server";
+import { getSupabaseAdmin, retryFutureJwt, SupabaseConfigurationError } from "@/lib/supabase-server";
 import {
   IMPROVEMENT_STATUSES,
   isImprovementRequestType,
@@ -70,9 +70,11 @@ function configurationResponse() {
 // 목록은 공개하되 관리 권한은 현재 탭의 HTML 편집자 세션으로 서버에서 판별합니다.
 export async function GET(request: NextRequest) {
   try {
-    const result = await getSupabaseAdmin().from("improvement_requests")
-      .select(IMPROVEMENT_SELECT)
-      .order("created_at", { ascending: false });
+    const result = await retryFutureJwt(() => (
+      getSupabaseAdmin().from("improvement_requests")
+        .select(IMPROVEMENT_SELECT)
+        .order("created_at", { ascending: false })
+    ));
     if (result.error) throw result.error;
     const improvements = (result.data as ImprovementRow[])
       .map(mapImprovement)
@@ -122,10 +124,12 @@ export async function POST(request: NextRequest) {
       updated_at: now,
       resolved_at: null,
     };
-    const result = await getSupabaseAdmin().from("improvement_requests")
-      .insert(values)
-      .select(IMPROVEMENT_SELECT)
-      .single();
+    const result = await retryFutureJwt(() => (
+      getSupabaseAdmin().from("improvement_requests")
+        .insert(values)
+        .select(IMPROVEMENT_SELECT)
+        .single()
+    ));
     if (result.error) throw result.error;
     return NextResponse.json({ improvement: mapImprovement(result.data as ImprovementRow) }, { status: 201 });
   } catch (error) {
@@ -166,12 +170,14 @@ export async function PUT(request: NextRequest) {
       updated_at: savedAt,
       resolved_at: body.status === "resolved" ? savedAt : null,
     };
-    const result = await getSupabaseAdmin().from("improvement_requests")
-      .update(values)
-      .eq("id", id)
-      .eq("updated_at", updatedAt)
-      .select(IMPROVEMENT_SELECT)
-      .maybeSingle();
+    const result = await retryFutureJwt(() => (
+      getSupabaseAdmin().from("improvement_requests")
+        .update(values)
+        .eq("id", id)
+        .eq("updated_at", updatedAt)
+        .select(IMPROVEMENT_SELECT)
+        .maybeSingle()
+    ));
     if (result.error) throw result.error;
     if (!result.data) {
       return NextResponse.json({ error: "다른 작업자가 먼저 상태를 변경했습니다. 목록을 새로고침해 주세요.", code: "IMPROVEMENT_CONFLICT" }, { status: 409 });

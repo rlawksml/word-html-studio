@@ -24,6 +24,36 @@ export function getSupabaseAdmin() {
   });
 }
 
+type SupabaseResult = {
+  error: unknown;
+};
+
+function futureJwtError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const value = error as { code?: unknown; message?: unknown };
+  return value.code === "PGRST303"
+    && typeof value.message === "string"
+    && value.message.toLowerCase().includes("jwt issued at future");
+}
+
+/**
+ * 운영 Worker와 Supabase 게이트웨이의 시계가 순간적으로 어긋날 때 인증 전에 거부된 요청만 재시도합니다.
+ * 일반 5xx나 쓰기 타임아웃은 중복 실행 여부가 불명확하므로 여기서 재시도하지 않습니다.
+ */
+export async function retryFutureJwt<T extends SupabaseResult>(
+  operation: () => PromiseLike<T>,
+  options: { attempts?: number; delayMs?: number } = {},
+) {
+  const attempts = options.attempts ?? 3;
+  const delayMs = options.delayMs ?? 400;
+  let result = await operation();
+  for (let attempt = 1; attempt < attempts && futureJwtError(result.error); attempt += 1) {
+    await new Promise<void>((resolve) => setTimeout(resolve, delayMs * attempt));
+    result = await operation();
+  }
+  return result;
+}
+
 export type WorkerRole = "input" | "html";
 
 // 쉼표로 구분한 환경변수 암호를 NFC로 정규화해 한글·영문 자판 입력을 같은 규칙으로 비교합니다.

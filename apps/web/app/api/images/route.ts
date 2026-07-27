@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin, ORIGINAL_IMAGE_BUCKET, PREVIEW_IMAGE_BUCKET, SupabaseConfigurationError } from "@/lib/supabase-server";
+import { getSupabaseAdmin, ORIGINAL_IMAGE_BUCKET, PREVIEW_IMAGE_BUCKET, retryFutureJwt, SupabaseConfigurationError } from "@/lib/supabase-server";
 import { readWorkerSession } from "@/lib/workspace-session";
 import type { NewsImage } from "@/lib/workspace-types";
 
@@ -62,10 +62,9 @@ export async function POST(request: NextRequest) {
     const originalExtension = STORAGE_EXTENSION_BY_TYPE[body.type];
     const originalPath = `originals/${month}/${bookstoreId}/${newsId}/${uniqueId}.${originalExtension}`;
     const previewPath = `previews/${month}/${bookstoreId}/${newsId}/${uniqueId}.jpg`;
-    const supabase = getSupabaseAdmin();
     const [originalUpload, previewUpload] = await Promise.all([
-      supabase.storage.from(ORIGINAL_IMAGE_BUCKET).createSignedUploadUrl(originalPath),
-      supabase.storage.from(PREVIEW_IMAGE_BUCKET).createSignedUploadUrl(previewPath),
+      retryFutureJwt(() => getSupabaseAdmin().storage.from(ORIGINAL_IMAGE_BUCKET).createSignedUploadUrl(originalPath)),
+      retryFutureJwt(() => getSupabaseAdmin().storage.from(PREVIEW_IMAGE_BUCKET).createSignedUploadUrl(previewPath)),
     ]);
     if (originalUpload.error) throw originalUpload.error;
     if (previewUpload.error) throw previewUpload.error;
@@ -75,7 +74,7 @@ export async function POST(request: NextRequest) {
       originalPath,
       previewPath,
       originalUrl: "",
-      url: supabase.storage.from(PREVIEW_IMAGE_BUCKET).getPublicUrl(previewPath).data.publicUrl,
+      url: getSupabaseAdmin().storage.from(PREVIEW_IMAGE_BUCKET).getPublicUrl(previewPath).data.publicUrl,
       caption: "",
     };
     // 서명 URL은 2시간만 유효하며 Workspace에는 저장하지 않습니다.
@@ -111,10 +110,13 @@ export async function DELETE(request: NextRequest) {
         previews.push(image.previewPath);
       }
     }
-    const supabase = getSupabaseAdmin();
     const [originalResult, previewResult] = await Promise.all([
-      originals.length ? supabase.storage.from(ORIGINAL_IMAGE_BUCKET).remove(originals) : Promise.resolve({ error: null }),
-      previews.length ? supabase.storage.from(PREVIEW_IMAGE_BUCKET).remove(previews) : Promise.resolve({ error: null }),
+      originals.length
+        ? retryFutureJwt(() => getSupabaseAdmin().storage.from(ORIGINAL_IMAGE_BUCKET).remove(originals))
+        : Promise.resolve({ error: null }),
+      previews.length
+        ? retryFutureJwt(() => getSupabaseAdmin().storage.from(PREVIEW_IMAGE_BUCKET).remove(previews))
+        : Promise.resolve({ error: null }),
     ]);
     if (originalResult.error) throw originalResult.error;
     if (previewResult.error) throw previewResult.error;
@@ -132,7 +134,9 @@ export async function GET(request: NextRequest) {
     if (await readWorkerSession(request) !== "html") return NextResponse.json({ error: "원본 사진 다운로드 권한이 필요합니다." }, { status: 403 });
     const path = request.nextUrl.searchParams.get("path");
     if (!validStoragePath(path, "originals/")) return NextResponse.json({ error: "원본 사진 경로가 올바르지 않습니다." }, { status: 400 });
-    const { data, error } = await getSupabaseAdmin().storage.from(ORIGINAL_IMAGE_BUCKET).download(path);
+    const { data, error } = await retryFutureJwt(() => (
+      getSupabaseAdmin().storage.from(ORIGINAL_IMAGE_BUCKET).download(path)
+    ));
     if (error) return NextResponse.json({ error: "원본 사진을 찾지 못했습니다." }, { status: 404 });
     return new NextResponse(data, { headers: { "content-type": data.type || "application/octet-stream", "cache-control": "private, max-age=300" } });
   } catch (error) {
