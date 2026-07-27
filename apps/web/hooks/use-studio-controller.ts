@@ -23,9 +23,11 @@ import {
   heartbeatEditingPresence,
   loadWorkspace,
   MAX_ORIGINAL_IMAGE_BYTES,
+  normalizeImageFile,
   persistSubmissionOnUnload,
   reserveImageUpload,
   responseMessage,
+  StorageUploadError,
   triggerDownload,
   uploadFileToSignedUrl,
   urlToBlob,
@@ -98,7 +100,7 @@ export function useStudioController(initialMonth: string) {
       setStorageError(message);
     }
   }, []);
-  const { replaceWorkspace, saveNow, saveSubmissionChange } = useWorkspacePersistence({
+  const { replaceWorkspace, saveNow, saveBookstoreChange, saveSubmissionChange } = useWorkspacePersistence({
     enabled: hydrated,
     role,
     bookstores,
@@ -315,9 +317,15 @@ export function useStudioController(initialMonth: string) {
     news: submission.news.map((news) => news.id === newsId ? { ...news, [collection]: news[collection].map((item) => item.id === itemId ? { ...item, [key]: value } : item) } : news),
   }));
 
+  const saveBookstore = async (bookstore: Bookstore) => {
+    const saved = await saveBookstoreChange(bookstore);
+    notify(bookstore.updatedAt ? "책방 정보를 공용 저장소에 수정했습니다." : "새 책방을 공용 저장소에 등록했습니다.");
+    return saved;
+  };
+
   // 미리보기는 브라우저에서 축소하고, 큰 원본은 GPT 임시 서버를 거치지 않고 Storage로 바로 올립니다.
   const addImages = async (files: File[], newsId: number) => {
-    const images = files.filter((file) => file.type.startsWith("image/"));
+    const images = files.map(normalizeImageFile).filter((file): file is File => Boolean(file));
     if (!images.length) { notify("이미지 파일만 첨부할 수 있습니다."); return; }
     if (!selectedBookstoreId) return;
     // 투명한 파일 입력 영역에 드롭할 때 일부 브라우저가 drop과 change를 연달아 발생시켜도 같은 파일을 두 번 올리지 않습니다.
@@ -335,15 +343,37 @@ export function useStudioController(initialMonth: string) {
         setSaveState(`사진 ${index + 1}/${images.length} 업로드 중...`);
         if (file.size > MAX_ORIGINAL_IMAGE_BYTES) throw new Error(`${file.name}: 사진 한 장은 20MB 이하로 업로드해 주세요.`);
         const preview = await createImagePreview(file);
-        const reservation = await reserveImageUpload(file, preview, month, selectedBookstoreId, newsId);
-        reserved.push(reservation.image);
-        await uploadFileToSignedUrl(reservation.uploads.originalUrl, file, "300");
-        await uploadFileToSignedUrl(reservation.uploads.previewUrl, preview, "300");
-        uploaded.push(reservation.image);
+        let uploadedImage: NewsImage | null = null;
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+          const reservation = await reserveImageUpload(file, preview, month, selectedBookstoreId, newsId);
+          reserved.push(reservation.image);
+          try {
+            await uploadFileToSignedUrl(reservation.uploads.originalUrl, file, "300");
+            await uploadFileToSignedUrl(reservation.uploads.previewUrl, preview, "300");
+            uploadedImage = reservation.image;
+            break;
+          } catch (error) {
+            const canRetry = error instanceof StorageUploadError && error.retryableWithNewReservation && attempt < 3;
+            if (!canRetry) throw error;
+            setSaveState(`사진 ${index + 1}/${images.length} 연결 재시도 중... (${attempt + 1}/3)`);
+            await new Promise<void>((resolve) => window.setTimeout(resolve, attempt * 700));
+          }
+        }
+        if (!uploadedImage) throw new Error(`${file.name}: 사진 업로드를 완료하지 못했습니다.`);
+        uploaded.push(uploadedImage);
       }
       const target = submissionsRef.current.find((submission) => submission.bookstoreId === selectedBookstoreId && submission.month === month);
       if (!target) throw new Error("사진을 연결할 소식을 찾지 못했습니다.");
       await saveSubmissionChange(target.id, (submission) => ({ ...submission, news: submission.news.map((news) => news.id === newsId ? { ...news, images: [...news.images, ...uploaded] } : news) }));
+      const uploadedIds = new Set(uploaded.map((image) => image.id));
+      const abandoned = reserved.filter((image) => !uploadedIds.has(image.id));
+      if (abandoned.length) {
+        try {
+          await deleteStoredImages(abandoned);
+        } catch {
+          // DB에는 연결되지 않은 임시 경로이므로 사용자 작업은 성공으로 유지하고 다음 정리 대상으로 남깁니다.
+        }
+      }
       setStorageError("");
       setSaveState("사진 업로드와 내용 저장 완료");
       notify(`사진 ${uploaded.length}장을 저장했습니다.`);
@@ -555,11 +585,12 @@ export function useStudioController(initialMonth: string) {
     currentSubmission, htmlReady, selectedHtmlSubmission, selectedHtmlBookstore, generatedCode,
     generatedPreview, combinedHtml, monthSubmissions, completedBookstoreCount, completionPercent,
     publicEntries, filteredEntries, publicDetailData, calendarDays,
-    setAccessRole, setPassword, setBookstores, setSubmissions, setMonth, setSelectedBookstoreId,
+    setAccessRole, setPassword, setSubmissions, setMonth, setSelectedBookstoreId,
     setInputView, setSelectedSubmissionId, setHtmlView, setPreviewMode, setSearch, setSelectedDay,
     setDraggedNewsId, setDraggedImageId, setDraggedDigestId, setPublicDetail, setLeaveTarget,
     setEditingEntryBlock,
     login, returnToVisitor, confirmLeave, openBookstore, updateCurrent, updateNews, updateNewsValue,
+    saveBookstore,
     addImages, reorderNews, moveNews, reorderImages, moveImage, copyPrevious, manualSave,
     completeSubmission, completionShareMessage, copyText, downloadPhotoZip, reorderDigest,
     updatePublished, bookstoreColor, calendarItems, retryInitialLoad, reloadWorkspace, notify,
