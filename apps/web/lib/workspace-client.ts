@@ -3,6 +3,8 @@ import type { Bookstore, EditingPresenceTarget, NewsImage, Submission, Workspace
 export const MAX_ORIGINAL_IMAGE_BYTES = 20 * 1024 * 1024;
 const RETRYABLE_HTTP_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
 const REQUEST_ATTEMPTS = 3;
+const SIGNED_UPLOAD_ATTEMPTS = 2;
+const SIGNED_UPLOAD_TIMEOUT_MS = 45_000;
 const IMAGE_TYPE_BY_EXTENSION: Record<string, string> = {
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
@@ -200,16 +202,29 @@ export async function reserveImageUpload(file: File, preview: File, month: strin
 
 export async function uploadFileToSignedUrl(signedUrl: string, file: File, cacheControl: string) {
   // 큰 원본이 Next.js/GPT 임시 서버의 요청 크기 제한에 걸리지 않도록 Storage로 바로 전송합니다.
-  const response = await requestWithRetry(() => {
-    const form = new FormData();
-    form.append("cacheControl", cacheControl);
-    form.append("", file);
-    return fetch(signedUrl, {
-      method: "PUT",
-      headers: { "x-upsert": "false" },
-      body: form,
-    });
-  });
+  let response: Response;
+  try {
+    response = await requestWithRetry(async () => {
+      const form = new FormData();
+      form.append("cacheControl", cacheControl);
+      form.append("", file);
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), SIGNED_UPLOAD_TIMEOUT_MS);
+      try {
+        return await fetch(signedUrl, {
+          method: "PUT",
+          headers: { "x-upsert": "false" },
+          body: form,
+          signal: controller.signal,
+        });
+      } finally {
+        window.clearTimeout(timeout);
+      }
+    }, SIGNED_UPLOAD_ATTEMPTS);
+  } catch {
+    // 같은 서명 주소에서 네트워크 재시도가 모두 실패하면 상위 흐름이 새 주소를 발급받아 다시 시도합니다.
+    throw new StorageUploadError(`${file.name}: 사진 전송 연결이 끊겼습니다. 새 업로드 주소로 다시 시도합니다.`);
+  }
   if (response.ok) return;
   const storageError = await response.json().catch(() => null) as { statusCode?: string | number; error?: string; message?: string } | null;
   const errorText = `${storageError?.error || ""} ${storageError?.message || ""}`.toLowerCase();

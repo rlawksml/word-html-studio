@@ -1,7 +1,7 @@
 "use client";
 
 import JSZip from "jszip";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useWorkspaceInitialization } from "@/hooks/use-workspace-initialization";
 import { useWorkspacePersistence } from "@/hooks/use-workspace-persistence";
 import { useEditingPresence } from "@/hooks/use-editing-presence";
@@ -32,6 +32,7 @@ import {
   uploadFileToSignedUrl,
   urlToBlob,
 } from "@/lib/workspace-client";
+import { forgetSubmissionDraft, recoverSubmissionDraft, rememberSubmissionDraft } from "@/lib/submission-draft";
 import type { Bookstore, EditingPresenceTarget, NewsImage, NewsItem, Submission, Workspace, WorkStatus } from "@/lib/workspace-types";
 
 /**
@@ -44,7 +45,7 @@ export function useStudioController(initialMonth: string) {
   const [accessRole, setAccessRole] = useState<Exclude<Role, "visitor"> | null>(null);
   const [password, setPassword] = useState("");
   const [bookstores, setBookstores] = useState<Bookstore[]>([]);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [submissions, setSubmissionsState] = useState<Submission[]>([]);
   const [month, setMonth] = useState(initialMonth);
   const [selectedBookstoreId, setSelectedBookstoreId] = useState<number | null>(null);
   const [inputView, setInputView] = useState<"list" | "edit" | "bookstores">("list");
@@ -67,11 +68,18 @@ export function useStudioController(initialMonth: string) {
     activeRole: "input" | "html" | null;
   } | null>(null);
   const [openingBookstoreId, setOpeningBookstoreId] = useState<number | null>(null);
+  const [imageUploadNewsId, setImageUploadNewsId] = useState<number | null>(null);
   const [storageError, setStorageError] = useState("");
   const submissionsRef = useRef(submissions);
   const openingBookstoreRef = useRef<number | null>(null);
   const pendingImageDeletesRef = useRef(new Map<number, NewsImage[]>());
   const imageUploadInProgressRef = useRef(false);
+  // 저장 버튼이나 뒤로가기가 같은 프레임에서 실행되어도 가장 최근 입력값을 즉시 읽을 수 있는 setter입니다.
+  const setSubmissions = useCallback<Dispatch<SetStateAction<Submission[]>>>((action) => {
+    const next = typeof action === "function" ? action(submissionsRef.current) : action;
+    submissionsRef.current = next;
+    setSubmissionsState(next);
+  }, []);
   useEffect(() => { submissionsRef.current = submissions; }, [submissions]);
 
   const notify = useCallback((message: string) => {
@@ -85,22 +93,24 @@ export function useStudioController(initialMonth: string) {
     setSubmissions(workspace.submissions);
     setRole(restoredRole);
     setStorageError("");
-  }, []);
+  }, [setSubmissions]);
   const { initialLoadState, hydrated, retryInitialLoad } = useWorkspaceInitialization(applyInitialWorkspace);
 
-  const handleSubmissionSaved = useCallback(async (submissionId: number) => {
-    const pending = pendingImageDeletesRef.current.get(submissionId);
+  const handleSubmissionSaved = useCallback(async (submission: Submission) => {
+    // 서버가 돌려준 updatedAt으로 복구본도 갱신해 자동 저장 직후 새로고침되는 짧은 틈을 보호합니다.
+    if (role === "input") rememberSubmissionDraft(submission);
+    const pending = pendingImageDeletesRef.current.get(submission.id);
     if (!pending?.length) return;
     try {
       await deleteStoredImages(pending);
-      pendingImageDeletesRef.current.delete(submissionId);
+      pendingImageDeletesRef.current.delete(submission.id);
     } catch (error) {
       // DB에서 참조를 먼저 제거했으므로 실패해도 깨진 이미지는 생기지 않고 Storage 정리만 다시 시도하면 됩니다.
       const message = error instanceof Error ? error.message : "사용하지 않는 사진 파일을 정리하지 못했습니다.";
       setStorageError(message);
     }
-  }, []);
-  const { replaceWorkspace, saveNow, saveBookstoreChange, saveSubmissionChange } = useWorkspacePersistence({
+  }, [role]);
+  const { replaceWorkspace, saveNow, saveBookstoreChange, saveSubmissionChange, saveSubmissionSnapshot } = useWorkspacePersistence({
     enabled: hydrated,
     role,
     bookstores,
@@ -163,16 +173,19 @@ export function useStudioController(initialMonth: string) {
   useEffect(() => {
     if (!hasDraftInProgress) return;
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (currentSubmission) persistSubmissionOnUnload(currentSubmission);
+      if (currentSubmission) {
+        rememberSubmissionDraft(currentSubmission);
+        persistSubmissionOnUnload(currentSubmission);
+      }
       event.preventDefault();
       event.returnValue = "";
     };
     const handleNavigationClick = (event: MouseEvent) => {
-      const element = event.target instanceof Element ? event.target.closest(".brand, .worker-nav button, .editor-page-head .back-button") : null;
+      const element = event.target instanceof Element ? event.target.closest(".brand, .worker-nav button") : null;
       if (!element) return;
       event.preventDefault();
       event.stopPropagation();
-      setLeaveTarget(element.matches(".editor-page-head .back-button") ? "list" : "visitor");
+      setLeaveTarget("visitor");
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("click", handleNavigationClick, true);
@@ -223,6 +236,18 @@ export function useStudioController(initialMonth: string) {
     setLeaveTarget(null);
   };
 
+  const requestEditorLeave = () => {
+    if (imageUploadInProgressRef.current) {
+      notify("사진 저장이 끝난 뒤 책방 목록으로 이동해 주세요.");
+      return;
+    }
+    if (hasDraftInProgress) {
+      setLeaveTarget("list");
+      return;
+    }
+    goToBookstoreList();
+  };
+
   const returnToVisitor = () => {
     void releasePresence();
     void fetch("/api/session", { method: "DELETE" });
@@ -239,8 +264,20 @@ export function useStudioController(initialMonth: string) {
 
   const confirmLeave = async () => {
     if (!leaveTarget) return;
+    if (imageUploadInProgressRef.current) {
+      notify("사진 저장이 끝난 뒤 이동해 주세요.");
+      return;
+    }
     try {
-      await saveNow(true);
+      const snapshot = selectedBookstoreId
+        ? submissionsRef.current.find((item) => item.bookstoreId === selectedBookstoreId && item.month === month)
+        : null;
+      if (snapshot) {
+        await saveSubmissionSnapshot(snapshot);
+        forgetSubmissionDraft(snapshot);
+      } else {
+        await saveNow(true);
+      }
       setStorageError("");
       if (leaveTarget === "visitor") returnToVisitor();
       else goToBookstoreList();
@@ -253,10 +290,15 @@ export function useStudioController(initialMonth: string) {
 
   // 책방을 처음 열 때 해당 월의 빈 Submission을 만들고 이후에는 같은 레코드를 재사용합니다.
   const ensureSubmission = (bookstoreId: number) => {
-    const existing = submissions.find((item) => item.bookstoreId === bookstoreId && item.month === month);
-    if (existing) return existing.id;
-    const next = makeSubmission(bookstoreId, month);
-    setSubmissions((current) => [...current, next]);
+    const existing = submissionsRef.current.find((item) => item.bookstoreId === bookstoreId && item.month === month);
+    const base = existing || makeSubmission(bookstoreId, month);
+    const recovered = recoverSubmissionDraft(base);
+    const next = recovered || base;
+    if (existing) {
+      if (recovered) setSubmissions((current) => current.map((item) => item.id === existing.id ? recovered : item));
+    } else {
+      setSubmissions((current) => [...current, next]);
+    }
     return next.id;
   };
 
@@ -306,7 +348,9 @@ export function useStudioController(initialMonth: string) {
         const pending = pendingImageDeletesRef.current.get(item.id) || [];
         pendingImageDeletesRef.current.set(item.id, [...pending, ...removed.filter((image) => !pending.some((entry) => entry.id === image.id))]);
       }
-      return { ...changed, status: item.status === "completed" ? "draft" : item.status };
+      const next = { ...changed, status: item.status === "completed" ? "draft" as const : item.status };
+      rememberSubmissionDraft(next);
+      return next;
     }));
   };
 
@@ -334,6 +378,7 @@ export function useStudioController(initialMonth: string) {
       return;
     }
     imageUploadInProgressRef.current = true;
+    setImageUploadNewsId(newsId);
     const uploaded: NewsImage[] = [];
     const reserved: NewsImage[] = [];
     try {
@@ -390,6 +435,7 @@ export function useStudioController(initialMonth: string) {
       notify(message);
     } finally {
       imageUploadInProgressRef.current = false;
+      setImageUploadNewsId(null);
     }
   };
 
@@ -453,6 +499,10 @@ export function useStudioController(initialMonth: string) {
   };
 
   const manualSave = async () => {
+    if (imageUploadInProgressRef.current) {
+      notify("사진 저장이 끝난 뒤 임시 저장해 주세요.");
+      return;
+    }
     try {
       setSaveState("공용 저장소에 저장 중...");
       await saveNow(true);
@@ -468,8 +518,12 @@ export function useStudioController(initialMonth: string) {
   };
 
   // 필수값을 확인한 뒤 completed로 바꿉니다. 이후 수정은 updateCurrent가 다시 draft로 전환합니다.
-  const completeSubmission = () => {
+  const completeSubmission = async () => {
     if (!currentSubmission) return;
+    if (imageUploadInProgressRef.current) {
+      notify("사진 저장이 끝난 뒤 입력을 마무리해 주세요.");
+      return;
+    }
     const incompleteNewsIndex = currentSubmission.news.findIndex((news) => !news.title.trim() || !news.description.trim());
     if (incompleteNewsIndex >= 0) {
       const incompleteNews = currentSubmission.news[incompleteNewsIndex];
@@ -486,9 +540,22 @@ export function useStudioController(initialMonth: string) {
     }
     const completed = { ...currentSubmission, status: "completed" as WorkStatus, completedAt: nowIso() };
     setSubmissions((current) => current.map((item) => item.id === completed.id ? completed : item));
-    setInputView("list");
-    setSelectedBookstoreId(null);
-    notify("책방 소식 입력을 완료했습니다.");
+    setSaveState("입력 완료 내용을 저장 중...");
+    try {
+      await saveSubmissionSnapshot(completed);
+      forgetSubmissionDraft(completed);
+      setStorageError("");
+      setInputView("list");
+      setSelectedBookstoreId(null);
+      notify("책방 소식 입력을 저장하고 완료했습니다.");
+    } catch (error) {
+      // 서버가 확인하지 못한 완료 상태를 목록에 성공처럼 표시하지 않고 편집 화면에 그대로 남깁니다.
+      setSubmissions((current) => current.map((item) => item.id === completed.id ? { ...completed, status: "draft", completedAt: "" } : item));
+      const message = error instanceof Error ? error.message : "입력 완료 내용을 저장하지 못했습니다.";
+      setStorageError(message);
+      setSaveState("입력 완료 저장 실패");
+      notify(message);
+    }
   };
 
   const completionShareMessage = () => {
@@ -580,7 +647,7 @@ export function useStudioController(initialMonth: string) {
     role, accessRole, password, bookstores, submissions, month, selectedBookstoreId, inputView,
     selectedSubmissionId, htmlView, previewMode, search, selectedDay, toast, saveState,
     draggedNewsId, draggedImageId, draggedDigestId, publicDetail, leaveTarget, editingEntryBlock,
-    openingBookstoreId, storageError, editingPresence,
+    openingBookstoreId, imageUploadNewsId, storageError, editingPresence,
     initialLoadState,
     currentSubmission, htmlReady, selectedHtmlSubmission, selectedHtmlBookstore, generatedCode,
     generatedPreview, combinedHtml, monthSubmissions, completedBookstoreCount, completionPercent,
@@ -589,7 +656,7 @@ export function useStudioController(initialMonth: string) {
     setInputView, setSelectedSubmissionId, setHtmlView, setPreviewMode, setSearch, setSelectedDay,
     setDraggedNewsId, setDraggedImageId, setDraggedDigestId, setPublicDetail, setLeaveTarget,
     setEditingEntryBlock,
-    login, returnToVisitor, confirmLeave, openBookstore, updateCurrent, updateNews, updateNewsValue,
+    login, returnToVisitor, confirmLeave, requestEditorLeave, openBookstore, updateCurrent, updateNews, updateNewsValue,
     saveBookstore,
     addImages, reorderNews, moveNews, reorderImages, moveImage, copyPrevious, manualSave,
     completeSubmission, completionShareMessage, copyText, downloadPhotoZip, reorderDigest,

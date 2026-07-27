@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { persistBookstore, persistSubmission, WorkspaceConflictError } from "@/lib/workspace-client";
+import { rebaseSubmissionSnapshot } from "@/lib/workspace-persistence";
 import type { Role } from "@/lib/workspace-formatters";
 import type { Bookstore, Submission, Workspace } from "@/lib/workspace-types";
 
@@ -14,7 +15,7 @@ type PersistenceOptions = {
   setSubmissions: Dispatch<SetStateAction<Submission[]>>;
   setSaveState: Dispatch<SetStateAction<string>>;
   setStorageError: Dispatch<SetStateAction<string>>;
-  onSubmissionSaved?: (submissionId: number) => void | Promise<void>;
+  onSubmissionSaved?: (submission: Submission) => void | Promise<void>;
 };
 
 const fingerprint = (value: Bookstore | Submission) => JSON.stringify(value);
@@ -95,7 +96,8 @@ export function useWorkspacePersistence(options: PersistenceOptions) {
     });
     submissionsRef.current = next;
     setSubmissions(next);
-    await onSubmissionSavedRef.current?.(saved.id);
+    const adopted = next.find((submission) => submission.id === saved.id) || saved;
+    await onSubmissionSavedRef.current?.(adopted);
   }, [setSubmissions]);
 
   const saveDirtyRecords = useCallback(async (manual: boolean) => {
@@ -176,6 +178,25 @@ export function useWorkspacePersistence(options: PersistenceOptions) {
     }
   }), [adoptSubmission, recordFailure, serialize, setSaveState, setStorageError]);
 
+  // 화면을 떠나는 순간에는 effect/ref 갱신 타이밍에 기대지 않고 화면이 넘긴 정확한 스냅샷을 저장합니다.
+  const saveSubmissionSnapshot = useCallback((snapshot: Submission) => serialize(async () => {
+    const recordKey = `submission:${snapshot.id}`;
+    if (blockedRecordsRef.current.has(recordKey)) throw new WorkspaceConflictError("다른 작업자의 변경을 먼저 확인해 주세요.");
+    setSaveState("마지막 입력 내용을 저장 중...");
+    try {
+      // 앞서 큐에 있던 자동 저장이 방금 끝났다면 그 응답의 최신 버전만 이어받고 화면 내용은 그대로 보냅니다.
+      const current = submissionsRef.current.find((submission) => submission.id === snapshot.id);
+      const versionedSnapshot = rebaseSubmissionSnapshot(snapshot, current);
+      const saved = await persistSubmission(versionedSnapshot);
+      await adoptSubmission(saved, () => versionedSnapshot);
+      setStorageError("");
+      setSaveState(`임시 저장됨 · ${savedClock()}`);
+      return saved;
+    } catch (error) {
+      throw recordFailure(error, recordKey);
+    }
+  }), [adoptSubmission, recordFailure, serialize, setSaveState, setStorageError]);
+
   useEffect(() => {
     if (!enabled || (role !== "input" && role !== "html")) {
       initializedRoleRef.current = null;
@@ -190,5 +211,5 @@ export function useWorkspacePersistence(options: PersistenceOptions) {
     return () => window.clearTimeout(timer);
   }, [bookstores, enabled, role, saveNow, seedBaseline, submissions]);
 
-  return { replaceWorkspace, saveNow, saveBookstoreChange, saveSubmissionChange };
+  return { replaceWorkspace, saveNow, saveBookstoreChange, saveSubmissionChange, saveSubmissionSnapshot };
 }
