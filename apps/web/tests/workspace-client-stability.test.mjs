@@ -6,6 +6,7 @@ import {
   uploadFileToSignedUrl,
   WorkspaceConflictError,
 } from "../lib/workspace-client.ts";
+import { retryFutureJwt } from "../lib/supabase-server.ts";
 
 function installBrowserStub() {
   const previousWindow = globalThis.window;
@@ -112,4 +113,24 @@ test("retries a transient signed Storage PUT without changing the file", async (
     globalThis.fetch = previousFetch;
     restoreWindow();
   }
+});
+
+test("retries only the Supabase future-JWT clock-skew error", async () => {
+  let calls = 0;
+  const recovered = await retryFutureJwt(async () => {
+    calls += 1;
+    return calls === 1
+      ? { data: null, error: { code: "PGRST303", message: "JWT issued at future" } }
+      : { data: "ready", error: null };
+  }, { delayMs: 0 });
+  assert.equal(calls, 2);
+  assert.equal(recovered.data, "ready");
+
+  let ordinaryCalls = 0;
+  const ordinaryFailure = await retryFutureJwt(async () => {
+    ordinaryCalls += 1;
+    return { data: null, error: { code: "PGRST301", message: "invalid token" } };
+  }, { delayMs: 0 });
+  assert.equal(ordinaryCalls, 1);
+  assert.equal(ordinaryFailure.error.code, "PGRST301");
 });

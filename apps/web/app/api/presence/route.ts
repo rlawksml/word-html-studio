@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin, SupabaseConfigurationError, type WorkerRole } from "@/lib/supabase-server";
+import { getSupabaseAdmin, retryFutureJwt, SupabaseConfigurationError, type WorkerRole } from "@/lib/supabase-server";
 import { readWorkerSession, workspaceSessionFingerprint } from "@/lib/workspace-session";
 import { readWorkspaceJson, WorkspaceValidationError } from "@/lib/workspace-validation";
 
@@ -38,12 +38,14 @@ export async function POST(request: NextRequest) {
     const auth = await authenticatedRequest(request);
     if (auth.response) return auth.response;
     const key = resourceKey(auth.body);
-    const result = await getSupabaseAdmin().rpc("acquire_editing_lease", {
-      requested_resource_key: key,
-      requested_session_hash: auth.sessionHash,
-      requested_role: auth.role,
-      lease_seconds: LEASE_SECONDS,
-    }).maybeSingle();
+    const result = await retryFutureJwt(() => (
+      getSupabaseAdmin().rpc("acquire_editing_lease", {
+        requested_resource_key: key,
+        requested_session_hash: auth.sessionHash,
+        requested_role: auth.role,
+        lease_seconds: LEASE_SECONDS,
+      }).maybeSingle()
+    ));
     if (result.error) throw result.error;
     const lease = result.data as { owned?: boolean; active_role?: WorkerRole; active_expires_at?: string } | null;
     return NextResponse.json({
@@ -64,9 +66,11 @@ export async function DELETE(request: NextRequest) {
   try {
     const auth = await authenticatedRequest(request);
     if (auth.response) return auth.response;
-    const result = await getSupabaseAdmin().from("editing_leases").delete()
-      .eq("resource_key", resourceKey(auth.body))
-      .eq("session_hash", auth.sessionHash);
+    const result = await retryFutureJwt(() => (
+      getSupabaseAdmin().from("editing_leases").delete()
+        .eq("resource_key", resourceKey(auth.body))
+        .eq("session_hash", auth.sessionHash)
+    ));
     if (result.error) throw result.error;
     return new NextResponse(null, { status: 204 });
   } catch (error) {

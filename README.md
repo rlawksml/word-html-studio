@@ -43,7 +43,7 @@ HTML 편집자의 통합 작업 ZIP에는 브라우저 미리보기용 `.html`, 
 
 입력자가 책방을 클릭하면 편집 화면을 열기 전에 같은 책방·같은 월의 짧은 편집 임대를 확인합니다. 다른 탭이나 기기가 이미 사용 중이면 안내 팝업만 표시하고 목록에 머물며, 빈 소식도 만들지 않습니다. 1분마다 임대를 갱신하고 3분 동안 활동이 없으면 자동으로 다음 작업자가 인계하므로 WebSocket, 별도 계정, 정기 청소 작업이 필요하지 않습니다. HTML 편집자의 개별 소식과 월 통합본도 같은 임대로 작업 상태를 표시하며, 실제 저장에는 `updated_at` 충돌 검사도 함께 적용합니다.
 
-Database와 Storage 요청은 서버 API를 통해 처리합니다. `SUPABASE_SECRET_KEY`는 브라우저나 GitHub에 노출하지 않고 로컬·배포 환경변수에만 저장합니다. 초기 연결 방법은 [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)를 따릅니다.
+Database와 Storage 요청은 서버 API를 통해 처리합니다. `SUPABASE_SECRET_KEY`는 브라우저나 GitHub에 노출하지 않고 로컬·배포 환경변수에만 저장합니다. Cloudflare Worker와 Supabase 사이의 순간적인 시계 오차로 `PGRST303 / JWT issued at future`가 반환되면, 인증 전에 거부된 요청만 서버가 최대 3회 짧게 재시도합니다. 초기 연결 방법은 [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)를 따릅니다.
 
 향후 Cloudflare 중심 구조가 더 적합해지면 Database를 D1으로, Storage를 R2로 이전할 수 있습니다. 이를 위해 화면에서 Supabase를 직접 호출하는 코드를 분산시키지 않고 데이터·사진 저장 모듈을 분리하며, DB에는 영구 공개 URL 대신 이식 가능한 사진 경로를 저장합니다. 월별 데이터와 사진 백업도 유지해 특정 서비스에 종속되지 않도록 설계합니다.
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin, SupabaseConfigurationError } from "@/lib/supabase-server";
+import { getSupabaseAdmin, retryFutureJwt, SupabaseConfigurationError } from "@/lib/supabase-server";
 import { BOOKSTORE_SELECT, mapBookstore, mapSubmission, SUBMISSION_SELECT, type BookstoreRow, type SubmissionRow } from "@/lib/workspace-records";
 import { readWorkerSession } from "@/lib/workspace-session";
 import type { Workspace } from "@/lib/workspace-types";
@@ -12,10 +12,9 @@ function configurationResponse() {
 export async function GET(request: NextRequest) {
   try {
     const role = await readWorkerSession(request);
-    const supabase = getSupabaseAdmin();
     const [bookstoresResult, submissionsResult] = await Promise.all([
-      supabase.from("bookstores").select(BOOKSTORE_SELECT).order("sort_order"),
-      supabase.from("submissions").select(SUBMISSION_SELECT).order("updated_at"),
+      retryFutureJwt(() => getSupabaseAdmin().from("bookstores").select(BOOKSTORE_SELECT).order("sort_order")),
+      retryFutureJwt(() => getSupabaseAdmin().from("submissions").select(SUBMISSION_SELECT).order("updated_at")),
     ]);
     if (bookstoresResult.error) throw bookstoresResult.error;
     if (submissionsResult.error) throw submissionsResult.error;

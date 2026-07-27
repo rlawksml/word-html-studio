@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin, SupabaseConfigurationError } from "@/lib/supabase-server";
+import { getSupabaseAdmin, retryFutureJwt, SupabaseConfigurationError } from "@/lib/supabase-server";
 import { mapSubmission, sanitizeNews, SUBMISSION_SELECT, type SubmissionRow } from "@/lib/workspace-records";
 import { readWorkerSession } from "@/lib/workspace-session";
 import { parseSubmission, readWorkspaceJson, WorkspaceValidationError } from "@/lib/workspace-validation";
@@ -10,7 +10,9 @@ function configurationResponse() {
 }
 
 async function findSubmission(id: number) {
-  const result = await getSupabaseAdmin().from("submissions").select(SUBMISSION_SELECT).eq("id", id).maybeSingle();
+  const result = await retryFutureJwt(() => (
+    getSupabaseAdmin().from("submissions").select(SUBMISSION_SELECT).eq("id", id).maybeSingle()
+  ));
   if (result.error) throw result.error;
   return result.data as SubmissionRow | null;
 }
@@ -67,10 +69,12 @@ async function save(request: NextRequest) {
       monthly_notice: next.monthlyNotice,
       news: sanitizeNews(next.news),
     };
-    const query = existing
-      ? getSupabaseAdmin().from("submissions").update(values).eq("id", next.id).eq("updated_at", submission.updatedAt)
-      : getSupabaseAdmin().from("submissions").insert(values);
-    const result = await query.select(SUBMISSION_SELECT).maybeSingle();
+    const result = await retryFutureJwt(() => {
+      const query = existing
+        ? getSupabaseAdmin().from("submissions").update(values).eq("id", next.id).eq("updated_at", submission.updatedAt)
+        : getSupabaseAdmin().from("submissions").insert(values);
+      return query.select(SUBMISSION_SELECT).maybeSingle();
+    });
     if (result.error) {
       if (result.error.code === "23505") return conflictResponse(await findSubmission(next.id), role);
       throw result.error;
