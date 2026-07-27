@@ -8,8 +8,8 @@ import { formatMonth, formatSavedAt, shiftMonth } from "@/lib/workspace-formatte
 export function InputWorkspace({ studio }: { studio: StudioController }) {
   const {
     bookstores, submissions, month, inputView, monthSubmissions, completedBookstoreCount,
-    completionPercent, openingBookstoreId, setBookstores, setMonth, setInputView, openBookstore,
-    completionShareMessage, copyText, notify,
+    completionPercent, openingBookstoreId, setMonth, setInputView, openBookstore,
+    completionShareMessage, copyText, saveBookstore, notify,
   } = studio;
   return <section className="input-area">
     <div className="input-flow-guide" aria-label="소식 입력 순서">
@@ -38,7 +38,7 @@ export function InputWorkspace({ studio }: { studio: StudioController }) {
     </>}
 
     {/* inputView는 별도 URL이 아니라 한 작업 흐름 안의 세 화면 상태를 뜻합니다. */}
-    {inputView === "bookstores" && <BookstoreManagement bookstores={bookstores} setBookstores={setBookstores} onBack={() => setInputView("list")} notify={notify} />}
+    {inputView === "bookstores" && <BookstoreManagement bookstores={bookstores} saveBookstore={saveBookstore} onBack={() => setInputView("list")} notify={notify} />}
     {inputView === "edit" && <NewsEditorWorkspace studio={studio} />}
   </section>;
 }
