@@ -37,9 +37,11 @@ Atomic Design은 파일 수를 늘리는 목표가 아닙니다. 독립적으로
 
 최초 세션 확인과 데이터 로드는 `hooks/use-workspace-initialization.ts`로 분리합니다. 이 hook은 한 요청을 12초로 제한하고 2초·4초 간격을 두어 최대 3번 확인하므로 전체 자동 시도는 1분 안에 끝납니다. 8초 이상 지연되면 사용자가 직접 다시 시도할 수 있습니다. 연결은 성공했지만 책방이 0개이면 오류로 막지 않고 입력자가 첫 책방을 등록할 수 있습니다.
 
-`hooks/use-workspace-persistence.ts`는 책방과 월별 소식의 변경을 감지해 1.2초 후 레코드 단위로 저장합니다. 요청을 한 줄로 직렬화하고 서버의 `updated_at`과 브라우저가 마지막으로 읽은 값을 비교합니다. 책방 관리 저장은 이 hook의 명시적 저장 명령을 호출해 서버 응답을 받은 뒤에만 UI에 반영합니다. 값이 실제로 달라진 요청은 해당 레코드만 `409 Conflict`로 멈추고, 다른 레코드의 자동 저장은 계속합니다.
+`hooks/use-workspace-persistence.ts`는 책방과 월별 소식의 변경을 감지해 1.2초 후 레코드 단위로 저장합니다. 요청을 한 줄로 직렬화하고 서버의 `updated_at`과 브라우저가 마지막으로 읽은 값을 비교합니다. 책방 관리 저장은 이 hook의 명시적 저장 명령을 호출해 서버 응답을 받은 뒤에만 UI에 반영합니다. 뒤로가기와 입력 마무리는 effect가 ref를 갱신하기를 기다리지 않고 controller가 넘긴 마지막 Submission 스냅샷을 저장하며, 서버 성공 뒤에만 목록으로 이동합니다. 값이 실제로 달라진 요청은 해당 레코드만 `409 Conflict`로 멈추고, 다른 레코드의 자동 저장은 계속합니다.
 
-`lib/workspace-client.ts`는 순간적인 5xx·429와 네트워크 단절을 최대 3회 짧게 재시도합니다. 첫 저장의 응답만 유실되어 재시도가 `409`가 된 경우 서버의 최신 내용이 요청 내용과 같은지 비교해 최신 버전을 이어받습니다. 사진 PUT은 기존 서명으로 먼저 재시도하고, 서명이 무효하면 controller가 새 경로와 서명을 발급받아 다시 전송합니다. HEIC/HEIF 변환기는 일반 방문자 번들에 넣지 않고 해당 사진을 선택했을 때만 불러옵니다.
+`lib/submission-draft.ts`는 자동 저장 요청이 시작되기 전 새로고침·탭 내 이동에 대비한 보조 복구 계층입니다. Supabase가 원본 데이터이고 `sessionStorage`는 같은 탭의 최신 입력만 잠시 보관합니다. 서버의 `updated_at`이 복구본과 달라지면 다른 작업자의 최신 내용을 우선하고 오래된 복구본을 폐기합니다. 브라우저 저장 한도나 사생활 보호 설정으로 복구본을 쓰지 못해도 Supabase 저장 흐름은 중단하지 않습니다.
+
+`lib/workspace-client.ts`는 순간적인 5xx·429와 네트워크 단절을 최대 3회 짧게 재시도합니다. 첫 저장의 응답만 유실되어 재시도가 `409`가 된 경우 서버의 최신 내용이 요청 내용과 같은지 비교해 최신 버전을 이어받습니다. 사진 PUT은 45초 전송 제한 안에서 기존 서명으로 먼저 재시도하고, 연결이 끊기거나 서명이 무효하면 controller가 새 경로와 서명을 발급받아 다시 전송합니다. 업로드 중에는 다른 저장·이동을 막아 Storage 파일과 DB의 사진 메타데이터가 분리되지 않게 합니다. HEIC/HEIF 변환기는 일반 방문자 번들에 넣지 않고 해당 사진을 선택했을 때만 불러옵니다.
 
 `lib/supabase-server.ts`는 Cloudflare Worker와 Supabase의 순간적인 시계 오차에서만 발생하는 `PGRST303 / JWT issued at future`를 구분합니다. 이 오류는 Database·Storage 인증 전에 요청이 거부된 경우이므로 서버에서 최대 3회 재시도합니다. 일반 5xx나 쓰기 타임아웃은 중복 실행 여부가 불명확하므로 서버 재시도 대상에 넣지 않습니다.
 
@@ -56,6 +58,7 @@ components
     → hooks/use-workspace-persistence    # 레코드 변경 감지·직렬 저장·충돌 처리
     → hooks/use-editing-presence         # 실제 편집 대상의 짧은 임대·동시 작업 안내
     → lib/workspace-client       # 브라우저 ↔ Next.js API
+    → lib/submission-draft       # 같은 탭의 저장 전 입력 복구
     → lib/html-generators        # 개별·통합 inline CSS HTML
     → lib/workspace-formatters   # 팩토리·날짜·안전한 URL·상태 표시
     → lib/workspace-types        # 공용 데이터 타입

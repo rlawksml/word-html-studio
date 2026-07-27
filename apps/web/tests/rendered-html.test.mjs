@@ -214,7 +214,8 @@ test("keeps passcodes in server environment variables and uses a tab-scoped work
   assert.doesNotMatch(source, /flatMap\(\(news\) => news\.dates\)\.length/);
   assert.match(source, /const hasDraftInProgress =/);
   assert.match(source, /addEventListener\("beforeunload"/);
-  assert.match(source, /\.brand, \.worker-nav button, \.editor-page-head \.back-button/);
+  assert.match(source, /\.brand, \.worker-nav button/);
+  assert.match(source, /onClick=\{requestEditorLeave\}/);
   assert.match(source, /작성 중인 내용이 있습니다\./);
   assert.match(source, /임시 저장 후 나가기/);
   assert.match(source, /<BrandButton onClick=\{returnToVisitor\} \/>/);
@@ -400,4 +401,31 @@ test("keeps the route and global stylesheet as thin Atomic Design composition po
   assert.match(globalStyles, /styles\/html-editor\.css/);
   assert.match(globalStyles, /styles\/presence\.css/);
   assert.doesNotMatch(globalStyles, /\.visitor-page|\.input-area|\.html-workspace/);
+});
+
+test("saves the exact latest draft before leaving and limits sorting to drag handles", async () => {
+  const [controller, persistence, editor, editorCard, draftRecovery, inputStyles] = await Promise.all([
+    readFile(new URL("../hooks/use-studio-controller.ts", import.meta.url), "utf8"),
+    readFile(new URL("../hooks/use-workspace-persistence.ts", import.meta.url), "utf8"),
+    readFile(new URL("../components/organisms/NewsEditorWorkspace.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/molecules/NewsEditorCard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/submission-draft.ts", import.meta.url), "utf8"),
+    readFile(new URL("../styles/input.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(controller, /submissionsRef\.current = next/);
+  assert.match(controller, /await saveSubmissionSnapshot\(snapshot\)/);
+  assert.match(controller, /await saveSubmissionSnapshot\(completed\)/);
+  assert.match(controller, /rememberSubmissionDraft\(currentSubmission\)/);
+  assert.match(controller, /recoverSubmissionDraft\(base\)/);
+  assert.match(editor, /onClick=\{requestEditorLeave\}/);
+  assert.match(persistence, /const saveSubmissionSnapshot/);
+  assert.match(draftRecovery, /sessionStorage/);
+
+  assert.doesNotMatch(editorCard, /<article className="news-editor-card" draggable/);
+  assert.match(editorCard, /className="drag-handle"\s+draggable/);
+  assert.match(editorCard, /className="photo-drag-handle" draggable/);
+  assert.match(editorCard, /event\.stopPropagation\(\); if \(!uploadsLocked\)/);
+  assert.match(inputStyles, /\.drag-handle \{[^}]*cursor:grab/);
+  assert.match(inputStyles, /\.upload-box\.is-uploading/);
 });
