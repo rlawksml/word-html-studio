@@ -110,7 +110,14 @@ export function useStudioController(initialMonth: string) {
       setStorageError(message);
     }
   }, [role]);
-  const { replaceWorkspace, saveNow, saveBookstoreChange, saveSubmissionChange, saveSubmissionSnapshot } = useWorkspacePersistence({
+  const {
+    replaceWorkspace,
+    saveNow,
+    saveBookstoreChange,
+    saveSubmissionChange,
+    saveSubmissionSnapshot,
+    discardSubmissionChanges,
+  } = useWorkspacePersistence({
     enabled: hydrated,
     role,
     bookstores,
@@ -283,6 +290,33 @@ export function useStudioController(initialMonth: string) {
       else goToBookstoreList();
     } catch (error) {
       const message = error instanceof Error ? error.message : "임시 저장하지 못했습니다.";
+      setStorageError(message);
+      notify(message);
+    }
+  };
+
+  const discardLeave = async () => {
+    if (!leaveTarget) return;
+    if (imageUploadInProgressRef.current) {
+      notify("사진 저장이 끝난 뒤 이동해 주세요.");
+      return;
+    }
+    const target = leaveTarget;
+    const snapshot = selectedBookstoreId
+      ? submissionsRef.current.find((item) => item.bookstoreId === selectedBookstoreId && item.month === month)
+      : null;
+    try {
+      if (snapshot) {
+        await discardSubmissionChanges(snapshot.id);
+        forgetSubmissionDraft(snapshot);
+        pendingImageDeletesRef.current.delete(snapshot.id);
+      }
+      setStorageError("");
+      if (target === "visitor") returnToVisitor();
+      else goToBookstoreList();
+      notify("마지막 자동 저장 이후 변경을 버리고 이동했습니다.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "저장하지 않은 내용을 정리하지 못했습니다.";
       setStorageError(message);
       notify(message);
     }
@@ -656,7 +690,7 @@ export function useStudioController(initialMonth: string) {
     setInputView, setSelectedSubmissionId, setHtmlView, setPreviewMode, setSearch, setSelectedDay,
     setDraggedNewsId, setDraggedImageId, setDraggedDigestId, setPublicDetail, setLeaveTarget,
     setEditingEntryBlock,
-    login, returnToVisitor, confirmLeave, requestEditorLeave, openBookstore, updateCurrent, updateNews, updateNewsValue,
+    login, returnToVisitor, confirmLeave, discardLeave, requestEditorLeave, openBookstore, updateCurrent, updateNews, updateNewsValue,
     saveBookstore,
     addImages, reorderNews, moveNews, reorderImages, moveImage, copyPrevious, manualSave,
     completeSubmission, completionShareMessage, copyText, downloadPhotoZip, reorderDigest,

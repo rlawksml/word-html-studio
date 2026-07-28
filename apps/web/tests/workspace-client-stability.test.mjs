@@ -12,7 +12,10 @@ import {
   recoverSubmissionDraft,
   rememberSubmissionDraft,
 } from "../lib/submission-draft.ts";
-import { rebaseSubmissionSnapshot } from "../lib/workspace-persistence.ts";
+import {
+  rebaseSubmissionSnapshot,
+  restoreSubmissionFromBaseline,
+} from "../lib/workspace-persistence.ts";
 import { retryFutureJwt } from "../lib/supabase-server.ts";
 
 function installBrowserStub() {
@@ -218,6 +221,25 @@ test("rebases a leave snapshot onto a queued autosave version without changing i
   const rebased = rebaseSubmissionSnapshot(leaving, afterQueuedSave);
   assert.equal(rebased.updatedAt, afterQueuedSave.updatedAt);
   assert.equal(rebased.news[0].title, "마지막 화면 입력");
+});
+
+test("restores the last server baseline or removes a never-saved draft when leaving without saving", () => {
+  const baseline = submission({
+    updatedAt: "2026-07-27T01:00:00.000Z",
+    news: [{ ...submission().news[0], title: "마지막 자동 저장 내용" }],
+  });
+  const changed = {
+    ...baseline,
+    news: [{ ...baseline.news[0], title: "아직 저장하지 않은 내용" }],
+  };
+  assert.deepEqual(
+    restoreSubmissionFromBaseline([changed], changed.id, baseline),
+    [baseline],
+  );
+  assert.deepEqual(
+    restoreSubmissionFromBaseline([changed], changed.id),
+    [],
+  );
 });
 
 test("retries only the Supabase future-JWT clock-skew error", async () => {
