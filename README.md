@@ -128,6 +128,7 @@ npm run test:integration:local
 - [개발 에이전트 구조·CSS 분리 규칙](AGENTS.md)
 - [사용자 흐름](docs/USER_FLOW.md)
 - [운영 테스트 가이드](docs/TEST_GUIDE.md)
+- [회귀 테스트 케이스와 실행 기록](docs/TEST_CASES.md)
 - [현재 애플리케이션 아키텍처](docs/ARCHITECTURE.md)
 - [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)
 - [제품 요구사항](docs/PRODUCT.md)

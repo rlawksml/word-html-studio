@@ -101,7 +101,9 @@
 - [x] 작업 암호 반복 실패 제한
 - [x] KST 기준 발행 월과 운영 빌드 hydration 회귀 확인
 - [x] GitHub Actions lint·build·회귀 테스트와 수동 Supabase 통합 테스트
+- [x] 핵심 사용자 흐름·저장·사진·권한·동시 편집 TC 시나리오 문서화
 - [ ] 접근성, 모바일 성능, 대용량 사진 테스트
+- [ ] 사이트 favicon 추가로 운영 로그의 `/favicon.ico` 404 제거
 - [ ] XSS, 파일 MIME/용량, 업로드 보안 점검
 - [ ] Supabase Database·Storage 백업 및 서비스 종료 시 데이터 이전 절차 문서화
 - [ ] 사용 로그와 오류 관찰 도구 연결
