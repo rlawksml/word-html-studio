@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { persistBookstore, persistSubmission, WorkspaceConflictError } from "@/lib/workspace-client";
-import { rebaseSubmissionSnapshot } from "@/lib/workspace-persistence";
+import { rebaseSubmissionSnapshot, restoreSubmissionFromBaseline } from "@/lib/workspace-persistence";
 import type { Role } from "@/lib/workspace-formatters";
 import type { Bookstore, Submission, Workspace } from "@/lib/workspace-types";
 
@@ -34,9 +34,12 @@ export function useWorkspacePersistence(options: PersistenceOptions) {
   const submissionsRef = useRef(submissions);
   const bookstoreBaselineRef = useRef(new Map<number, string>());
   const submissionBaselineRef = useRef(new Map<number, string>());
+  const savedSubmissionsRef = useRef(new Map<number, Submission>());
   const initializedRoleRef = useRef<Role | null>(null);
   const operationRef = useRef<Promise<void>>(Promise.resolve());
   const blockedRecordsRef = useRef(new Set<string>());
+  const discardRevisionRef = useRef(0);
+  const discardInProgressRef = useRef(false);
   const onSubmissionSavedRef = useRef(onSubmissionSaved);
   useEffect(() => {
     bookstoresRef.current = bookstores;
@@ -47,6 +50,7 @@ export function useWorkspacePersistence(options: PersistenceOptions) {
   const seedBaseline = useCallback((workspace: Workspace) => {
     bookstoreBaselineRef.current = new Map(workspace.bookstores.map((item) => [item.id, fingerprint(item)]));
     submissionBaselineRef.current = new Map(workspace.submissions.map((item) => [item.id, fingerprint(item)]));
+    savedSubmissionsRef.current = new Map(workspace.submissions.map((item) => [item.id, item]));
     blockedRecordsRef.current.clear();
   }, []);
 
@@ -88,6 +92,7 @@ export function useWorkspacePersistence(options: PersistenceOptions) {
 
   const adoptSubmission = useCallback(async (saved: Submission, localTransform?: (submission: Submission) => Submission) => {
     submissionBaselineRef.current.set(saved.id, fingerprint(saved));
+    savedSubmissionsRef.current.set(saved.id, saved);
     blockedRecordsRef.current.delete(`submission:${saved.id}`);
     const next = submissionsRef.current.map((current) => {
       if (current.id !== saved.id) return current;
@@ -101,7 +106,7 @@ export function useWorkspacePersistence(options: PersistenceOptions) {
   }, [setSubmissions]);
 
   const saveDirtyRecords = useCallback(async (manual: boolean) => {
-    if (!enabled || (role !== "input" && role !== "html")) return;
+    if (!enabled || discardInProgressRef.current || (role !== "input" && role !== "html")) return;
     const changedBookstores = role === "input"
       ? bookstoresRef.current.filter((item) => (
           !blockedRecordsRef.current.has(`bookstore:${item.id}`)
@@ -197,6 +202,30 @@ export function useWorkspacePersistence(options: PersistenceOptions) {
     }
   }), [adoptSubmission, recordFailure, serialize, setSaveState, setStorageError]);
 
+  const discardSubmissionChanges = useCallback((submissionId: number) => {
+    // 예약된 자동 저장은 revision으로 무효화하고, 이미 실행 중인 요청은 끝난 뒤 그 서버 결과를 기준으로 되돌립니다.
+    discardRevisionRef.current += 1;
+    discardInProgressRef.current = true;
+    return serialize(async () => {
+      try {
+        const baseline = savedSubmissionsRef.current.get(submissionId);
+        const next = restoreSubmissionFromBaseline(submissionsRef.current, submissionId, baseline);
+        submissionsRef.current = next;
+        setSubmissions(next);
+        blockedRecordsRef.current.delete(`submission:${submissionId}`);
+        if (!baseline) {
+          submissionBaselineRef.current.delete(submissionId);
+          savedSubmissionsRef.current.delete(submissionId);
+        }
+        setStorageError("");
+        setSaveState("저장하지 않은 변경을 버렸습니다");
+        return baseline ?? null;
+      } finally {
+        discardInProgressRef.current = false;
+      }
+    });
+  }, [serialize, setSaveState, setStorageError, setSubmissions]);
+
   useEffect(() => {
     if (!enabled || (role !== "input" && role !== "html")) {
       initializedRoleRef.current = null;
@@ -207,9 +236,20 @@ export function useWorkspacePersistence(options: PersistenceOptions) {
       seedBaseline({ bookstores, submissions });
       return;
     }
-    const timer = window.setTimeout(() => { void saveNow(false).catch(() => undefined); }, 1_200);
+    const scheduledRevision = discardRevisionRef.current;
+    const timer = window.setTimeout(() => {
+      if (scheduledRevision !== discardRevisionRef.current || discardInProgressRef.current) return;
+      void saveNow(false).catch(() => undefined);
+    }, 1_200);
     return () => window.clearTimeout(timer);
   }, [bookstores, enabled, role, saveNow, seedBaseline, submissions]);
 
-  return { replaceWorkspace, saveNow, saveBookstoreChange, saveSubmissionChange, saveSubmissionSnapshot };
+  return {
+    replaceWorkspace,
+    saveNow,
+    saveBookstoreChange,
+    saveSubmissionChange,
+    saveSubmissionSnapshot,
+    discardSubmissionChanges,
+  };
 }

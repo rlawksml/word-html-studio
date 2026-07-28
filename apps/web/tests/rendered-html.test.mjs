@@ -217,7 +217,13 @@ test("keeps passcodes in server environment variables and uses a tab-scoped work
   assert.match(source, /\.brand, \.worker-nav button/);
   assert.match(source, /onClick=\{requestEditorLeave\}/);
   assert.match(source, /작성 중인 내용이 있습니다\./);
-  assert.match(source, /임시 저장 후 나가기/);
+  assert.match(source, /임시 저장 후 이동/);
+  assert.match(source, /저장하지 않고 이동/);
+  assert.match(source, /마지막 자동 저장 이후 변경/);
+  assert.match(source, /restoreSubmissionFromBaseline/);
+  assert.match(source, /discardSubmissionChanges/);
+  assert.match(source, /discardRevisionRef/);
+  assert.match(source, /forgetSubmissionDraft\(snapshot\)/);
   assert.match(source, /<BrandButton onClick=\{returnToVisitor\} \/>/);
   assert.match(source, /aria-label="동네책방 소식 홈"/);
   assert.match(source, /<button onClick=\{returnToVisitor\}>로그아웃<\/button>/);
