@@ -105,6 +105,8 @@
 - [x] Lighthouse 기준 점검과 작업자 화면·ZIP 라이브러리 지연 로드
 - [x] canonical·Open Graph·Twitter Card·JSON-LD·robots·sitemap·manifest 구성
 - [x] 공개 빈 제목 차단, 브랜드 접근성 이름과 작은 글자 색 대비 개선
+- [ ] 책방·월별 고유 공개 URL과 서버 렌더링 콘텐츠로 개별 소식 검색 노출 강화
+- [ ] 운영 도메인 확정 후 Google Search Console 등록과 sitemap 제출
 - [ ] 대용량 사진 모바일 성능 테스트
 - [ ] 사이트 favicon 추가로 운영 로그의 `/favicon.ico` 404 제거
 - [ ] XSS, 파일 MIME/용량, 업로드 보안 점검
