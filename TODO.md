@@ -102,7 +102,10 @@
 - [x] KST 기준 발행 월과 운영 빌드 hydration 회귀 확인
 - [x] GitHub Actions lint·build·회귀 테스트와 수동 Supabase 통합 테스트
 - [x] 핵심 사용자 흐름·저장·사진·권한·동시 편집 TC 시나리오 문서화
-- [ ] 접근성, 모바일 성능, 대용량 사진 테스트
+- [x] Lighthouse 기준 점검과 작업자 화면·ZIP 라이브러리 지연 로드
+- [x] canonical·Open Graph·Twitter Card·JSON-LD·robots·sitemap·manifest 구성
+- [x] 공개 빈 제목 차단, 브랜드 접근성 이름과 작은 글자 색 대비 개선
+- [ ] 대용량 사진 모바일 성능 테스트
 - [ ] 사이트 favicon 추가로 운영 로그의 `/favicon.ico` 404 제거
 - [ ] XSS, 파일 MIME/용량, 업로드 보안 점검
 - [ ] Supabase Database·Storage 백업 및 서비스 종료 시 데이터 이전 절차 문서화

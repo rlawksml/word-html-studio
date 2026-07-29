@@ -16,6 +16,8 @@
 - 게시: 선택적 게시 URL 저장, 게시 완료·재게시 상태 표시
 - 버그·개선사항: 유형별 안내 폼과 공개 진행 상태, HTML 편집자 전용 상태·예정일 관리, Markdown·JSON 다운로드와 통합본 복사
 - 도움말: 모바일 웹 사용 가이드와 기존 PDF 새 창 열기·다운로드
+- 검색·공유: canonical·Open Graph·Twitter Card·JSON-LD, robots.txt·sitemap.xml·웹 앱 manifest와 전용 공유 이미지
+- 성능·접근성: 작업자 화면과 ZIP 라이브러리 지연 로드, 빈 제목 공개 차단, 화면 글자를 그대로 읽는 브랜드 버튼과 작은 글자 색 대비 보강
 
 방문자 헤더의 `소식 입력` 또는 `HTML 편집` 버튼을 먼저 선택한 뒤 서버 환경변수에 등록한 역할별 암호를 입력합니다. 실제 작업 암호는 공개 저장소와 브라우저 코드에 포함하지 않습니다. 방문자는 암호 없이 바로 이용합니다.
 
@@ -118,6 +120,8 @@ npm run test:integration:local
 로컬 주소는 `http://localhost:3000`입니다.
 
 `test:integration:local`은 `.env.local`의 Supabase에 테스트 전용 책방·소식·사진을 잠시 만들고 저장 충돌과 파일 정리를 확인한 뒤 모두 삭제합니다. GitHub Actions에서는 기본 lint·build·회귀 테스트를 자동 실행하고, 저장소 Secret이 설정된 수동 실행에서 같은 Supabase 통합 테스트를 수행합니다.
+
+SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metadata.ts`에서 관리합니다. 운영 도메인이 바뀌면 `SITE_URL`을 먼저 변경하고 canonical, Open Graph, sitemap을 다시 확인합니다. Lighthouse 성능은 앱 코드 외에도 Cloudflare 보안 스크립트와 첫 요청의 콜드 스타트에 영향을 받으므로 배포 전 로컬 빌드와 배포 후 운영 주소를 모두 측정합니다.
 
 ## 배포
 

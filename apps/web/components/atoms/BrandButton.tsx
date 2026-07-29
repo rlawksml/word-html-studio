@@ -5,7 +5,7 @@ type BrandButtonProps = {
 };
 
 export function BrandButton({ onClick }: BrandButtonProps) {
-  return <button className="brand" onClick={onClick} aria-label="동네책방 소식 홈">
+  return <button className="brand" onClick={onClick} title="메인 페이지로 이동">
     <BrandIdentity />
   </button>;
 }
