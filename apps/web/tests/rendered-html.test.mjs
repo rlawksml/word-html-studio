@@ -19,6 +19,7 @@ const applicationSourceFiles = [
   "../components/atoms/ImprovementStatusChip.tsx",
   "../components/atoms/ImprovementTypeChip.tsx",
   "../components/atoms/LoadingBooks.tsx",
+  "../components/atoms/SiteStructuredData.tsx",
   "../components/atoms/WorkStatusBadge.tsx",
   "../components/molecules/AppHeader.tsx",
   "../components/molecules/NewsCalendar.tsx",
@@ -179,6 +180,48 @@ test("ships accessible discovery controls and compact public cards", async () =>
   assert.match(source, /public-event-list/);
   assert.match(source, /role="tooltip"/);
   assert.match(source, /calendar-markers/);
+  assert.match(source, /\.filter\(\(news\) => news\.title\.trim\(\)\)/);
+  assert.match(source, /title="메인 페이지로 이동"/);
+  assert.doesNotMatch(source, /<button className="brand" onClick=\{onClick\} aria-label=/);
+});
+
+test("publishes complete SEO metadata, discovery routes, and a social preview", async () => {
+  const [homeResponse, helpResponse, improvementsResponse, robotsResponse, sitemapResponse, manifestResponse, socialImage, controller, template] = await Promise.all([
+    render(),
+    render("/help"),
+    render("/improvements"),
+    render("/robots.txt"),
+    render("/sitemap.xml"),
+    render("/manifest.webmanifest"),
+    stat(new URL("../public/og-bookstore-news.png", import.meta.url)),
+    readFile(new URL("../hooks/use-studio-controller.ts", import.meta.url), "utf8"),
+    readFile(new URL("../components/templates/StudioPage.tsx", import.meta.url), "utf8"),
+  ]);
+
+  const home = await homeResponse.text();
+  assert.match(home, /rel="canonical" href="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/"/);
+  assert.match(home, /property="og:title" content="지관서가 동네책방 소식"/);
+  assert.match(home, /property="og:image" content="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/og-bookstore-news\.png"/);
+  assert.match(home, /name="twitter:card" content="summary_large_image"/);
+  assert.match(home, /rel="manifest" href="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/manifest\.webmanifest"/);
+  assert.match(home, /application\/ld\+json/);
+  assert.match(home, /CollectionPage/);
+
+  const help = await helpResponse.text();
+  assert.match(help, /rel="canonical" href="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/help"/);
+  const improvements = await improvementsResponse.text();
+  assert.match(improvements, /name="robots" content="noindex, nofollow"/);
+
+  assert.equal(robotsResponse.status, 200);
+  assert.match(await robotsResponse.text(), /Disallow: \/api\//);
+  assert.match(await sitemapResponse.text(), /bookstore-news-studio\.rlawksml\.chatgpt\.site\/help/);
+  assert.match(await manifestResponse.text(), /동네책방 소식/);
+  assert.ok(socialImage.size > 50_000, "공유 미리보기 이미지가 비어 있으면 안 됩니다.");
+
+  assert.doesNotMatch(controller, /import JSZip from "jszip"/);
+  assert.match(controller, /await import\("jszip"\)/);
+  assert.match(template, /lazy\(\(\) => import\("@\/components\/organisms\/InputWorkspace"\)/);
+  assert.match(template, /lazy\(\(\) => import\("@\/components\/organisms\/HtmlWorkspace"\)/);
 });
 
 test("keeps passcodes in server environment variables and uses a tab-scoped worker session", async () => {

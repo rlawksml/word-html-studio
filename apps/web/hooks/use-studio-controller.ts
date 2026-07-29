@@ -1,6 +1,5 @@
 "use client";
 
-import JSZip from "jszip";
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useWorkspaceInitialization } from "@/hooks/use-workspace-initialization";
 import { useWorkspacePersistence } from "@/hooks/use-workspace-persistence";
@@ -607,6 +606,8 @@ export function useStudioController(initialMonth: string) {
 
   // HTML 편집자가 외부 게시판에 올릴 수 있도록 비공개 원본 사진과 선택적 HTML을 ZIP으로 묶습니다.
   const downloadPhotoZip = async (submission: Submission, bookstore: Bookstore, withHtml: boolean) => {
+    // 방문자와 입력자가 ZIP 라이브러리까지 내려받지 않도록 실제 다운로드 순간에만 불러옵니다.
+    const { default: JSZip } = await import("jszip");
     const zip = new JSZip();
     const imageFolder = zip.folder("사진");
     for (let newsIndex = 0; newsIndex < submission.news.length; newsIndex += 1) {
