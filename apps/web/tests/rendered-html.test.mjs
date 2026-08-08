@@ -57,6 +57,11 @@ async function render(path = "/") {
 }
 
 test("renders the public bookstore news calendar", async () => {
+  const currentKoreanMonth = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "long",
+  }).format(new Date());
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
@@ -71,7 +76,7 @@ test("renders the public bookstore news calendar", async () => {
   assert.match(html, /href="\/help"/);
   assert.match(html, />도움말<\/a>/);
   assert.doesNotMatch(html, /작업자 접속/);
-  assert.match(html, /2026년 7월/);
+  assert.match(html, new RegExp(currentKoreanMonth));
   assert.match(html, /aria-label="이전 달"/);
   assert.match(html, /aria-label="다음 달"/);
   assert.match(html, /aria-label="책방 색상 안내"/);
