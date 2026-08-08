@@ -6,6 +6,14 @@
 - Sites 배포와 정적 화면은 정상이나, 공용 데이터 API가 Supabase 호스트를 찾지 못해 핵심 기능을 사용할 수 없다.
 - 운영 데이터는 수정하지 않았으며 읽기 요청, 무권한 차단 요청, 브라우저 표시만 확인했다.
 
+## 읽기 전용 재확인
+
+- 같은 날 후속 점검에서는 사용자의 운영 데이터 보호 요청에 따라 공개 `GET` 요청, Worker 로그 조회, 로컬 lint·build·단위 회귀만 실행했다.
+- 책방·소식·사진·개선사항 생성·수정·삭제, 로그인 제출, 잘못된 권한 요청, Supabase 통합 테스트, reset·cleanup은 실행하지 않았다.
+- `/api/workspace`와 `/api/improvements`의 HTTP 500 및 Cloudflare `1016`이 동일하게 재현됐다.
+- lint와 production build는 다시 통과했고 회귀 테스트는 동일하게 24/25 통과했다. 실패 1건은 `2026년 7월` 고정 기대값이다.
+- **운영 데이터 변경 없음**을 확인했다.
+
 ## 점검 대상
 
 - 운영 URL: `https://bookstore-news-studio.rlawksml.chatgpt.site/`
