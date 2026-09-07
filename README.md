@@ -130,6 +130,8 @@ SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metad
 
 현재 프로젝트는 vinext가 Next.js 코드를 Cloudflare Worker에서 실행할 수 있는 형태로 만들고, Sites가 그 결과를 Cloudflare 환경에 배포합니다. 즉 Vercel은 Next.js를 올릴 수 있는 여러 배포 서비스 중 하나일 뿐 필수 구성요소가 아닙니다. 화면과 API 실행은 Sites/Cloudflare가, 책방 데이터와 사진 보관은 Supabase가 담당합니다. 향후 독립 운영 도메인이나 Vercel의 관리 기능이 필요할 때 별도 배포 대상으로 검토할 수 있지만, 한 저장소에서 두 배포 환경을 동시에 운영하면 환경변수·배포 주소·장애 확인 지점이 두 벌이 되므로 운영 초기에는 한 플랫폼만 사용하는 편이 안전합니다.
 
+새 기능은 `develop`과 owner-private Staging Sites에서 먼저 확인합니다. Staging은 별도 Supabase 프로젝트만 연결하며, 런타임이 예상 project ref와 운영 차단 목록을 확인한 뒤 Supabase client를 생성합니다. `main`·운영 Sites·운영 Supabase는 명시적인 릴리스 승인 전까지 변경하지 않습니다. 상세 절차는 [Staging 운영 가이드](docs/STAGING.md)를 따릅니다.
+
 ## 문서
 
 - [개발 에이전트 구조·CSS 분리 규칙](AGENTS.md)
@@ -139,8 +141,11 @@ SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metad
 - [현재 애플리케이션 아키텍처](docs/ARCHITECTURE.md)
 - [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)
 - [Supabase 무손실 백업·복구 Runbook](docs/BACKUP_RESTORE.md)
+- [Staging 환경 분리·배포 가이드](docs/STAGING.md)
 - [v1.1 이전 백업 기준선 보고서](docs/test-reports/2026-09-07-backup-baseline.md)
 - [Supabase Staging 복원 훈련 보고서](docs/test-reports/2026-09-07-staging-restore-rehearsal.md)
+- [Sites Staging 배포 전 테스트 보고서](docs/test-reports/2026-09-07-staging-site-pre-deploy.md)
+- [Sites Staging 버전 2 배포 후 테스트 보고서](docs/test-reports/2026-09-07-staging-v2-post-deploy.md)
 - [제품 요구사항](docs/PRODUCT.md)
 - [입력 항목 분류](docs/FIELD_REQUIREMENTS.md)
 - [실제 Word 4개 비교 분석](docs/MULTI_DOC_ANALYSIS.md)

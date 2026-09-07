@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { assertSupabaseRuntimeTarget } from "./supabase-environment.mjs";
 
 // 이 파일은 API Route에서만 사용합니다. SECRET_KEY를 쓰는 admin client를 Client Component에 import하면 안 됩니다.
 export const ORIGINAL_IMAGE_BUCKET = "bookstore-news-originals";
@@ -15,6 +16,12 @@ export function getSupabaseAdmin() {
   const url = process.env.SUPABASE_URL;
   const secretKey = process.env.SUPABASE_SECRET_KEY;
   if (!url || !secretKey) throw new SupabaseConfigurationError();
+  assertSupabaseRuntimeTarget({
+    appEnv: process.env.APP_ENV,
+    supabaseUrl: url,
+    expectedProjectRef: process.env.EXPECTED_SUPABASE_PROJECT_REF,
+    blockedProjectRefs: process.env.BLOCKED_SUPABASE_PROJECT_REFS,
+  });
   return createClient(url, secretKey, {
     auth: {
       autoRefreshToken: false,

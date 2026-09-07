@@ -112,7 +112,8 @@
 - [ ] XSS, 파일 MIME/용량, 업로드 보안 점검
 - [x] Supabase Database·Storage 읽기 전용 백업·해시 검증 도구와 서비스 종료 시 데이터 이전 절차 문서화
 - [x] 별도 Supabase Staging에서 운영 백업 실제 복원과 DB·사진 해시 검증
-- [ ] Staging 앱에서 v1.0.1 읽기·저장 왕복 호환 훈련
+- [x] 운영과 분리된 owner-private Sites Staging 생성과 Supabase 대상 차단 안전장치
+- [x] Staging 앱에서 v1.0.1 읽기·저장 왕복 호환 훈련과 테스트 데이터 정리 검증
 - [ ] 암호화된 독립 저장소 백업과 보존 주기 확정
 - [ ] 사용 로그와 오류 관찰 도구 연결
 - [ ] Next.js 내부 PostCSS 보안 경고 해소 가능한 상위 버전 추적

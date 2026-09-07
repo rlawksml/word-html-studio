@@ -82,6 +82,30 @@
   - 중복 응답·일시 오류는 원격 파일 해시 확인, 업로드 최대 3회·검증 다운로드 최대 6회 재시도로 복구한다.
   - 최종 행·사진 수, 크기, SHA-256이 manifest와 일치한다.
 
+### TC-DR-005 · Staging의 운영 Supabase 연결 차단
+
+- 우선순위/구분: P0 / 자동·배포 설정
+- 절차:
+  1. Staging URL과 예상 project ref가 같고 운영 ref가 차단 목록에 있을 때 앱을 실행한다.
+  2. 예상 ref를 다르게 설정하거나 차단 목록을 비운 상태를 검사한다.
+  3. Staging URL 자체를 운영 ref로 설정한 상태를 검사한다.
+- 기대 결과:
+  - 올바른 Staging 조합만 연결된다.
+  - 오설정은 Supabase 요청 전에 실패하며 운영 데이터에 요청을 보내지 않는다.
+  - 새 변수가 없는 기존 Production은 v1.0 호환 동작을 유지한다.
+
+### TC-DR-006 · Git 브랜치와 Sites 프로젝트 교차 연결 차단
+
+- 우선순위/구분: P0 / 자동·CI
+- 절차:
+  1. `develop` 대상 PR에서 Staging Sites project ID를 검사한다.
+  2. `main` 대상 PR과 `main` push에서 Production Sites project ID를 검사한다.
+  3. 두 project ID를 서로 바꾼 조합과 알 수 없는 대상을 검사한다.
+- 기대 결과:
+  - 브랜치와 Sites 프로젝트가 올바른 조합일 때만 CI가 진행된다.
+  - `develop`의 Staging 설정이 release PR을 통해 `main`에 그대로 들어가면 배포 전에 실패한다.
+  - GitHub의 실제 Supabase 통합 테스트는 `staging` Environment Secret만 사용한다.
+
 ## 1. 초기 로딩과 접속
 
 ### TC-LOAD-001 · 정상 초기 로딩
@@ -540,6 +564,7 @@
 
 | 실행일 | 기준 커밋 | 자동 회귀 | Supabase 통합 | 빌드·린트 | 수동 운영 | 결과 |
 |---|---|---|---|---|---|---|
+| 2026-09-07 | `620cfe1` Staging v2 | 35/35 통과 | GitHub Staging 3/3·정리 | 통과 | 비공개 홈·역할 세션·운영 GET | **GO (Staging)** |
 | 2026-08-08 | `c602fd8` 현재 월 테스트 | 25/25 통과 | 운영 데이터 보호로 생략 | 통과 | 정적 경로 정상·공용 데이터 API 500 | **NO-GO** |
 | 2026-07-29 | `28efad2` 운영 배포 | 배포 전 25/25 통과 | 배포 전 3/3 통과·정리 | 통과 | 운영 경로 8개·Lighthouse 3회 | PASS |
 | 2026-07-29 | `018054f` 기능 코드 | 25/25 통과 | 3/3 통과·테스트 데이터 정리 | 통과 | 로컬 production Lighthouse 4회 | GO |
