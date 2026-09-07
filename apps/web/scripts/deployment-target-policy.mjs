@@ -6,6 +6,8 @@ export const SITE_PROJECT_IDS = Object.freeze({
 export function normalizeDeploymentTarget(value) {
   if (value === "main" || value === "production") return "production";
   if (value === "develop" || value === "staging") return "staging";
+  // 기능 브랜치끼리 이어지는 스택형 PR도 항상 별도 Staging Sites에서 검증한다.
+  if (typeof value === "string" && value.startsWith("codex/")) return "staging";
   return "";
 }
 
