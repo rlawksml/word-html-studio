@@ -116,6 +116,14 @@ export async function verifyBackupDirectory(backupDir) {
     }
   }
 
+  for (const migration of manifest.migrations || []) {
+    const payload = await readFile(resolveInside(backupDir, "migrations", migration.name));
+    if (payload.length !== migration.bytes) failures.push(`${migration.name}: byte size mismatch`);
+    if (sha256(payload) !== migration.sha256) failures.push(`${migration.name}: sha256 mismatch`);
+    verifiedFiles += 1;
+    verifiedBytes += payload.length;
+  }
+
   const incompleteExists = await stat(resolveInside(backupDir, "INCOMPLETE"))
     .then(() => true)
     .catch((error) => {

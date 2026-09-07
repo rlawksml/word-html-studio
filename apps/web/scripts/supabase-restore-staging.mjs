@@ -35,6 +35,17 @@ const orderColumns = { bookstores: "id", submissions: "id", editing_leases: "res
 const tableRows = {};
 const existingRows = {};
 
+async function selectAll(table, orderColumn) {
+  const rows = [];
+  const pageSize = 500;
+  for (let from = 0; ; from += pageSize) {
+    const result = await client.from(table).select("*").order(orderColumn).range(from, from + pageSize - 1);
+    if (result.error) throw new Error(`Restore verification failed for ${table}: ${result.error.message}`);
+    rows.push(...(result.data || []));
+    if ((result.data || []).length < pageSize) return rows;
+  }
+}
+
 for (const table of tableOrder) {
   const rows = JSON.parse(await readFile(resolveInside(backupDir, "database", `${table}.json`), "utf8"));
   tableRows[table] = rows;
@@ -124,10 +135,9 @@ for (const [bucketName, details] of Object.entries(verification.manifest.storage
 
 const restoredRows = {};
 for (const table of tableOrder) {
-  const result = await client.from(table).select("*").order(orderColumns[table]);
-  if (result.error) throw new Error(`Restore verification failed for ${table}: ${result.error.message}`);
-  const payload = canonicalJson(result.data || []);
-  restoredRows[table] = result.data?.length || 0;
+  const rows = await selectAll(table, orderColumns[table]);
+  const payload = canonicalJson(rows);
+  restoredRows[table] = rows.length;
   if (sha256(payload) !== verification.manifest.database[table].sha256) {
     throw new Error(`Restore verification hash mismatch for ${table}`);
   }
