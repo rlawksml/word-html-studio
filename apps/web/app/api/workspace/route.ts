@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, retryFutureJwt, SupabaseConfigurationError } from "@/lib/supabase-server";
-import { BOOKSTORE_SELECT, mapBookstore, mapSubmission, SUBMISSION_SELECT, type BookstoreRow, type SubmissionRow } from "@/lib/workspace-records";
+import { BOOKSTORE_SELECT, mapBookstore, mapSubmission, SCHEDULE_RANGE_SELECT, SUBMISSION_SELECT, type BookstoreRow, type ScheduleRangeRow, type SubmissionRow } from "@/lib/workspace-records";
 import { readWorkerSession } from "@/lib/workspace-session";
 import type { Workspace } from "@/lib/workspace-types";
 
@@ -12,15 +12,18 @@ function configurationResponse() {
 export async function GET(request: NextRequest) {
   try {
     const role = await readWorkerSession(request);
-    const [bookstoresResult, submissionsResult] = await Promise.all([
+    const [bookstoresResult, submissionsResult, scheduleRangesResult] = await Promise.all([
       retryFutureJwt(() => getSupabaseAdmin().from("bookstores").select(BOOKSTORE_SELECT).order("sort_order")),
       retryFutureJwt(() => getSupabaseAdmin().from("submissions").select(SUBMISSION_SELECT).order("updated_at")),
+      retryFutureJwt(() => getSupabaseAdmin().from("news_schedule_ranges").select(SCHEDULE_RANGE_SELECT).eq("is_active", true)),
     ]);
     if (bookstoresResult.error) throw bookstoresResult.error;
     if (submissionsResult.error) throw submissionsResult.error;
+    if (scheduleRangesResult.error) throw scheduleRangesResult.error;
+    const ranges = (scheduleRangesResult.data || []) as ScheduleRangeRow[];
     return NextResponse.json({
       bookstores: (bookstoresResult.data || []).map((row) => mapBookstore(row as BookstoreRow)),
-      submissions: (submissionsResult.data || []).map((row) => mapSubmission(row as SubmissionRow, role)),
+      submissions: (submissionsResult.data || []).map((row) => mapSubmission(row as SubmissionRow, role, ranges.filter((range) => Number(range.submission_id) === Number(row.id)))),
     } satisfies Workspace);
   } catch (error) {
     if (error instanceof SupabaseConfigurationError) return configurationResponse();

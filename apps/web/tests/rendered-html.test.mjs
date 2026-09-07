@@ -187,7 +187,7 @@ test("ships accessible discovery controls and compact public cards", async () =>
   assert.match(source, /public-event-list/);
   assert.match(source, /role="tooltip"/);
   assert.match(source, /calendar-markers/);
-  assert.match(source, /\.filter\(\(news\) => news\.title\.trim\(\)\)/);
+  assert.match(source, /news\.title\.trim\(\) && newsVisibleInMonth/);
   assert.match(source, /title="메인 페이지로 이동"/);
   assert.doesNotMatch(source, /<button className="brand" onClick=\{onClick\} aria-label=/);
 });
@@ -401,7 +401,8 @@ test("uses record-scoped Supabase writes with private originals and public mobil
   assert.doesNotMatch(workspaceRoute, /export async function (PUT|POST)/);
   assert.match(workspaceRoute, /readWorkerSession/);
   assert.match(bookstoreRoute, /\.eq\("updated_at", bookstore\.updatedAt\)/);
-  assert.match(submissionRoute, /\.eq\("updated_at", submission\.updatedAt\)/);
+  assert.match(submissionRoute, /p_expected_updated_at: existing \? submission\.updatedAt : null/);
+  assert.match(submissionRoute, /save_submission_with_schedule_ranges/);
   assert.match(bookstoreRoute, /WORKSPACE_CONFLICT/);
   assert.match(submissionRoute, /WORKSPACE_CONFLICT/);
   assert.match(persistenceHook, /operationRef/);

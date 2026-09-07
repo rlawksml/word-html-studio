@@ -4,7 +4,7 @@ import type { StudioController } from "@/hooks/use-studio-controller";
 import { DISPLAY_LABELS, makeLink, makeValue } from "@/lib/workspace-formatters";
 import { normalizeHttpUrlInput } from "@/lib/submission-url-validation";
 import type { NewsItem } from "@/lib/workspace-types";
-import { NewsDateField } from "@/components/molecules/NewsDateField";
+import { NewsScheduleField } from "@/components/molecules/NewsScheduleField";
 
 type NewsEditorCardProps = {
   studio: StudioController;
@@ -38,7 +38,7 @@ export function NewsEditorCard({ studio, news, index, total }: NewsEditorCardPro
     <div className="form-grid">
       <label className="wide"><span>소식 제목 *</span><input data-required-field="title" value={news.title} onChange={(event) => updateNews(news.id, "title", event.target.value)} placeholder="예: 7월 중국어 원서 독서모임" /></label>
       <label className="wide"><span>상세 내용 *</span><textarea data-required-field="description" rows={7} value={news.description} onChange={(event) => updateNews(news.id, "description", event.target.value)} placeholder="Word에 작성하던 것처럼 내용을 자연스럽게 적어주세요." /></label>
-      <NewsDateField newsId={news.id} dates={news.dates} publicationMonth={month} onDatesChange={(dates) => updateNews(news.id, "dates", dates)} />
+      <NewsScheduleField key={`${news.id}:${news.scheduleRange?.startDate || ""}:${news.scheduleRange?.endDate || ""}`} newsId={news.id} dates={news.dates} scheduleRange={news.scheduleRange} publicationMonth={month} onDatesChange={(dates) => updateNews(news.id, "dates", dates)} onRangeChange={(scheduleRange) => updateNews(news.id, "scheduleRange", scheduleRange)} />
       <label className="wide"><span>일정 안내 <em>선택</em></span><input value={news.scheduleText} onChange={(event) => updateNews(news.id, "scheduleText", event.target.value)} placeholder="예: 7월 3일(목) 오후 7시~9시 / 매월 첫째 목요일" /></label>
       <label className="check-label"><input type="checkbox" checked={news.regular} onChange={(event) => updateNews(news.id, "regular", event.target.checked)} /><span>정기적으로 진행하는 소식입니다</span></label>
       <label><span>신청 마감일 <em>선택</em></span><input type="date" value={news.deadline} onChange={(event) => updateNews(news.id, "deadline", event.target.value)} /></label>
