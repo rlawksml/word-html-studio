@@ -25,7 +25,7 @@ jobs:
       - run: npm ci
       - run: npm run validate:deployment-target
         env:
-          DEPLOYMENT_TARGET: ${{ github.base_ref || github.ref_name }}
+          DEPLOYMENT_TARGET: ${{ github.event_name == 'workflow_dispatch' && 'develop' || (github.base_ref || github.ref_name) }}
       - run: npm run lint
       - run: npm test
 
