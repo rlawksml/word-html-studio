@@ -65,7 +65,6 @@ DB JSON과 Storage 98개 객체의 크기·SHA-256이 manifest와 일치했다.
 
 ## 남은 작업
 
-- Staging 앱을 Staging Supabase에 연결
-- v1.0.1 앱 읽기·저장 왕복 호환 TC
+- Staging 앱 연결과 v1.0.1 읽기·저장 왕복 호환 TC는 `2026-09-07-staging-v2-post-deploy.md`에서 PASS
 - 암호화된 다른 장치 또는 원격 저장소에 2차 백업
-- PR #49 전체 CI와 코드리뷰 후 `develop` 병합 판단
+- PR #49는 CI와 코드리뷰 후 `develop`에 병합 완료

@@ -145,6 +145,7 @@ SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metad
 - [v1.1 이전 백업 기준선 보고서](docs/test-reports/2026-09-07-backup-baseline.md)
 - [Supabase Staging 복원 훈련 보고서](docs/test-reports/2026-09-07-staging-restore-rehearsal.md)
 - [Sites Staging 배포 전 테스트 보고서](docs/test-reports/2026-09-07-staging-site-pre-deploy.md)
+- [Sites Staging 버전 2 배포 후 테스트 보고서](docs/test-reports/2026-09-07-staging-v2-post-deploy.md)
 - [제품 요구사항](docs/PRODUCT.md)
 - [입력 항목 분류](docs/FIELD_REQUIREMENTS.md)
 - [실제 Word 4개 비교 분석](docs/MULTI_DOC_ANALYSIS.md)
