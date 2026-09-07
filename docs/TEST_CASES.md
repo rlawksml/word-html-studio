@@ -30,6 +30,44 @@
 - 20MB 이하 JPEG·PNG 각 1장과 iPhone HEIC 1장
 - 테스트 데이터 제목에는 `[테스트]`를 붙이고 종료 후 삭제
 - 동일 브라우저의 여러 탭은 작업자 로그인 쿠키를 공유하므로 동시 작업 검증에는 사용하지 않음
+- Production 점검은 공개 GET·읽기 전용 집계만 사용하고, 생성·수정·삭제 TC는 별도 Staging에서만 실행
+
+## 0. 백업·복원 안전성
+
+### TC-DR-001 · 백업 파일 무결성
+
+- 우선순위/구분: P0 / 자동
+- 사전조건: 저장소 밖에 생성한 백업 디렉터리
+- 절차:
+  1. `npm run backup:verify -- /절대/백업/경로`를 실행한다.
+  2. DB JSON 한 파일 또는 복제한 사진 한 파일을 바꾼 테스트 fixture도 검증한다.
+- 기대 결과:
+  - 원본 백업은 모든 파일의 크기·SHA-256과 DB 행 수가 일치해 `PASS`다.
+  - 변조된 fixture는 `FAIL`이며 복원 단계로 진행하지 않는다.
+
+### TC-DR-002 · Production 복원 차단
+
+- 우선순위/구분: P0 / 자동
+- 절차:
+  1. `APP_ENV=production`으로 복원 도구를 실행한다.
+  2. 예상 Staging ref와 실제 URL ref를 다르게 설정한다.
+  3. backup source fingerprint와 대상 fingerprint를 같게 설정한다.
+- 기대 결과:
+  - 세 경우 모두 Database·Storage 쓰기 전에 명령이 실패한다.
+  - 실제 비밀값이나 URL은 테스트 로그에 출력되지 않는다.
+
+### TC-DR-003 · 빈 Staging 실제 복원
+
+- 우선순위/구분: P0 / 실제 Supabase Staging
+- 사전조건: 운영과 분리된 빈 Staging, migration 적용, backup 검증 PASS
+- 절차:
+  1. 복원 dry-run에서 대상 ref, 빈 테이블·버킷, 예정 개수를 확인한다.
+  2. `--execute`로 복원한다.
+  3. 네 테이블과 원본·미리보기를 다시 읽고 manifest와 비교한다.
+- 기대 결과:
+  - 행 수·JSON fingerprint·사진 수·크기·SHA-256이 모두 일치한다.
+  - Production에는 생성·수정·삭제 요청이 없다.
+  - 하나라도 다르면 릴리스 판정은 `NO-GO`다.
 
 ## 1. 초기 로딩과 접속
 

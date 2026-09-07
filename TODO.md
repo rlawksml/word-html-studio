@@ -110,7 +110,9 @@
 - [ ] 대용량 사진 모바일 성능 테스트
 - [ ] 사이트 favicon 추가로 운영 로그의 `/favicon.ico` 404 제거
 - [ ] XSS, 파일 MIME/용량, 업로드 보안 점검
-- [ ] Supabase Database·Storage 백업 및 서비스 종료 시 데이터 이전 절차 문서화
+- [x] Supabase Database·Storage 읽기 전용 백업·해시 검증 도구와 서비스 종료 시 데이터 이전 절차 문서화
+- [ ] 별도 Supabase Staging에서 운영 백업 실제 복원·앱 왕복 호환 훈련
+- [ ] 암호화된 독립 저장소 백업과 보존 주기 확정
 - [ ] 사용 로그와 오류 관찰 도구 연결
 - [ ] Next.js 내부 PostCSS 보안 경고 해소 가능한 상위 버전 추적
 
