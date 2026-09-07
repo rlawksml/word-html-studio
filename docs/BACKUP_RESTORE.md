@@ -48,7 +48,8 @@ node --env-file=.env.production.local scripts/supabase-backup.mjs \
 
 백업 범위는 다음과 같습니다.
 
-- `bookstores`, `submissions`, `editing_leases`, `improvement_requests`
+- 기존 스키마: `bookstores`, `submissions`, `editing_leases`, `improvement_requests`
+- `202609070001` 이후: `app_schema_versions`, `news_schedule_ranges`도 자동 포함
 - `bookstore-news`, `bookstore-news-originals`, `bookstore-news-previews`의 모든 객체
 - DB 사진 경로와 Storage 객체의 누락·고립 여부
 - 당시 저장소의 Supabase migration SQL
@@ -74,7 +75,7 @@ shasum -a 256 bookstore-news-YYYYMMDD-HHMMSS.tar.gz
 
 1. 운영과 이름이 분명히 다른 새 프로젝트를 만듭니다. 권장 이름은 `bookstore-news-studio-staging`입니다.
 2. 가능하면 운영과 같은 region을 선택합니다.
-3. SQL Editor에서 `apps/web/supabase/migrations`의 파일을 파일명 순서대로 적용합니다.
+3. `npm run migration:check`를 통과한 뒤 SQL Editor에서 `apps/web/supabase/migrations`의 파일을 파일명 순서대로 적용합니다.
 4. 원본 버킷은 Private, 미리보기 버킷은 Public인지 확인합니다.
 5. Staging 전용 URL·Secret Key를 Git에 포함되지 않는 `.env.staging.local`에 저장합니다.
 6. GitHub `staging` Environment에도 **Staging 값만** 등록합니다. Production 값을 복사하지 않습니다.
@@ -97,7 +98,7 @@ node --env-file=.env.staging.local scripts/supabase-restore-staging.mjs \
 `DRY_RUN_PASS`가 표시되고 다음 항목이 맞아야 합니다.
 
 - 대상 fingerprint가 backup source fingerprint와 다름
-- 네 테이블의 기존 행 수가 모두 0
+- 백업 manifest에 포함된 테이블의 기존 행 수가 모두 0
 - 세 Storage 버킷이 존재하고 공개/비공개 설정이 맞음
 - 복원 예정 행·사진 수가 manifest와 일치
 
@@ -156,7 +157,7 @@ node --env-file=.env.staging.local scripts/supabase-restore-staging.mjs \
 
 - Supabase Staging 프로젝트 생성과 migration 적용
 - 1차 운영 백업의 실제 Staging 복원 훈련
-- 앱 v1.0.x ↔ v1.1 왕복 호환 테스트
+- 앱 v1.0.1 ↔ v1.1 미래 JSON·기간 일정 왕복 호환 테스트
 - 독립 장치 또는 암호화 원격 저장소에 두 번째 백업 보관
 - 사용 요금제의 자동 백업/PITR 제공 범위 확인과 보존 주기 확정
 - 월별 HTML·사진 ZIP 업무 백업 자동화

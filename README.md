@@ -43,6 +43,8 @@ HTML 편집자의 통합 작업 ZIP에는 브라우저 미리보기용 `.html`, 
 
 자동 저장은 Workspace 전체를 교체하지 않습니다. `/api/bookstores`와 `/api/submissions`가 레코드 하나씩 저장하며, 서버가 반환한 `updated_at`과 현재 값을 비교합니다. 책방 관리의 저장 버튼은 서버 성공 응답이 온 뒤에만 입력 폼을 비우고 성공을 알립니다. 입력 화면의 뒤로가기와 입력 마무리는 마지막 화면 값을 직접 서버에 저장하고 성공 응답을 받은 뒤에만 목록으로 이동합니다. 특히 입력 마무리는 React의 이전 렌더 값이 아니라 동기 ref의 최신 스냅샷을 사용하고, 한글 IME 조합을 확정한 뒤 요청 본문과 서버 응답의 제목·상세·선택 입력이 같은지 확인합니다. 다르면 완료로 이동하지 않고 작성 중 화면과 탭 복구본을 유지합니다. 키 입력 직후 새로고침처럼 서버 요청을 기다릴 수 없는 상황은 현재 탭의 `sessionStorage` 복구본으로 한 번 더 보호하며, 이 복구본은 Supabase를 대체하지 않고 탭을 닫으면 사라집니다. 일시적인 5xx·429·네트워크 끊김은 짧게 재시도하며, 응답만 유실돼 서버에 같은 내용이 이미 저장된 경우에는 최신 `updated_at`을 이어받아 성공으로 복구합니다. 다른 브라우저가 실제로 다른 내용을 먼저 저장했다면 해당 레코드만 `409 Conflict`로 멈추고 나머지 책방·소식은 계속 저장하므로 조용한 덮어쓰기와 전체 자동 저장 중단을 모두 피합니다.
 
+v1.0.1부터 Submission 저장은 클라이언트가 아는 필드만으로 JSON 전체를 덮어쓰지 않습니다. 같은 ID의 기존 소식·추가 항목·링크·사진에 미래 버전 필드가 있으면 서버의 기존 값을 보존하고, 사용자가 수정한 현재 필드와 배열 순서만 반영합니다. 사용자가 삭제한 항목은 되살리지 않습니다. 기간 일정은 구버전이 덮어쓰지 않는 별도 `news_schedule_ranges` 테이블을 사용하며, `app_schema_versions`와 `/api/version`으로 앱·DB 조합을 확인합니다. 자세한 원칙은 [DB migration·앱 롤백 호환 정책](docs/DB_MIGRATION_POLICY.md)에 있습니다.
+
 입력자가 책방을 클릭하면 편집 화면을 열기 전에 같은 책방·같은 월의 짧은 편집 임대를 확인합니다. 다른 탭이나 기기가 이미 사용 중이면 안내 팝업만 표시하고 목록에 머물며, 빈 소식도 만들지 않습니다. 1분마다 임대를 갱신하고 3분 동안 활동이 없으면 자동으로 다음 작업자가 인계하므로 WebSocket, 별도 계정, 정기 청소 작업이 필요하지 않습니다. HTML 편집자의 개별 소식과 월 통합본도 같은 임대로 작업 상태를 표시하며, 실제 저장에는 `updated_at` 충돌 검사도 함께 적용합니다.
 
 Database와 Storage 요청은 서버 API를 통해 처리합니다. `SUPABASE_SECRET_KEY`는 브라우저나 GitHub에 노출하지 않고 로컬·배포 환경변수에만 저장합니다. Cloudflare Worker와 Supabase 사이의 순간적인 시계 오차로 `PGRST303 / JWT issued at future`가 반환되면, 인증 전에 거부된 요청만 서버가 최대 3회 짧게 재시도합니다. 초기 연결 방법은 [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)를 따릅니다.
@@ -120,6 +122,7 @@ npm run dev
 npm run lint
 npm test
 npm run build
+npm run migration:check
 npm run test:integration:local
 npm run backup:verify -- /absolute/path/to/backup
 ```
@@ -145,6 +148,9 @@ SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metad
 - [현재 애플리케이션 아키텍처](docs/ARCHITECTURE.md)
 - [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)
 - [Supabase 무손실 백업·복구 Runbook](docs/BACKUP_RESTORE.md)
+- [DB migration·앱 롤백 호환 정책](docs/DB_MIGRATION_POLICY.md)
+- [이슈 #46 롤백 호환 DB 기반 배포 전 테스트 보고서](docs/test-reports/2026-09-07-2b270e6-issue-46-pre-deploy.md)
+- [이슈 #46 롤백 호환 DB 기반 Staging 배포 후 테스트 보고서](docs/test-reports/2026-09-07-b6476c3-issue-46-staging-post-deploy.md)
 - [Staging 환경 분리·배포 가이드](docs/STAGING.md)
 - [v1.1 이전 백업 기준선 보고서](docs/test-reports/2026-09-07-backup-baseline.md)
 - [Supabase Staging 복원 훈련 보고서](docs/test-reports/2026-09-07-staging-restore-rehearsal.md)

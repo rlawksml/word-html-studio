@@ -118,6 +118,8 @@
 - [x] 별도 Supabase Staging에서 운영 백업 실제 복원과 DB·사진 해시 검증
 - [x] 운영과 분리된 owner-private Sites Staging 생성과 Supabase 대상 차단 안전장치
 - [x] Staging 앱에서 v1.0.1 읽기·저장 왕복 호환 훈련과 테스트 데이터 정리 검증
+- [x] v1.0.1 저장 시 미래 JSON 필드 보존과 기간 일정용 별도 additive 테이블 기반
+- [x] 앱·DB 스키마 버전 식별 API와 migration 해시·파괴적 SQL CI 차단
 - [ ] 암호화된 독립 저장소 백업과 보존 주기 확정
 - [ ] 사용 로그와 오류 관찰 도구 연결
 - [ ] Next.js 내부 PostCSS 보안 경고 해소 가능한 상위 버전 추적

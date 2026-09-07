@@ -1,0 +1,11 @@
+{
+  "formatVersion": 1,
+  "migrations": {
+    "202607210001_initial_workspace.sql": "25f3298339474170538ee84e9e5522af9b04b11a8f042e40515c59a6a85957a0",
+    "202607220001_secure_media_and_flexible_fields.sql": "7f648705921cf8b6aeaf3e2f78e5fc4f59f61f3cc2038be1aefb72c70703db88",
+    "202607220002_editing_leases.sql": "e48c697bb15bc8be93982ff5fa8485ba2874c765b8399a88b05ab11906ae534c",
+    "202607240001_improvement_requests.sql": "12758bf250035dec7c88b1ae62429e5ad26bedecd74b32d71904398722aacdc9",
+    "202607240002_improvement_request_types.sql": "2e7a0a959f1317e350c7f90186c05c5be8ca16cab296ca45e116705e6bc17bbf",
+    "202609070001_rollback_compatibility_foundation.sql": "62e3a29870d8a5d1d4bae718c5094d5a1fae306d8d109a0efe4c26f2e5a475cc"
+  }
+}

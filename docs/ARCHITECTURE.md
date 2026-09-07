@@ -41,6 +41,8 @@ Atomic Design은 파일 수를 늘리는 목표가 아닙니다. 독립적으로
 
 `lib/submission-url-validation.ts`는 소식 링크의 저장 정책을 작성 중과 입력 완료로 나눕니다. `draft`에는 `https:/`처럼 사용자가 아직 타이핑 중인 문자열도 그대로 저장해 다른 제목·본문의 자동 저장을 막지 않습니다. `completed` 전환 시에는 http/https 주소만 허용하고 첫 오류의 `fieldPath`를 UI와 API가 함께 사용합니다. 일반 사용자가 입력한 `www.example.com` 형태는 `https://`를 보완하며, HTML 생성기는 이 검증과 별개로 안전하지 않은 주소를 링크로 출력하지 않습니다. URL 검증 400 로그에는 사용자 본문 대신 오류 코드·필드 경로·요청 바이트만 기록합니다.
 
+`lib/submission-json-compatibility.ts`는 저장 요청이 모르는 미래 JSON 필드를 기존 Supabase 행에서 보존합니다. 같은 ID의 소식과 중첩 항목만 합치고 요청에서 삭제된 항목은 복구하지 않으므로, v1.0.1로 앱을 롤백해 기존 본문을 수정해도 v1.1 전용 데이터와 사용자의 삭제 의도가 모두 유지됩니다. 기간 데이터는 JSON 내부가 아니라 `news_schedule_ranges`에 분리하고 `app_schema_versions`로 실제 DB 버전을 식별합니다.
+
 `lib/submission-draft.ts`는 자동 저장 요청이 시작되기 전 새로고침·탭 내 이동에 대비한 보조 복구 계층입니다. Supabase가 원본 데이터이고 `sessionStorage`는 같은 탭의 최신 입력만 잠시 보관합니다. 서버의 `updated_at`이 복구본과 달라지면 다른 작업자의 최신 내용을 우선하고 오래된 복구본을 폐기합니다. 브라우저 저장 한도나 사생활 보호 설정으로 복구본을 쓰지 못해도 Supabase 저장 흐름은 중단하지 않습니다.
 
 `components/molecules/NewsDateField.tsx`는 브라우저 기본 날짜 선택기의 임시 값과 Submission의 실제 `dates[]`를 분리합니다. 월 탐색이나 날짜 선택은 컴포넌트 내부 상태만 바꾸며, 사용자가 `날짜 추가`를 눌러야 `lib/news-date-selection.ts`의 순수 함수를 거쳐 저장 대상에 반영됩니다. 기존 `dates[]` 형식은 유지하므로 DB 마이그레이션이나 기존 소식 변환이 필요하지 않습니다.
@@ -79,6 +81,7 @@ Next.js API
   → app/api/images/route         # Storage 업로드·삭제·다운로드 경계
   → app/api/presence/route       # 책방·월·통합본 편집 임대 갱신과 해제
   → app/api/improvements/route   # 공개 버그·개선 접수·목록, HTML 편집자 상태 변경
+  → app/api/version/route        # 제품·DB 스키마 버전 읽기 전용 확인
     → lib/workspace-validation   # 요청 크기·필드·URL·Storage 경로 검증
     → lib/workspace-records      # Supabase 행 ↔ Workspace 변환
     → lib/workspace-session      # HttpOnly 쿠키 + 탭 sessionId 검증
@@ -114,6 +117,7 @@ Next.js API
 - 사용자 입력 링크와 생성 HTML은 허용된 URL scheme만 사용합니다.
 - 공개 방문자는 데이터를 읽을 수 있지만 수정 API는 작업자 세션을 요구합니다.
 - 버그는 제목·발생 위치·내용, 개선은 제목·내용·이유를 공개 접수합니다. 상태·예정일 변경과 내보내기는 HTML 편집자 세션만 허용하며, Supabase 테이블에는 RLS를 적용합니다.
+- DB 변경은 additive migration을 우선하고, 기존 migration의 수정·삭제와 파괴적 SQL은 `migration:check` 및 CI에서 차단합니다.
 
 ## 이후 확장
 
