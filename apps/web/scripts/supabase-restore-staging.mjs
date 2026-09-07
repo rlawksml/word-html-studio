@@ -38,15 +38,17 @@ const client = createClient(supabaseUrl, supabaseKey, {
 // 이전 형식 백업은 당시 존재한 테이블만 복원하고, 새 백업은 신규 호환 테이블까지 함께 복원합니다.
 const tableSpecs = tableSpecsForRestore(verification.manifest.database);
 const tableOrder = tableSpecs.map((table) => table.name);
-const orderColumns = Object.fromEntries(tableSpecs.map((table) => [table.name, table.orderColumn]));
+const orderColumns = Object.fromEntries(tableSpecs.map((table) => [table.name, table.orderColumns]));
 const tableRows = {};
 const existingRows = {};
 
-async function selectAll(table, orderColumn) {
+async function selectAll(table, columns) {
   const rows = [];
   const pageSize = 500;
   for (let from = 0; ; from += pageSize) {
-    const result = await client.from(table).select("*").order(orderColumn).range(from, from + pageSize - 1);
+    let query = client.from(table).select("*");
+    for (const column of columns) query = query.order(column);
+    const result = await query.range(from, from + pageSize - 1);
     if (result.error) throw new Error(`Restore verification failed for ${table}: ${result.error.message}`);
     rows.push(...(result.data || []));
     if ((result.data || []).length < pageSize) return rows;

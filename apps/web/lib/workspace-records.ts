@@ -1,8 +1,9 @@
 import { getSupabaseAdmin, PREVIEW_IMAGE_BUCKET } from "@/lib/supabase-server";
-import type { Bookstore, LabeledLink, LabeledValue, NewsImage, NewsItem, Submission } from "@/lib/workspace-types";
+import type { Bookstore, LabeledLink, LabeledValue, NewsImage, NewsItem, NewsScheduleRange, Submission } from "@/lib/workspace-types";
 
 export const BOOKSTORE_SELECT = "id,updated_at,sort_order,name,region,address,hours,phone,sns,website,introduction,contacts,links";
 export const SUBMISSION_SELECT = "id,bookstore_id,month,status,updated_at,completed_at,published_at,published_url,monthly_notice,news";
+export const SCHEDULE_RANGE_SELECT = "submission_id,news_item_id,start_date,end_date,is_active";
 
 export type BookstoreRow = {
   id: number;
@@ -33,6 +34,14 @@ export type SubmissionRow = {
   news: NewsItem[];
 };
 
+export type ScheduleRangeRow = {
+  submission_id: number;
+  news_item_id: number;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+};
+
 function publicImageUrl(path: string) {
   if (!path) return "";
   return getSupabaseAdmin().storage.from(PREVIEW_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
@@ -53,8 +62,12 @@ function hydrateImage(image: Partial<NewsImage>, role: "input" | "html" | null):
 }
 
 export function sanitizeNews(news: NewsItem[]) {
-  return news.map((item) => ({
-    ...item,
+  return news.map((item) => {
+    // scheduleRange는 롤백 호환성을 위해 JSONB가 아닌 news_schedule_ranges에만 저장합니다.
+    const jsonItem = { ...item } as Partial<NewsItem>;
+    delete jsonItem.scheduleRange;
+    return {
+    ...jsonItem,
     images: item.images.map((image) => ({
       id: image.id,
       name: image.name,
@@ -62,7 +75,8 @@ export function sanitizeNews(news: NewsItem[]) {
       previewPath: image.previewPath,
       caption: image.caption,
     })),
-  }));
+  };
+  });
 }
 
 export function mapBookstore(row: BookstoreRow): Bookstore {
@@ -83,9 +97,10 @@ export function mapBookstore(row: BookstoreRow): Bookstore {
   };
 }
 
-function normalizeNews(item: NewsItem, role: "input" | "html" | null): NewsItem {
+function normalizeNews(item: NewsItem, role: "input" | "html" | null, scheduleRange: NewsScheduleRange | null): NewsItem {
   return {
     ...item,
+    scheduleRange,
     scheduleText: item.scheduleText || "",
     displayLabel: item.displayLabel || "",
     applicationInfo: item.applicationInfo || "",
@@ -95,7 +110,11 @@ function normalizeNews(item: NewsItem, role: "input" | "html" | null): NewsItem 
   };
 }
 
-export function mapSubmission(row: SubmissionRow, role: "input" | "html" | null): Submission {
+export function mapSubmission(row: SubmissionRow, role: "input" | "html" | null, ranges: ScheduleRangeRow[] = []): Submission {
+  const rangesByNewsId = new Map(ranges.filter((range) => range.is_active).map((range) => [Number(range.news_item_id), {
+    startDate: range.start_date,
+    endDate: range.end_date,
+  }]));
   return {
     id: Number(row.id),
     bookstoreId: Number(row.bookstore_id),
@@ -106,6 +125,6 @@ export function mapSubmission(row: SubmissionRow, role: "input" | "html" | null)
     publishedAt: row.published_at || "",
     publishedUrl: row.published_url || "",
     monthlyNotice: row.monthly_notice || "",
-    news: (row.news || []).map((item) => normalizeNews(item, role)),
+    news: (row.news || []).map((item) => normalizeNews(item, role, rangesByNewsId.get(Number(item.id)) || null)),
   };
 }

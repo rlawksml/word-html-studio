@@ -9,6 +9,7 @@
 | 롤백 기준 앱 | `1.0.1` |
 | 기존 스키마 기준 | `202607240002` |
 | 호환성 기반 스키마 | `202609070001` |
+| 기간 저장 스키마 | `202609070002` |
 | 스키마 식별 | `app_schema_versions`의 `workspace` 행 |
 | 기간 일정 저장소 | `news_schedule_ranges` |
 
@@ -27,7 +28,7 @@ v1.0.1 저장 API는 다음 규칙으로 기존 DB와 요청을 합칩니다.
 5. 요청 배열 순서를 사용해 드래그 정렬 결과를 유지합니다.
 6. 클라이언트가 임의로 보낸 미확인 필드는 검증 단계에서 제거하고, 서버가 이미 보관한 DB 값만 호환 병합합니다.
 
-기간 일정은 기존 JSONB에 넣지 않고 별도 `news_schedule_ranges`에 저장합니다. v1.0.1은 이 테이블을 읽거나 갱신하지 않으므로 v1.1에서 만든 기간 데이터가 앱 롤백 중에도 유지됩니다.
+기간 일정은 기존 JSONB에 넣지 않고 별도 `news_schedule_ranges`에 저장합니다. v1.0.1은 이 테이블을 읽거나 갱신하지 않으므로 v1.1에서 만든 기간 데이터가 앱 롤백 중에도 유지됩니다. v1.1은 `save_submission_with_schedule_ranges` RPC로 본문과 기간을 원자적으로 저장하고, 기간 제거는 물리 삭제 대신 `is_active=false`로 남깁니다.
 
 ## Expand → Migrate → Contract
 
@@ -60,6 +61,7 @@ v1.0.1 저장 API는 다음 규칙으로 기존 DB와 요청을 합칩니다.
 | `202607240001_improvement_requests.sql` | 개선 접수 테이블 추가 | 구버전이 무시 | 금지 |
 | `202607240002_improvement_request_types.sql` | 개선 유형 필드·검증 추가 | 기존 개선 목록에 영향 없음 | 금지 |
 | `202609070001_rollback_compatibility_foundation.sql` | 스키마 버전·기간 일정 테이블 추가 | v1.0.1이 새 행을 덮어쓰지 않음 | 금지 |
+| `202609070002_schedule_range_persistence.sql` | 기간 활성 상태·본문/기간 원자 저장 RPC 추가 | 기존 본문·기간 행 유지 | 금지 |
 
 초기 두 migration의 전체 교체 함수에는 과거 삭제 SQL이 남아 있지만 현재 앱은 호출하지 않습니다. 새 migration에서는 `DROP TABLE`, `DROP COLUMN`, `TRUNCATE`, `DELETE FROM`, 컬럼 이름 변경과 타입 변경을 CI가 거부합니다.
 

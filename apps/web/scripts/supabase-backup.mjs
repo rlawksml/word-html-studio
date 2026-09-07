@@ -45,11 +45,13 @@ const manifest = {
   migrations: [],
 };
 
-async function selectAll(table, orderColumn) {
+async function selectAll(table, orderColumns) {
   const rows = [];
   const pageSize = 500;
   for (let from = 0; ; from += pageSize) {
-    const result = await client.from(table).select("*").order(orderColumn).range(from, from + pageSize - 1);
+    let query = client.from(table).select("*");
+    for (const orderColumn of orderColumns) query = query.order(orderColumn);
+    const result = await query.range(from, from + pageSize - 1);
     if (result.error) throw new Error(`Database export failed for ${table}: ${result.error.message}`);
     rows.push(...(result.data || []));
     if ((result.data || []).length < pageSize) return rows;
@@ -64,8 +66,8 @@ if (schemaVersionResult.error && !isMissingTableError(schemaVersionResult.error)
 const tableSpecs = tableSpecsForBackup(schemaVersionAvailable);
 await mkdir(resolveInside(backupDir, "database"), { recursive: true, mode: 0o700 });
 let submissions = [];
-for (const { name: table, orderColumn } of tableSpecs) {
-  const rows = await selectAll(table, orderColumn);
+for (const { name: table, orderColumns } of tableSpecs) {
+  const rows = await selectAll(table, orderColumns);
   const payload = canonicalJson(rows);
   await writeFile(resolveInside(backupDir, "database", `${table}.json`), payload, { mode: 0o600 });
   manifest.database[table] = { rows: rows.length, bytes: Buffer.byteLength(payload), sha256: sha256(payload) };

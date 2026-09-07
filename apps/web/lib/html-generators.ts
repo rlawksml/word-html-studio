@@ -1,5 +1,6 @@
 import type { Bookstore, LabeledLink, Submission } from "@/lib/workspace-types";
 import { escapeHtml, formatDate, formatMonth, safeFilename, safeHref } from "@/lib/workspace-formatters";
+import { formatNewsSchedule } from "@/lib/news-schedule";
 
 /** 외부 HTML 편집기에 그대로 붙여넣을 수 있는 책방별 inline CSS HTML을 만듭니다. */
 export function generatedHtml(submission: Submission, bookstore: Bookstore, includePreviewImages = false) {
@@ -10,8 +11,7 @@ export function generatedHtml(submission: Submission, bookstore: Bookstore, incl
       if (includePreviewImages) return `<figure style="max-width:700px;margin:20px auto;text-align:center"><img src="${image.url}" alt="${escapeHtml(image.caption || news.title)}" style="display:block;width:auto;max-width:100%;height:auto;margin:0 auto">${image.caption ? `<figcaption style="margin-top:8px;color:#777;font-size:13px">${escapeHtml(image.caption)}</figcaption>` : ""}</figure>`;
       return `<!-- IMAGE: ${filename} -->`;
     }).join("\n");
-    const dateText = news.dates.map(formatDate).join(", ");
-    const schedule = news.scheduleText.trim() || dateText;
+    const schedule = formatNewsSchedule(news);
     const facts = [
       schedule ? ["일정", schedule] : null,
       news.deadline ? ["신청 마감", formatDate(news.deadline)] : null,
