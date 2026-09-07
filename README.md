@@ -65,7 +65,8 @@ Next.js나 이 프로젝트가 익숙하지 않다면 다음 순서로 읽는 �
 8. [workspace-client.ts](apps/web/lib/workspace-client.ts): 브라우저에서 Next.js API를 호출하는 함수
 9. [submission-draft.ts](apps/web/lib/submission-draft.ts): 같은 탭의 저장 전 입력을 보호하는 임시 복구본
 10. [submission-completion.ts](apps/web/lib/submission-completion.ts): 최신 완료 스냅샷 생성과 서버 응답 본문 일치 검증
-11. `app/api`: 서버에서 세션을 검증하고 Supabase Database·Storage를 호출하는 Route Handler
+11. [submission-url-validation.ts](apps/web/lib/submission-url-validation.ts): 작성 중 URL 보존, 완료 URL 검증과 필드 위치 안내
+12. `app/api`: 서버에서 세션을 검증하고 Supabase Database·Storage를 호출하는 Route Handler
 
 전체 데이터 흐름은 다음과 같습니다.
 
@@ -90,6 +91,7 @@ page.tsx
 | 개별·통합 HTML 화면 | `components/organisms/HtmlWorkspace.tsx` |
 | inline CSS HTML 결과 | `lib/html-generators.ts` |
 | 자동 저장·뒤로가기·입력 완료·충돌 처리 | `hooks/use-workspace-persistence.ts`, `lib/submission-draft.ts`, `lib/submission-completion.ts`, `app/api/bookstores`, `app/api/submissions` |
+| 소식 URL 자동 보완·완료 검증·오류 위치 안내 | `lib/submission-url-validation.ts`, `components/molecules/NewsEditorCard.tsx`, `app/api/submissions/route.ts` |
 | 입력 완료·사진 연결·ZIP | `hooks/use-studio-controller.ts` |
 | 최초 세션·데이터 로딩과 재시도 | `hooks/use-workspace-initialization.ts`, `components/molecules/StorageLoadingOverlay.tsx` |
 | 공용 데이터 읽기 | `app/api/workspace/route.ts` |
@@ -149,6 +151,7 @@ SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metad
 - [Sites Staging 버전 2 배포 후 테스트 보고서](docs/test-reports/2026-09-07-staging-v2-post-deploy.md)
 - [이슈 #44 마지막 한글 보존 배포 전 테스트 보고서](docs/test-reports/2026-09-07-b4153ed-issue-44-pre-deploy.md)
 - [이슈 #44 마지막 한글 보존 Staging 배포 후 테스트 보고서](docs/test-reports/2026-09-07-b730355-issue-44-staging-post-deploy.md)
+- [이슈 #45 입력 중 URL 저장 배포 전 테스트 보고서](docs/test-reports/2026-09-07-issue-45-pre-deploy.md)
 - [제품 요구사항](docs/PRODUCT.md)
 - [입력 항목 분류](docs/FIELD_REQUIREMENTS.md)
 - [실제 Word 4개 비교 분석](docs/MULTI_DOC_ANALYSIS.md)

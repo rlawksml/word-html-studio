@@ -14,6 +14,7 @@ const applicationSourceFiles = [
   "../lib/improvements-client.ts",
   "../lib/workspace-client.ts",
   "../lib/submission-completion.ts",
+  "../lib/submission-url-validation.ts",
   "../lib/workspace-formatters.ts",
   "../components/atoms/BrandIdentity.tsx",
   "../components/atoms/BrandButton.tsx",

@@ -3,9 +3,11 @@ import test from "node:test";
 import {
   normalizeImageFile,
   persistBookstore,
+  persistSubmission,
   StorageUploadError,
   uploadFileToSignedUrl,
   WorkspaceConflictError,
+  WorkspaceRequestError,
 } from "../lib/workspace-client.ts";
 import {
   forgetSubmissionDraft,
@@ -126,6 +128,29 @@ test("keeps a real concurrent edit as a conflict instead of overwriting it", asy
 
   try {
     await assert.rejects(() => persistBookstore(requested), WorkspaceConflictError);
+  } finally {
+    globalThis.fetch = previousFetch;
+    restoreWindow();
+  }
+});
+
+test("preserves a structured URL validation error from the Submission API", async () => {
+  const restoreWindow = installBrowserStub();
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({
+    error: "소식 5 → 관련 링크 2에 올바른 주소를 입력해 주세요.",
+    message: "소식 5 → 관련 링크 2에 올바른 주소를 입력해 주세요.",
+    code: "INVALID_URL",
+    fieldPath: "news.4.links.1.url",
+  }, { status: 400 });
+
+  try {
+    await assert.rejects(
+      () => persistSubmission(submission()),
+      (error) => error instanceof WorkspaceRequestError
+        && error.code === "INVALID_URL"
+        && error.fieldPath === "news.4.links.1.url",
+    );
   } finally {
     globalThis.fetch = previousFetch;
     restoreWindow();
