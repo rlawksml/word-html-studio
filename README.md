@@ -47,6 +47,8 @@ HTML 편집자의 통합 작업 ZIP에는 브라우저 미리보기용 `.html`, 
 
 Database와 Storage 요청은 서버 API를 통해 처리합니다. `SUPABASE_SECRET_KEY`는 브라우저나 GitHub에 노출하지 않고 로컬·배포 환경변수에만 저장합니다. Cloudflare Worker와 Supabase 사이의 순간적인 시계 오차로 `PGRST303 / JWT issued at future`가 반환되면, 인증 전에 거부된 요청만 서버가 최대 3회 짧게 재시도합니다. 초기 연결 방법은 [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)를 따릅니다.
 
+운영 데이터 백업은 저장소 밖의 새 디렉터리에 Database JSON, Storage 원본·미리보기, migration과 SHA-256 manifest를 함께 생성합니다. 복원 도구는 `APP_ENV=staging`, 프로젝트 ref 이중 확인, source fingerprint 불일치, 빈 대상 확인을 모두 통과해야만 실행되며 운영 프로젝트에는 복원을 거부합니다. 구체적인 명령과 사고 대응 절차는 [Supabase 무손실 백업·복구 Runbook](docs/BACKUP_RESTORE.md)에 있습니다.
+
 향후 Cloudflare 중심 구조가 더 적합해지면 Database를 D1으로, Storage를 R2로 이전할 수 있습니다. 이를 위해 화면에서 Supabase를 직접 호출하는 코드를 분산시키지 않고 데이터·사진 저장 모듈을 분리하며, DB에는 영구 공개 URL 대신 이식 가능한 사진 경로를 저장합니다. 월별 데이터와 사진 백업도 유지해 특정 서비스에 종속되지 않도록 설계합니다.
 
 ## 처음 코드를 읽는 순서
@@ -115,6 +117,7 @@ npm run lint
 npm test
 npm run build
 npm run test:integration:local
+npm run backup:verify -- /absolute/path/to/backup
 ```
 
 로컬 주소는 `http://localhost:3000`입니다.
@@ -135,6 +138,9 @@ SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metad
 - [회귀 테스트 케이스와 실행 기록](docs/TEST_CASES.md)
 - [현재 애플리케이션 아키텍처](docs/ARCHITECTURE.md)
 - [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)
+- [Supabase 무손실 백업·복구 Runbook](docs/BACKUP_RESTORE.md)
+- [v1.1 이전 백업 기준선 보고서](docs/test-reports/2026-09-07-backup-baseline.md)
+- [Supabase Staging 복원 훈련 보고서](docs/test-reports/2026-09-07-staging-restore-rehearsal.md)
 - [제품 요구사항](docs/PRODUCT.md)
 - [입력 항목 분류](docs/FIELD_REQUIREMENTS.md)
 - [실제 Word 4개 비교 분석](docs/MULTI_DOC_ANALYSIS.md)

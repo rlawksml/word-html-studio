@@ -11,7 +11,8 @@ __pycache__/
 .venv/
 uploads/
 results/
+backups/
+*.tar.gz
 *.doc
 *.docx
 *.zip
-

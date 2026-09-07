@@ -79,6 +79,8 @@ npm run test:integration:local
 
 GitHub 저장소의 Actions Secret에 `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `INPUT_ACCESS_CODES`, `HTML_ACCESS_CODES`, `WORKSPACE_SESSION_SECRET`을 등록하면 `CI` 워크플로를 수동 실행해 같은 검증을 수행할 수 있습니다. Pull Request에서는 외부 Secret 없이 lint·build·회귀 테스트만 실행합니다.
 
+운영 데이터로 통합 테스트를 실행하지 않습니다. 개발·복구 훈련용 프로젝트는 운영과 분리하고, 백업·복원 절차와 Staging 대상 보호장치는 [Supabase 무손실 백업·복구 Runbook](BACKUP_RESTORE.md)을 따릅니다.
+
 ## 5. 기존 단일 버킷 자료가 있을 때
 
 현재 운영 데이터가 없는 초기 프로젝트는 새 버킷으로 바로 시작하면 됩니다. 이전 `bookstore-news` 버킷에 파일이 이미 있다면 배포 전 다음을 별도 수행해야 합니다.
