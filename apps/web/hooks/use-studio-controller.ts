@@ -33,6 +33,7 @@ import {
 } from "@/lib/workspace-client";
 import { forgetSubmissionDraft, recoverSubmissionDraft, rememberSubmissionDraft } from "@/lib/submission-draft";
 import { assertSubmissionContentMatches, buildCompletedSubmission } from "@/lib/submission-completion";
+import { findInvalidSubmissionUrl, normalizeSubmissionUrls } from "@/lib/submission-url-validation";
 import type { Bookstore, EditingPresenceTarget, NewsImage, NewsItem, Submission, Workspace } from "@/lib/workspace-types";
 
 /**
@@ -572,7 +573,7 @@ export function useStudioController(initialMonth: string) {
       return;
     }
     // 렌더 클로저의 currentSubmission 대신 같은 프레임의 마지막 onChange까지 담은 ref를 사용합니다.
-    const completed = buildCompletedSubmission(submissionsRef.current, selectedBookstoreId, month, nowIso());
+    const completed = normalizeSubmissionUrls(buildCompletedSubmission(submissionsRef.current, selectedBookstoreId, month, nowIso()));
     const incompleteNewsIndex = completed.news.findIndex((news) => !news.title.trim() || !news.description.trim());
     if (incompleteNewsIndex >= 0) {
       const incompleteNews = completed.news[incompleteNewsIndex];
@@ -585,6 +586,20 @@ export function useStudioController(initialMonth: string) {
       field?.classList.add("field-needs-attention");
       window.setTimeout(() => field?.classList.remove("field-needs-attention"), 2400);
       notify(`소식 ${incompleteNewsIndex + 1}의 ${missingLabel}을 입력해 주세요.`);
+      return;
+    }
+    const invalidUrl = findInvalidSubmissionUrl(completed);
+    if (invalidUrl) {
+      const field = document.querySelector<HTMLInputElement>(`[data-url-field-path="${invalidUrl.fieldPath}"]`);
+      const optionalFields = field?.closest("details");
+      if (optionalFields instanceof HTMLDetailsElement) optionalFields.open = true;
+      field?.scrollIntoView({ behavior: "smooth", block: "center" });
+      field?.focus({ preventScroll: true });
+      field?.classList.add("field-needs-attention");
+      window.setTimeout(() => field?.classList.remove("field-needs-attention"), 2400);
+      // www 주소처럼 자동 보완된 다른 값은 화면에도 반영하고, 잘못된 값은 그대로 남겨 사용자가 고칠 수 있게 합니다.
+      setSubmissions((current) => current.map((item) => item.id === completed.id ? { ...completed, status: "draft", completedAt: "" } : item));
+      notify(invalidUrl.message);
       return;
     }
     setSubmissions((current) => current.map((item) => item.id === completed.id ? completed : item));

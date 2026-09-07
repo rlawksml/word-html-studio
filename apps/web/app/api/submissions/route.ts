@@ -82,7 +82,21 @@ async function save(request: NextRequest) {
     if (!result.data) return conflictResponse(await findSubmission(next.id), role);
     return NextResponse.json({ submission: mapSubmission(result.data as SubmissionRow, role) });
   } catch (error) {
-    if (error instanceof WorkspaceValidationError) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error instanceof WorkspaceValidationError) {
+      const requestBytes = Number(request.headers.get("content-length") || 0) || null;
+      // 입력 내용은 기록하지 않고 실패 유형·위치·크기만 남겨 같은 400을 운영 로그에서 구분합니다.
+      console.warn("submission validation rejected", {
+        code: error.code,
+        fieldPath: error.fieldPath || null,
+        requestBytes,
+      });
+      return NextResponse.json({
+        error: error.message,
+        message: error.message,
+        code: error.code,
+        fieldPath: error.fieldPath || null,
+      }, { status: 400 });
+    }
     if (error instanceof SupabaseConfigurationError) return configurationResponse();
     console.error("submission save failed", error);
     return NextResponse.json({ error: "소식을 저장하지 못했습니다." }, { status: 500 });

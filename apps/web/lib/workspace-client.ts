@@ -26,6 +26,18 @@ export class WorkspaceConflictError extends Error {
   }
 }
 
+export class WorkspaceRequestError extends Error {
+  code: string;
+  fieldPath: string;
+
+  constructor(message: string, code = "REQUEST_FAILED", fieldPath = "") {
+    super(message);
+    this.name = "WorkspaceRequestError";
+    this.code = code;
+    this.fieldPath = fieldPath;
+  }
+}
+
 export class StorageUploadError extends Error {
   retryableWithNewReservation: boolean;
 
@@ -113,11 +125,11 @@ export async function loadWorkspace(worker = false, signal?: AbortSignal): Promi
 }
 
 async function recordResponse<T>(response: Response, key: string, fallback: string) {
-  const body = await response.json().catch(() => null) as ({ error?: string; code?: string } & Record<string, unknown>) | null;
+  const body = await response.json().catch(() => null) as ({ error?: string; message?: string; code?: string; fieldPath?: string } & Record<string, unknown>) | null;
   if (!response.ok) {
     const message = body?.error || fallback;
     if (response.status === 409 || body?.code === "WORKSPACE_CONFLICT") throw new WorkspaceConflictError(message, body?.latest);
-    throw new Error(message);
+    throw new WorkspaceRequestError(message, body?.code, body?.fieldPath);
   }
   if (!body || !(key in body)) throw new Error(fallback);
   return body[key] as T;

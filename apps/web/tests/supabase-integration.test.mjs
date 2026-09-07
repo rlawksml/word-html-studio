@@ -99,15 +99,26 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
       id: submissionId, bookstoreId, month: "2099-12", status: "draft", updatedAt: "", completedAt: "", publishedAt: "", publishedUrl: "", monthlyNotice: "",
       news: [{
         id: newsId, title: "통합 테스트 소식", description: "자동으로 정리되는 테스트 데이터입니다.", dates: ["2099-12-01"], scheduleText: "", regular: false,
-        displayLabel: "", deadline: "", place: "", fee: "", applicationInfo: "", applyUrl: "", extraFields: [], links: [], images: [], includeInDigest: true,
+        displayLabel: "", deadline: "", place: "", fee: "", applicationInfo: "", applyUrl: "https:/", extraFields: [], links: [], images: [], includeInDigest: true,
       }],
     };
     const createSubmission = await appFetch("/api/submissions", { method: "PUT", headers: workerHeaders, body: JSON.stringify({ submission }) });
     await assertStatus(createSubmission, 200);
     const firstSubmission = (await createSubmission.json()).submission;
+    assert.equal(firstSubmission.news[0].applyUrl, "https:/", "draft 자동 저장은 입력 중 URL을 그대로 보존해야 합니다.");
     const updateSubmission = await appFetch("/api/submissions", { method: "PUT", headers: workerHeaders, body: JSON.stringify({ submission: { ...firstSubmission, monthlyNotice: "수정됨" } }) });
     await assertStatus(updateSubmission, 200);
     const updatedSubmission = (await updateSubmission.json()).submission;
+    const invalidCompletion = await appFetch("/api/submissions", {
+      method: "PUT",
+      headers: workerHeaders,
+      body: JSON.stringify({ submission: { ...updatedSubmission, status: "completed", completedAt: new Date().toISOString() } }),
+    });
+    assert.equal(invalidCompletion.status, 400);
+    const invalidCompletionBody = await invalidCompletion.json();
+    assert.equal(invalidCompletionBody.code, "INVALID_URL");
+    assert.equal(invalidCompletionBody.fieldPath, "news.0.applyUrl");
+    assert.match(invalidCompletionBody.message, /소식 1 → 대표 신청 링크/);
     const completionRequest = {
       ...updatedSubmission,
       status: "completed",
@@ -117,6 +128,7 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
         title: "신규모집",
         description: "상세 내용의 마지막 한글도 보존합니다.",
         applicationInfo: "문의 후 신청",
+        applyUrl: "https://example.com/apply",
         extraFields: [{ id: newsId + 1, label: "대상", value: "누구나" }],
       }],
     };

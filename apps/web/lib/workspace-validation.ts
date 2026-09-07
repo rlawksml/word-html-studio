@@ -1,9 +1,15 @@
 import type { Bookstore, LabeledLink, LabeledValue, NewsImage, NewsItem, Submission } from "@/lib/workspace-types";
+import { findBlockingSubmissionUrl } from "@/lib/submission-url-validation";
 
 export class WorkspaceValidationError extends Error {
-  constructor(message: string) {
+  code: string;
+  fieldPath: string;
+
+  constructor(message: string, code = "INVALID_REQUEST", fieldPath = "") {
     super(message);
     this.name = "WorkspaceValidationError";
+    this.code = code;
+    this.fieldPath = fieldPath;
   }
 }
 
@@ -65,6 +71,11 @@ function labeledLink(value: unknown, label: string): LabeledLink {
   return { id: numericId(value.id, `${label} ID`), label: text(value.label, `${label} 이름`, 100), url: httpUrl(value.url, `${label} URL`) };
 }
 
+function submissionLink(value: unknown, label: string): LabeledLink {
+  if (!isObject(value)) throw new WorkspaceValidationError(`${label} 형식이 올바르지 않습니다.`);
+  return { id: numericId(value.id, `${label} ID`), label: text(value.label, `${label} 이름`, 100), url: text(value.url, `${label} URL`, 2_000) };
+}
+
 function image(value: unknown): NewsImage {
   if (!isObject(value)) throw new WorkspaceValidationError("사진 정보가 올바르지 않습니다.");
   const originalPath = text(value.originalPath, "원본 사진 경로", 500);
@@ -98,9 +109,10 @@ function newsItem(value: unknown): NewsItem {
     place: text(value.place, "장소", 1_000),
     fee: text(value.fee, "참가비", 500),
     applicationInfo: text(value.applicationInfo, "신청 방법", 3_000),
-    applyUrl: httpUrl(value.applyUrl, "대표 신청 링크"),
+    // draft에서는 타이핑 중인 https:/ 같은 값도 보존하고, completed 전환 시 묶음 전체를 엄격히 검증합니다.
+    applyUrl: text(value.applyUrl, "대표 신청 링크", 2_000),
     extraFields: list(value.extraFields, "추가 항목", 100).map((item, index) => labeledValue(item, `추가 항목 ${index + 1}`)),
-    links: list(value.links, "관련 링크", 100).map((item, index) => labeledLink(item, `관련 링크 ${index + 1}`)),
+    links: list(value.links, "관련 링크", 100).map((item, index) => submissionLink(item, `관련 링크 ${index + 1}`)),
     images: list(value.images, "사진", 500).map(image),
     includeInDigest: value.includeInDigest,
   };
@@ -132,7 +144,7 @@ export function parseSubmission(value: unknown): Submission {
   const month = text(value.month, "발행 월", 7, true);
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new WorkspaceValidationError("발행 월이 올바르지 않습니다.");
   if (value.status !== "draft" && value.status !== "completed") throw new WorkspaceValidationError("작업 상태가 올바르지 않습니다.");
-  return {
+  const submission: Submission = {
     id: numericId(value.id, "소식 묶음 ID", true),
     bookstoreId: numericId(value.bookstoreId, "책방 ID", true),
     month,
@@ -144,6 +156,9 @@ export function parseSubmission(value: unknown): Submission {
     monthlyNotice: text(value.monthlyNotice, "이번 달 운영 안내", 10_000),
     news: list(value.news, "소식", 100).map(newsItem),
   };
+  const issue = findBlockingSubmissionUrl(submission);
+  if (issue) throw new WorkspaceValidationError(issue.message, issue.code, issue.fieldPath);
+  return submission;
 }
 
 export async function readWorkspaceJson(request: Request) {
