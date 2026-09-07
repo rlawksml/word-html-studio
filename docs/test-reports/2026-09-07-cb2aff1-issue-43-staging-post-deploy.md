@@ -63,3 +63,13 @@ Staging migration·통합 테스트 전후 비교 결과 기존 데이터와 사
 ## 결론
 
 이슈 #43 코드는 자동 테스트·실제 Staging DB 통합·Sites Staging 공개 화면까지 정상입니다. 다만 실제 작업자 입력 화면 검증은 남아 있으므로 PR #55는 Draft를 유지하고 Production 판정은 **NO-GO**로 둡니다.
+
+## GitHub Actions 후속 확인
+
+보고서 커밋 직후 첫 `verify`는 스택형 PR의 기준 브랜치 `codex/v1.1-calendar-date-confirm`을 배포 대상 정책이 인식하지 못해 실패했습니다. 앱 기능·DB 테스트 실패는 아니었습니다.
+
+- 원인: 정책이 `main`, `develop`만 알고 있어 `codex/*` 기준 브랜치를 거부
+- 수정: `codex/*`를 Staging으로만 정규화
+- 안전장치: `codex/*`와 Production Sites project ID의 교차 연결은 계속 실패하도록 TC 추가
+- 로컬 재검증: `npm test` 65/65, ESLint, migration 정책, 기능 브랜치 배포 대상 단위 TC 모두 PASS
+- GitHub Actions: 보완 커밋 푸시 후 재실행 결과를 이슈와 PR에 추가 기록
