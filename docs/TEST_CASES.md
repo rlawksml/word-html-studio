@@ -635,6 +635,7 @@
 
 | 실행일 | 기준 커밋 | 자동 회귀 | Supabase 통합 | 빌드·린트 | 수동 운영 | 결과 |
 |---|---|---|---|---|---|---|
+| 2026-09-07 | `b6476c3` Sites Staging v7 · 이슈 #46 | 누적 57/57 통과 | 앞선 Staging 3/3·정리 | migration 검사·빌드·린트 통과 | 주요 경로 200·버전 호환·배포 전후 DB/사진 해시 동일 | **PASS (develop 병합 가능)** |
 | 2026-09-07 | `2b270e6` 이슈 #46 | 53/53 통과 | Staging 3/3·왕복 보존·정리 | migration 검사·빌드·린트 통과 | additive migration·전후 DB/사진 해시 확인 | **GO (Staging)** |
 | 2026-09-07 | `b730355` Staging v4 · 이슈 #44 | 40/40 통과 | Staging 3/3·정리 | 통과 | 한글 즉시 완료·DB 값·백업 해시 확인 | **PASS (develop 병합 가능)** |
 | 2026-09-07 | `620cfe1` Staging v2 | 35/35 통과 | GitHub Staging 3/3·정리 | 통과 | 비공개 홈·역할 세션·운영 GET | **GO (Staging)** |
