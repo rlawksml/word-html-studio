@@ -1,9 +1,10 @@
 /* eslint-disable @next/next/no-img-element */
 
 import type { StudioController } from "@/hooks/use-studio-controller";
-import { DISPLAY_LABELS, formatDate, makeLink, makeValue } from "@/lib/workspace-formatters";
+import { DISPLAY_LABELS, makeLink, makeValue } from "@/lib/workspace-formatters";
 import { normalizeHttpUrlInput } from "@/lib/submission-url-validation";
 import type { NewsItem } from "@/lib/workspace-types";
+import { NewsDateField } from "@/components/molecules/NewsDateField";
 
 type NewsEditorCardProps = {
   studio: StudioController;
@@ -15,7 +16,7 @@ type NewsEditorCardProps = {
 // Submission 안의 NewsItem 하나를 편집하는 폼 단위입니다. 소식과 사진 정렬도 이 경계에서 처리합니다.
 export function NewsEditorCard({ studio, news, index, total }: NewsEditorCardProps) {
   const {
-    setDraggedNewsId, setDraggedImageId, reorderNews, moveNews, updateCurrent, updateNews,
+    month, setDraggedNewsId, setDraggedImageId, reorderNews, moveNews, updateCurrent, updateNews,
     updateNewsValue, addImages, reorderImages, moveImage, imageUploadNewsId,
   } = studio;
   const uploading = imageUploadNewsId === news.id;
@@ -37,7 +38,7 @@ export function NewsEditorCard({ studio, news, index, total }: NewsEditorCardPro
     <div className="form-grid">
       <label className="wide"><span>소식 제목 *</span><input data-required-field="title" value={news.title} onChange={(event) => updateNews(news.id, "title", event.target.value)} placeholder="예: 7월 중국어 원서 독서모임" /></label>
       <label className="wide"><span>상세 내용 *</span><textarea data-required-field="description" rows={7} value={news.description} onChange={(event) => updateNews(news.id, "description", event.target.value)} placeholder="Word에 작성하던 것처럼 내용을 자연스럽게 적어주세요." /></label>
-      <label className="wide"><span>행사 날짜 <em>달력에 표시할 날짜 · 여러 개 가능</em></span><div className="date-list">{news.dates.map((date) => <span key={date}>{formatDate(date)}<button onClick={() => updateNews(news.id, "dates", news.dates.filter((item) => item !== date))}>×</button></span>)}<input type="date" value="" onChange={(event) => { if (event.target.value && !news.dates.includes(event.target.value)) updateNews(news.id, "dates", [...news.dates, event.target.value].sort()); }} /></div></label>
+      <NewsDateField newsId={news.id} dates={news.dates} publicationMonth={month} onDatesChange={(dates) => updateNews(news.id, "dates", dates)} />
       <label className="wide"><span>일정 안내 <em>선택</em></span><input value={news.scheduleText} onChange={(event) => updateNews(news.id, "scheduleText", event.target.value)} placeholder="예: 7월 3일(목) 오후 7시~9시 / 매월 첫째 목요일" /></label>
       <label className="check-label"><input type="checkbox" checked={news.regular} onChange={(event) => updateNews(news.id, "regular", event.target.checked)} /><span>정기적으로 진행하는 소식입니다</span></label>
       <label><span>신청 마감일 <em>선택</em></span><input type="date" value={news.deadline} onChange={(event) => updateNews(news.id, "deadline", event.target.value)} /></label>
