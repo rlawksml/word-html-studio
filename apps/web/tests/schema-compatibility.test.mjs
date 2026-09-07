@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   mergeNewsPreservingUnknownFields,
+  stripExternalNewsFields,
 } from "../lib/submission-json-compatibility.ts";
 import {
   findForbiddenMigrationStatements,
@@ -89,6 +90,12 @@ test("삭제된 소식과 사진은 되살리지 않고 요청 순서를 유지�
   assert.equal(merged[0].futureValue, "둘째");
   assert.equal(merged[1].futureValue, undefined);
   assert.deepEqual(merged[0].images, []);
+});
+
+test("별도 테이블 필드는 미래 JSON 보존과 무관하게 JSONB에서 제거한다", () => {
+  const cleaned = stripExternalNewsFields([{ ...knownNews(), scheduleRange: { startDate: "2026-06-17", endDate: "2026-08-12" }, futureValue: "유지" }]);
+  assert.equal(Object.prototype.hasOwnProperty.call(cleaned[0], "scheduleRange"), false);
+  assert.equal(cleaned[0].futureValue, "유지");
 });
 
 test("새 migration의 파괴적 SQL은 차단하고 additive SQL은 허용한다", () => {

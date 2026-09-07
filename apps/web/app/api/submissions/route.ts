@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, retryFutureJwt, SupabaseConfigurationError } from "@/lib/supabase-server";
-import { mergeNewsPreservingUnknownFields } from "@/lib/submission-json-compatibility";
+import { mergeNewsPreservingUnknownFields, stripExternalNewsFields } from "@/lib/submission-json-compatibility";
 import { mapSubmission, sanitizeNews, SCHEDULE_RANGE_SELECT, SUBMISSION_SELECT, type ScheduleRangeRow, type SubmissionRow } from "@/lib/workspace-records";
 import { readWorkerSession } from "@/lib/workspace-session";
 import { parseSubmission, readWorkspaceJson, WorkspaceValidationError } from "@/lib/workspace-validation";
@@ -87,7 +87,7 @@ async function save(request: NextRequest) {
       published_url: next.publishedUrl,
       monthly_notice: next.monthlyNotice,
       // 기존 DB 값에만 있는 미래 버전 필드를 보존해 앱 롤백 후 저장도 무손실로 만듭니다.
-      news: mergeNewsPreservingUnknownFields(existing?.news, requestedNews),
+      news: stripExternalNewsFields(mergeNewsPreservingUnknownFields(existing?.news, requestedNews)),
     };
     // 본문과 기간을 한 DB 트랜잭션으로 저장해 둘 중 하나만 반영되는 상태를 막습니다.
     const result = await retryFutureJwt(() => getSupabaseAdmin().rpc("save_submission_with_schedule_ranges", {
