@@ -148,6 +148,7 @@ SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metad
 - [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)
 - [Supabase 무손실 백업·복구 Runbook](docs/BACKUP_RESTORE.md)
 - [DB migration·앱 롤백 호환 정책](docs/DB_MIGRATION_POLICY.md)
+- [이슈 #46 롤백 호환 DB 기반 배포 전 테스트 보고서](docs/test-reports/2026-09-07-2b270e6-issue-46-pre-deploy.md)
 - [Staging 환경 분리·배포 가이드](docs/STAGING.md)
 - [v1.1 이전 백업 기준선 보고서](docs/test-reports/2026-09-07-backup-baseline.md)
 - [Supabase Staging 복원 훈련 보고서](docs/test-reports/2026-09-07-staging-restore-rehearsal.md)
