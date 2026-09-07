@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, retryFutureJwt, SupabaseConfigurationError } from "@/lib/supabase-server";
+import { mergeNewsPreservingUnknownFields } from "@/lib/submission-json-compatibility";
 import { mapSubmission, sanitizeNews, SUBMISSION_SELECT, type SubmissionRow } from "@/lib/workspace-records";
 import { readWorkerSession } from "@/lib/workspace-session";
 import { parseSubmission, readWorkspaceJson, WorkspaceValidationError } from "@/lib/workspace-validation";
@@ -57,6 +58,7 @@ async function save(request: NextRequest) {
           publishedAt: existing?.published_at || submission.publishedAt,
           publishedUrl: existing?.published_url || submission.publishedUrl,
         };
+    const requestedNews = sanitizeNews(next.news);
     const values = {
       id: next.id,
       bookstore_id: next.bookstoreId,
@@ -67,7 +69,8 @@ async function save(request: NextRequest) {
       published_at: next.publishedAt || null,
       published_url: next.publishedUrl,
       monthly_notice: next.monthlyNotice,
-      news: sanitizeNews(next.news),
+      // 기존 DB 값에만 있는 미래 버전 필드를 보존해 앱 롤백 후 저장도 무손실로 만듭니다.
+      news: mergeNewsPreservingUnknownFields(existing?.news, requestedNews),
     };
     const result = await retryFutureJwt(() => {
       const query = existing

@@ -10,6 +10,7 @@ import {
   resolveInside,
   sha256,
 } from "./backup-utils.mjs";
+import { isMissingTableError, tableSpecsForBackup } from "./supabase-schema.mjs";
 
 const requestedOutput = process.argv[2];
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -55,15 +56,15 @@ async function selectAll(table, orderColumn) {
   }
 }
 
-const tableSpecs = [
-  ["bookstores", "id"],
-  ["submissions", "id"],
-  ["editing_leases", "resource_key"],
-  ["improvement_requests", "id"],
-];
+const schemaVersionResult = await client.from("app_schema_versions").select("component").limit(1);
+const schemaVersionAvailable = !schemaVersionResult.error;
+if (schemaVersionResult.error && !isMissingTableError(schemaVersionResult.error)) {
+  throw new Error(`Database schema version check failed: ${schemaVersionResult.error.message}`);
+}
+const tableSpecs = tableSpecsForBackup(schemaVersionAvailable);
 await mkdir(resolveInside(backupDir, "database"), { recursive: true, mode: 0o700 });
 let submissions = [];
-for (const [table, orderColumn] of tableSpecs) {
+for (const { name: table, orderColumn } of tableSpecs) {
   const rows = await selectAll(table, orderColumn);
   const payload = canonicalJson(rows);
   await writeFile(resolveInside(backupDir, "database", `${table}.json`), payload, { mode: 0o600 });
