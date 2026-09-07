@@ -17,6 +17,8 @@ jobs:
         working-directory: apps/web
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -26,6 +28,9 @@ jobs:
       - run: npm run validate:deployment-target
         env:
           DEPLOYMENT_TARGET: ${{ github.event_name == 'workflow_dispatch' && 'develop' || (github.base_ref || github.ref_name) }}
+      - run: npm run migration:check
+        env:
+          MIGRATION_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
       - run: npm run lint
       - run: npm test
 
@@ -48,6 +53,8 @@ jobs:
       WORKSPACE_SESSION_SECRET: ${{ secrets.WORKSPACE_SESSION_SECRET }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22

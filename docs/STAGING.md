@@ -28,11 +28,13 @@ Staging 런타임은 다음 세 값을 함께 검사한 뒤에만 Supabase clien
 1. 기능 브랜치를 `develop` 대상으로 PR 생성
 2. lint, build, 자동 회귀 TC와 민감정보 검사를 통과
 3. Staging 전용 Runtime Environment Variables 확인
-4. 검증한 정확한 commit을 Staging Sites 저장소에 push
-5. 같은 commit의 build archive를 Site version으로 저장
-6. owner-private Staging으로 배포
-7. 공개 읽기, 로그인, 저장·충돌·사진 업로드·정리 TC 실행
-8. 테스트 데이터가 모두 정리됐는지 확인하고 보고서 작성
+4. `migration:check` 통과 후 새 additive migration을 Staging Supabase에 먼저 적용
+5. `/api/version`으로 DB 스키마와 앱 예상 버전을 대조
+6. 검증한 정확한 commit을 Staging Sites 저장소에 push
+7. 같은 commit의 build archive를 Site version으로 저장
+8. owner-private Staging으로 배포
+9. 공개 읽기, 로그인, 저장·충돌·사진 업로드·롤백 왕복·정리 TC 실행
+10. 테스트 데이터가 모두 정리됐는지 확인하고 보고서 작성
 
 Production 반영은 별도 승인과 릴리스 PR이 있을 때만 진행합니다. 앱 롤백은 이전 Sites version이나 Git tag로 수행하며, Supabase 데이터를 앱 버전과 함께 되돌리거나 초기화하지 않습니다.
 
@@ -45,3 +47,4 @@ Production 반영은 별도 승인과 릴리스 PR이 있을 때만 진행합니
 - 테스트가 실패해도 `finally` 정리를 시도하고, 종료 후 잔여 test 레코드와 객체를 다시 확인합니다.
 - Production 검증은 GET과 화면 조회 같은 읽기 전용 스모크 테스트만 허용합니다.
 - Secret Key, 작업 암호와 사용자 원문은 테스트 보고서와 로그에 남기지 않습니다.
+- v1.1 전용 데이터 왕복 TC는 테스트 전용 Submission과 `news_schedule_ranges` 행만 사용하며, 기존 복원 데이터는 fingerprint 비교만 수행합니다.

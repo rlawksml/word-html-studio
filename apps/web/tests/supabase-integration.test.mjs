@@ -65,6 +65,14 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
   const presenceTarget = { scope: "submission", month: "2099-12", bookstoreId };
 
   try {
+    const versionResponse = await appFetch("/api/version");
+    await assertStatus(versionResponse, 200);
+    const version = await versionResponse.json();
+    assert.equal(version.productVersion, "1.0.1");
+    assert.equal(version.databaseSchemaVersion, 202609070001);
+    assert.equal(version.expectedSchemaVersion, 202609070001);
+    assert.equal(version.compatible, true);
+
     const firstLease = await appFetch("/api/presence", { method: "POST", headers: workerHeaders, body: JSON.stringify(presenceTarget) });
     await assertStatus(firstLease, 200);
     assert.equal((await firstLease.json()).owned, true);
@@ -108,7 +116,56 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
     assert.equal(firstSubmission.news[0].applyUrl, "https:/", "draft 자동 저장은 입력 중 URL을 그대로 보존해야 합니다.");
     const updateSubmission = await appFetch("/api/submissions", { method: "PUT", headers: workerHeaders, body: JSON.stringify({ submission: { ...firstSubmission, monthlyNotice: "수정됨" } }) });
     await assertStatus(updateSubmission, 200);
-    const updatedSubmission = (await updateSubmission.json()).submission;
+    let updatedSubmission = (await updateSubmission.json()).submission;
+
+    // v1.1 전용 필드와 기간 행을 만든 뒤 v1.0.1 형태의 저장 요청이 이를 지우지 않는지 검증합니다.
+    const requestedCompatibilityUpdatedAt = new Date(Date.now() + 1_000).toISOString();
+    const futureNews = [{
+      ...updatedSubmission.news[0],
+      scheduleRangeRef: `range-${newsId}`,
+      futureOptions: { calendarMode: "range" },
+    }];
+    const seedFutureFields = await admin
+      .from("submissions")
+      .update({ news: futureNews, updated_at: requestedCompatibilityUpdatedAt })
+      .eq("id", submissionId)
+      .select("updated_at")
+      .single();
+    assert.equal(seedFutureFields.error, null);
+    const compatibilityUpdatedAt = seedFutureFields.data.updated_at;
+    const seedScheduleRange = await admin.from("news_schedule_ranges").insert({
+      submission_id: submissionId,
+      news_item_id: newsId,
+      start_date: "2099-12-01",
+      end_date: "2100-01-31",
+    });
+    assert.equal(seedScheduleRange.error, null);
+
+    const oldAppSave = await appFetch("/api/submissions", {
+      method: "PUT",
+      headers: workerHeaders,
+      body: JSON.stringify({
+        submission: {
+          ...updatedSubmission,
+          updatedAt: compatibilityUpdatedAt,
+          monthlyNotice: "v1.0.1에서 기존 필드만 수정",
+        },
+      }),
+    });
+    await assertStatus(oldAppSave, 200);
+    updatedSubmission = (await oldAppSave.json()).submission;
+    const compatibilityRow = await admin.from("submissions").select("news").eq("id", submissionId).single();
+    assert.equal(compatibilityRow.error, null);
+    assert.equal(compatibilityRow.data.news[0].scheduleRangeRef, `range-${newsId}`);
+    assert.deepEqual(compatibilityRow.data.news[0].futureOptions, { calendarMode: "range" });
+    const preservedScheduleRange = await admin
+      .from("news_schedule_ranges")
+      .select("start_date,end_date")
+      .eq("submission_id", submissionId)
+      .eq("news_item_id", newsId)
+      .single();
+    assert.equal(preservedScheduleRange.error, null);
+    assert.deepEqual(preservedScheduleRange.data, { start_date: "2099-12-01", end_date: "2100-01-31" });
     const invalidCompletion = await appFetch("/api/submissions", {
       method: "PUT",
       headers: workerHeaders,
@@ -176,6 +233,7 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
         admin.storage.from("bookstore-news-previews").remove([uploadedImage.previewPath]),
       ]);
     }
+    await admin.from("news_schedule_ranges").delete().eq("submission_id", submissionId).eq("news_item_id", newsId);
     await admin.from("submissions").delete().eq("id", submissionId);
     await admin.from("bookstores").delete().eq("id", bookstoreId);
     await admin.from("editing_leases").delete().eq("resource_key", `submission:2099-12:${bookstoreId}`);

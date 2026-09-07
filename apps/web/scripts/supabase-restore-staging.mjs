@@ -11,6 +11,7 @@ import {
   summarizeSupabaseError,
   verifyBackupDirectory,
 } from "./backup-utils.mjs";
+import { tableSpecsForRestore } from "./supabase-schema.mjs";
 
 const backupDir = process.argv[2];
 const execute = process.argv.includes("--execute");
@@ -34,8 +35,10 @@ const target = assertStagingRestoreTarget({
 const client = createClient(supabaseUrl, supabaseKey, {
   auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
 });
-const tableOrder = ["bookstores", "submissions", "editing_leases", "improvement_requests"];
-const orderColumns = { bookstores: "id", submissions: "id", editing_leases: "resource_key", improvement_requests: "id" };
+// 이전 형식 백업은 당시 존재한 테이블만 복원하고, 새 백업은 신규 호환 테이블까지 함께 복원합니다.
+const tableSpecs = tableSpecsForRestore(verification.manifest.database);
+const tableOrder = tableSpecs.map((table) => table.name);
+const orderColumns = Object.fromEntries(tableSpecs.map((table) => [table.name, table.orderColumn]));
 const tableRows = {};
 const existingRows = {};
 
