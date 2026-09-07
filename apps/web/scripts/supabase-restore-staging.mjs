@@ -4,13 +4,17 @@ import { createClient } from "@supabase/supabase-js";
 import {
   assertStagingRestoreTarget,
   canonicalJson,
+  planObjectRestore,
+  planTableRestore,
   resolveInside,
   sha256,
+  summarizeSupabaseError,
   verifyBackupDirectory,
 } from "./backup-utils.mjs";
 
 const backupDir = process.argv[2];
 const execute = process.argv.includes("--execute");
+const resume = process.argv.includes("--resume");
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
 if (!supabaseKey) throw new Error("SUPABASE_SECRET_KEY is required");
@@ -67,27 +71,8 @@ if (buckets.get("bookstore-news-previews")?.public !== true) {
   throw new Error("bookstore-news-previews must be public in staging");
 }
 
-if (!execute) {
-  console.log(canonicalJson({
-    status: "DRY_RUN_PASS",
-    targetProjectRef: target.actualProjectRef,
-    targetFingerprint: target.targetFingerprint,
-    sourceFingerprint: verification.manifest.sourceProjectFingerprint,
-    existingRows,
-    backupRows: Object.fromEntries(tableOrder.map((table) => [table, tableRows[table].length])),
-    backupObjects: Object.fromEntries(Object.entries(verification.manifest.storage || {}).map(([name, details]) => [name, details.objectCount])),
-    next: "Re-run with --execute only after confirming this is an empty staging project.",
-  }));
-  process.exit(0);
-}
-
-const nonEmptyTables = Object.entries(existingRows).filter(([, count]) => count > 0);
-if (nonEmptyTables.length > 0) {
-  throw new Error(`Refusing non-empty staging tables: ${nonEmptyTables.map(([name, count]) => `${name}=${count}`).join(", ")}`);
-}
-
-async function countBucketObjects(bucketName, prefix = "") {
-  let count = 0;
+async function listBucketObjects(bucketName, prefix = "") {
+  const paths = [];
   const pageSize = 100;
   for (let offset = 0; ; offset += pageSize) {
     const result = await client.storage.from(bucketName).list(prefix, { limit: pageSize, offset });
@@ -95,20 +80,76 @@ async function countBucketObjects(bucketName, prefix = "") {
     const entries = result.data || [];
     for (const entry of entries) {
       const objectPath = prefix ? `${prefix}/${entry.name}` : entry.name;
-      count += entry.id === null ? await countBucketObjects(bucketName, objectPath) : 1;
+      if (entry.id === null) paths.push(...await listBucketObjects(bucketName, objectPath));
+      else paths.push(objectPath);
     }
-    if (entries.length < pageSize) return count;
+    if (entries.length < pageSize) return paths;
   }
 }
 
-for (const bucketName of Object.keys(verification.manifest.storage || {})) {
-  const count = await countBucketObjects(bucketName);
-  if (count > 0) throw new Error(`Refusing non-empty staging bucket: ${bucketName}=${count}`);
+const tablePlans = {};
+for (const table of tableOrder) {
+  const currentRows = existingRows[table] > 0 ? await selectAll(table, orderColumns[table]) : [];
+  tablePlans[table] = planTableRestore({
+    table,
+    currentRows,
+    expectedRows: tableRows[table],
+    expectedSha256: verification.manifest.database[table].sha256,
+    allowResume: resume,
+  });
+}
+
+const objectPlans = {};
+for (const [bucketName, details] of Object.entries(verification.manifest.storage || {})) {
+  objectPlans[bucketName] = planObjectRestore({
+    bucketName,
+    expectedObjects: details.objects || [],
+    remotePaths: await listBucketObjects(bucketName),
+    allowResume: resume,
+  });
+}
+
+async function downloadPayload(bucketName, objectPath, attempts = 6) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const result = await client.storage.from(bucketName).download(objectPath);
+    if (!result.error) return Buffer.from(await result.data.arrayBuffer());
+    lastError = result.error;
+    if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, Math.min(attempt * 1000, 5000)));
+  }
+  throw new Error(`Download failed for ${bucketName}/${objectPath}: ${summarizeSupabaseError(lastError)}`);
+}
+
+for (const [bucketName, plan] of Object.entries(objectPlans)) {
+  for (const object of plan.existing) {
+    const payload = await downloadPayload(bucketName, object.path);
+    if (payload.length !== object.bytes || sha256(payload) !== object.sha256) {
+      throw new Error(`Cannot resume changed staging object: ${bucketName}/${object.path}`);
+    }
+  }
+}
+
+if (!execute) {
+  console.log(canonicalJson({
+    status: resume ? "RESUME_DRY_RUN_PASS" : "DRY_RUN_PASS",
+    targetProjectRef: target.actualProjectRef,
+    targetFingerprint: target.targetFingerprint,
+    sourceFingerprint: verification.manifest.sourceProjectFingerprint,
+    existingRows,
+    backupRows: Object.fromEntries(tableOrder.map((table) => [table, tableRows[table].length])),
+    existingObjects: Object.fromEntries(Object.entries(objectPlans).map(([name, plan]) => [name, plan.existing.length])),
+    missingObjects: Object.fromEntries(Object.entries(objectPlans).map(([name, plan]) => [name, plan.missing.length])),
+    next: resume
+      ? "Re-run with --execute --resume to upload only verified missing staging objects."
+      : "Re-run with --execute only after confirming this is an empty staging project.",
+  }));
+  process.exit(0);
 }
 
 for (const table of tableOrder) {
-  for (let offset = 0; offset < tableRows[table].length; offset += 100) {
-    const result = await client.from(table).insert(tableRows[table].slice(offset, offset + 100));
+  const rows = tablePlans[table].rows;
+  for (let offset = 0; offset < rows.length; offset += 100) {
+    const result = await client.from(table).insert(rows.slice(offset, offset + 100));
     if (result.error) throw new Error(`Restore failed for ${table}: ${result.error.message}`);
   }
 }
@@ -121,15 +162,32 @@ function contentTypeFor(objectPath) {
   })[extension] || "application/octet-stream";
 }
 
-for (const [bucketName, details] of Object.entries(verification.manifest.storage || {})) {
-  for (const object of details.objects || []) {
-    const payload = await readFile(resolveInside(backupDir, "storage", bucketName, object.path));
+async function uploadMissingObject(bucketName, object, payload, attempts = 3) {
+  let lastError;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
     const result = await client.storage.from(bucketName).upload(object.path, payload, {
       cacheControl: bucketName === "bookstore-news-previews" ? "300" : "3600",
       contentType: contentTypeFor(object.path),
       upsert: false,
     });
-    if (result.error) throw new Error(`Restore failed for ${bucketName}/${object.path}: ${result.error.message}`);
+    if (!result.error) return;
+    lastError = result.error;
+
+    const existing = await client.storage.from(bucketName).download(object.path);
+    if (!existing.error) {
+      const existingPayload = Buffer.from(await existing.data.arrayBuffer());
+      if (existingPayload.length === object.bytes && sha256(existingPayload) === object.sha256) return;
+      throw new Error(`Restore found a different existing object: ${bucketName}/${object.path}`);
+    }
+    if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+  }
+  throw new Error(`Restore failed for ${bucketName}/${object.path}: ${summarizeSupabaseError(lastError)}`);
+}
+
+for (const [bucketName, plan] of Object.entries(objectPlans)) {
+  for (const object of plan.missing) {
+    const payload = await readFile(resolveInside(backupDir, "storage", bucketName, object.path));
+    await uploadMissingObject(bucketName, object, payload);
   }
 }
 
@@ -146,9 +204,7 @@ for (const table of tableOrder) {
 let restoredObjects = 0;
 for (const [bucketName, details] of Object.entries(verification.manifest.storage || {})) {
   for (const object of details.objects || []) {
-    const result = await client.storage.from(bucketName).download(object.path);
-    if (result.error) throw new Error(`Restored object download failed for ${bucketName}/${object.path}: ${result.error.message}`);
-    const payload = Buffer.from(await result.data.arrayBuffer());
+    const payload = await downloadPayload(bucketName, object.path);
     if (payload.length !== object.bytes || sha256(payload) !== object.sha256) {
       throw new Error(`Restored object hash mismatch for ${bucketName}/${object.path}`);
     }

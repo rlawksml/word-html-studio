@@ -78,6 +78,42 @@ export function assertStagingRestoreTarget({
   return { actualProjectRef, targetFingerprint };
 }
 
+export function planTableRestore({ table, currentRows, expectedRows, expectedSha256, allowResume }) {
+  if (currentRows.length === 0) return { action: "insert", rows: expectedRows };
+  if (!allowResume) throw new Error(`Refusing non-empty staging table: ${table}=${currentRows.length}`);
+  if (currentRows.length !== expectedRows.length) {
+    throw new Error(`Cannot resume partial staging table: ${table}=${currentRows.length}/${expectedRows.length}`);
+  }
+  if (sha256(canonicalJson(currentRows)) !== expectedSha256) {
+    throw new Error(`Cannot resume changed staging table: ${table} hash mismatch`);
+  }
+  return { action: "skip", rows: [] };
+}
+
+export function planObjectRestore({ bucketName, expectedObjects, remotePaths, allowResume }) {
+  if (remotePaths.length > 0 && !allowResume) {
+    throw new Error(`Refusing non-empty staging bucket: ${bucketName}=${remotePaths.length}`);
+  }
+  const expectedPaths = new Set(expectedObjects.map((object) => object.path));
+  const remoteSet = new Set(remotePaths);
+  const extras = remotePaths.filter((objectPath) => !expectedPaths.has(objectPath));
+  if (extras.length > 0) {
+    throw new Error(`Cannot resume staging bucket with unexpected objects: ${bucketName}=${extras.length}`);
+  }
+  return {
+    existing: expectedObjects.filter((object) => remoteSet.has(object.path)),
+    missing: expectedObjects.filter((object) => !remoteSet.has(object.path)),
+  };
+}
+
+export function summarizeSupabaseError(error) {
+  if (!error) return "Unknown Supabase error";
+  const parts = [error.message, error.name, error.status, error.statusCode, error.error, error.cause?.message]
+    .filter((value) => value !== undefined && value !== null && String(value).trim() !== "")
+    .map(String);
+  return [...new Set(parts)].join(" | ") || "Unknown Supabase error";
+}
+
 export async function verifyBackupDirectory(backupDir) {
   if (!backupDir || !path.isAbsolute(backupDir)) {
     throw new Error("Backup directory must be an absolute path");

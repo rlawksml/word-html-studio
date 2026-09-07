@@ -5,10 +5,10 @@
 - 로컬 읽기 전용 백업: `PASS`
 - 압축 파일 gzip 무결성: `PASS`
 - 임시 디렉터리 압축 해제 후 전체 파일 재검증: `PASS`
-- 별도 Supabase Staging 실제 복원: `PENDING`
+- 별도 Supabase Staging 실제 복원: `PASS` — [Staging 복원 훈련 보고서](2026-09-07-staging-restore-rehearsal.md)
 - Production 변경: 없음
 
-Staging 복원이 끝나기 전까지 #47은 완료가 아니며 Production v1.1 배포 판정은 `NO-GO`입니다.
+Staging 복원 자체는 완료됐지만 Staging 앱 연결과 왕복 호환 검증 전까지 Production v1.1 배포 판정은 `NO-GO`입니다.
 
 ## 코드 복귀 지점
 

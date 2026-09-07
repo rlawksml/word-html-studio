@@ -115,6 +115,18 @@ node --env-file=.env.staging.local scripts/supabase-restore-staging.mjs \
 
 도구는 기존 Staging 데이터를 덮어쓰지 않고 빈 대상에만 `insert`와 `upsert: false` 업로드를 사용합니다. 실행 후에는 모든 테이블을 다시 읽어 JSON 해시를 비교하고 모든 사진을 다시 내려받아 크기와 SHA-256을 확인합니다. `RESTORE_PASS`가 나오지 않으면 Production 배포는 `NO-GO`입니다.
 
+네트워크 오류로 복원이 중간에 멈췄다면 Staging 데이터를 바로 삭제하지 않습니다. 먼저 `--resume` dry-run으로 기존 행과 사진이 백업의 정확한 일부인지 확인합니다. 알 수 없는 객체, 일부만 들어간 테이블, 해시가 다른 행·사진이 하나라도 있으면 재개를 거부합니다.
+
+```bash
+APP_ENV=staging \
+EXPECTED_STAGING_PROJECT_REF=<staging-project-ref> \
+CONFIRM_STAGING_PROJECT_REF=<staging-project-ref> \
+node --env-file=.env.staging.local scripts/supabase-restore-staging.mjs \
+  /절대/백업/경로 --resume
+```
+
+`RESUME_DRY_RUN_PASS`에서 기존·누락 사진 수가 맞으면 마지막에 `--execute --resume`을 붙입니다. 이미 존재하는 사진은 네트워크 오류에 최대 6회 재시도하며 다시 내려받아 SHA-256이 일치할 때만 건너뛰고, 누락 사진은 최대 3회 재시도해 올립니다. 응답이 유실됐지만 업로드가 완료된 경우에도 원격 파일 해시를 확인해 중복 업로드 없이 이어갑니다.
+
 복원 중간에 실패한 Staging은 운영과 무관합니다. 일부 데이터를 임의로 고쳐 재사용하지 말고 원인을 기록한 뒤 새 Staging 프로젝트 또는 명시적으로 초기화한 테스트 환경에서 처음부터 다시 훈련합니다.
 
 ## 6. 복구 훈련 완료 기준

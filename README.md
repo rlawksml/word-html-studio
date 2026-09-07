@@ -140,6 +140,7 @@ SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metad
 - [Supabase 연결 가이드](docs/SUPABASE_SETUP.md)
 - [Supabase 무손실 백업·복구 Runbook](docs/BACKUP_RESTORE.md)
 - [v1.1 이전 백업 기준선 보고서](docs/test-reports/2026-09-07-backup-baseline.md)
+- [Supabase Staging 복원 훈련 보고서](docs/test-reports/2026-09-07-staging-restore-rehearsal.md)
 - [제품 요구사항](docs/PRODUCT.md)
 - [입력 항목 분류](docs/FIELD_REQUIREMENTS.md)
 - [실제 Word 4개 비교 분석](docs/MULTI_DOC_ANALYSIS.md)
