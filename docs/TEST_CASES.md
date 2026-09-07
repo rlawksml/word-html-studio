@@ -94,6 +94,18 @@
   - 오설정은 Supabase 요청 전에 실패하며 운영 데이터에 요청을 보내지 않는다.
   - 새 변수가 없는 기존 Production은 v1.0 호환 동작을 유지한다.
 
+### TC-DR-006 · Git 브랜치와 Sites 프로젝트 교차 연결 차단
+
+- 우선순위/구분: P0 / 자동·CI
+- 절차:
+  1. `develop` 대상 PR에서 Staging Sites project ID를 검사한다.
+  2. `main` 대상 PR과 `main` push에서 Production Sites project ID를 검사한다.
+  3. 두 project ID를 서로 바꾼 조합과 알 수 없는 대상을 검사한다.
+- 기대 결과:
+  - 브랜치와 Sites 프로젝트가 올바른 조합일 때만 CI가 진행된다.
+  - `develop`의 Staging 설정이 release PR을 통해 `main`에 그대로 들어가면 배포 전에 실패한다.
+  - GitHub의 실제 Supabase 통합 테스트는 `staging` Environment Secret만 사용한다.
+
 ## 1. 초기 로딩과 접속
 
 ### TC-LOAD-001 · 정상 초기 로딩

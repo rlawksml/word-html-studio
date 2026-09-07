@@ -36,6 +36,8 @@ Staging 런타임은 다음 세 값을 함께 검사한 뒤에만 Supabase clien
 
 Production 반영은 별도 승인과 릴리스 PR이 있을 때만 진행합니다. 앱 롤백은 이전 Sites version이나 Git tag로 수행하며, Supabase 데이터를 앱 버전과 함께 되돌리거나 초기화하지 않습니다.
 
+`develop`에는 Staging Sites project ID, `main`에는 Production Sites project ID를 둡니다. `develop`을 `main`으로 반영하는 release PR은 `.openai/hosting.json`을 Production 값으로 되돌린 뒤 `validate:deployment-target`을 통과해야 합니다. GitHub의 실제 Supabase 통합 테스트도 `staging` Environment를 명시하며, 필수 Secret이 없으면 성공으로 건너뛰지 않고 실패합니다.
+
 ## 데이터 보호 원칙
 
 - 기존 복원 데이터는 Staging에서도 수정하지 않습니다.
