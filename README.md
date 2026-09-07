@@ -9,7 +9,7 @@
 - 방문자: 지관서가 동네책방 페이지 바로가기, 책방·소식 수 요약, 책방별 색상 일정과 툴팁을 갖춘 모바일 달력, 제목 중심 카드, 중앙 정렬 사진 상세 화면과 후면 스크롤 잠금, 디바운스 검색
 - 정보 입력자: 항상 보이는 3단계 안내, 월별 진행률, 한 책방씩 작성, 중앙 정렬 사진이 적용된 작성 중 HTML 미리보기와 후면 스크롤 잠금, 이번 달 운영 안내, 일정 문구·신청 방법·자유 항목·여러 링크, 여러 소식·날짜·사진과 손잡이 전용 소식·사진 드래그 정렬
 - 초기 연결: 위트 있는 전체 데이터 로딩 화면, 최대 3회 자동 확인, 8초 지연 안내와 수동 재시도, 빈 DB에서 첫 책방 등록 시작
-- 저장: 책방 관리 저장 성공 응답 확인, 책방·월별 소식 단위 자동 저장, 일시 오류 재시도, 이전 저장 요청 직렬화, 다른 브라우저 변경 충돌 안내, 수동 임시 저장, 지난달 내용 복사, 작성 중 이탈 시 계속 작성·임시 저장 후 이동·마지막 자동 저장 이후 변경 버리기 선택, 탭 안 임시 복구본
+- 저장: 책방 관리 저장 성공 응답 확인, 책방·월별 소식 단위 자동 저장, 일시 오류 재시도, 이전 저장 요청 직렬화, 다른 브라우저 변경 충돌 안내, 수동 임시 저장, 지난달 내용 복사, 작성 중 이탈 시 계속 작성·임시 저장 후 이동·마지막 자동 저장 이후 변경 버리기 선택, 탭 안 임시 복구본, 한글 IME 직후 완료 시 최신 입력·서버 응답 일치 확인
 - 완료: 누락된 필수 항목으로 자동 이동, 책방별 입력 완료, 수정 시 자동으로 작성 중 전환, 책방별 소식 제목이 담긴 월 전체 완료 내용 복사
 - HTML 편집자: 입력 완료 자료만 열람, 개별 HTML 복사·미리보기, 사진 ZIP과 HTML·복사용 TXT·사진 ZIP
 - 통합본: 포함 소식 선택, 책방 순서 드래그 변경, 책방·지역·소식 제목 중심 통합 HTML 복사·미리보기
@@ -41,7 +41,7 @@ HTML 편집자의 통합 작업 ZIP에는 브라우저 미리보기용 `.html`, 
 
 한글·공백·특수문자가 포함된 원본 파일명은 화면과 ZIP 다운로드 이름으로 그대로 보존하되, Supabase Storage의 실제 객체 경로에는 UUID와 MIME 타입에서 결정한 영문 확장자만 사용합니다. 운영체제마다 다른 파일명 인코딩 때문에 `InvalidKey`가 발생하지 않도록 저장 경로와 표시 이름을 분리했습니다.
 
-자동 저장은 Workspace 전체를 교체하지 않습니다. `/api/bookstores`와 `/api/submissions`가 레코드 하나씩 저장하며, 서버가 반환한 `updated_at`과 현재 값을 비교합니다. 책방 관리의 저장 버튼은 서버 성공 응답이 온 뒤에만 입력 폼을 비우고 성공을 알립니다. 입력 화면의 뒤로가기와 입력 마무리는 마지막 화면 값을 직접 서버에 저장하고 성공 응답을 받은 뒤에만 목록으로 이동합니다. 키 입력 직후 새로고침처럼 서버 요청을 기다릴 수 없는 상황은 현재 탭의 `sessionStorage` 복구본으로 한 번 더 보호하며, 이 복구본은 Supabase를 대체하지 않고 탭을 닫으면 사라집니다. 일시적인 5xx·429·네트워크 끊김은 짧게 재시도하며, 응답만 유실돼 서버에 같은 내용이 이미 저장된 경우에는 최신 `updated_at`을 이어받아 성공으로 복구합니다. 다른 브라우저가 실제로 다른 내용을 먼저 저장했다면 해당 레코드만 `409 Conflict`로 멈추고 나머지 책방·소식은 계속 저장하므로 조용한 덮어쓰기와 전체 자동 저장 중단을 모두 피합니다.
+자동 저장은 Workspace 전체를 교체하지 않습니다. `/api/bookstores`와 `/api/submissions`가 레코드 하나씩 저장하며, 서버가 반환한 `updated_at`과 현재 값을 비교합니다. 책방 관리의 저장 버튼은 서버 성공 응답이 온 뒤에만 입력 폼을 비우고 성공을 알립니다. 입력 화면의 뒤로가기와 입력 마무리는 마지막 화면 값을 직접 서버에 저장하고 성공 응답을 받은 뒤에만 목록으로 이동합니다. 특히 입력 마무리는 React의 이전 렌더 값이 아니라 동기 ref의 최신 스냅샷을 사용하고, 한글 IME 조합을 확정한 뒤 요청 본문과 서버 응답의 제목·상세·선택 입력이 같은지 확인합니다. 다르면 완료로 이동하지 않고 작성 중 화면과 탭 복구본을 유지합니다. 키 입력 직후 새로고침처럼 서버 요청을 기다릴 수 없는 상황은 현재 탭의 `sessionStorage` 복구본으로 한 번 더 보호하며, 이 복구본은 Supabase를 대체하지 않고 탭을 닫으면 사라집니다. 일시적인 5xx·429·네트워크 끊김은 짧게 재시도하며, 응답만 유실돼 서버에 같은 내용이 이미 저장된 경우에는 최신 `updated_at`을 이어받아 성공으로 복구합니다. 다른 브라우저가 실제로 다른 내용을 먼저 저장했다면 해당 레코드만 `409 Conflict`로 멈추고 나머지 책방·소식은 계속 저장하므로 조용한 덮어쓰기와 전체 자동 저장 중단을 모두 피합니다.
 
 입력자가 책방을 클릭하면 편집 화면을 열기 전에 같은 책방·같은 월의 짧은 편집 임대를 확인합니다. 다른 탭이나 기기가 이미 사용 중이면 안내 팝업만 표시하고 목록에 머물며, 빈 소식도 만들지 않습니다. 1분마다 임대를 갱신하고 3분 동안 활동이 없으면 자동으로 다음 작업자가 인계하므로 WebSocket, 별도 계정, 정기 청소 작업이 필요하지 않습니다. HTML 편집자의 개별 소식과 월 통합본도 같은 임대로 작업 상태를 표시하며, 실제 저장에는 `updated_at` 충돌 검사도 함께 적용합니다.
 
@@ -64,7 +64,8 @@ Next.js나 이 프로젝트가 익숙하지 않다면 다음 순서로 읽는 �
 7. [workspace-types.ts](apps/web/lib/workspace-types.ts): 책방·월별 소식·사진의 표준 데이터 구조
 8. [workspace-client.ts](apps/web/lib/workspace-client.ts): 브라우저에서 Next.js API를 호출하는 함수
 9. [submission-draft.ts](apps/web/lib/submission-draft.ts): 같은 탭의 저장 전 입력을 보호하는 임시 복구본
-10. `app/api`: 서버에서 세션을 검증하고 Supabase Database·Storage를 호출하는 Route Handler
+10. [submission-completion.ts](apps/web/lib/submission-completion.ts): 최신 완료 스냅샷 생성과 서버 응답 본문 일치 검증
+11. `app/api`: 서버에서 세션을 검증하고 Supabase Database·Storage를 호출하는 Route Handler
 
 전체 데이터 흐름은 다음과 같습니다.
 
@@ -88,7 +89,7 @@ page.tsx
 | 소식 입력 폼과 사진 순서·작성 내용 미리보기 | `components/molecules/NewsEditorCard.tsx`, `components/molecules/SubmissionPreviewDialog.tsx` |
 | 개별·통합 HTML 화면 | `components/organisms/HtmlWorkspace.tsx` |
 | inline CSS HTML 결과 | `lib/html-generators.ts` |
-| 자동 저장·뒤로가기 복구·충돌 처리 | `hooks/use-workspace-persistence.ts`, `lib/submission-draft.ts`, `app/api/bookstores`, `app/api/submissions` |
+| 자동 저장·뒤로가기·입력 완료·충돌 처리 | `hooks/use-workspace-persistence.ts`, `lib/submission-draft.ts`, `lib/submission-completion.ts`, `app/api/bookstores`, `app/api/submissions` |
 | 입력 완료·사진 연결·ZIP | `hooks/use-studio-controller.ts` |
 | 최초 세션·데이터 로딩과 재시도 | `hooks/use-workspace-initialization.ts`, `components/molecules/StorageLoadingOverlay.tsx` |
 | 공용 데이터 읽기 | `app/api/workspace/route.ts` |
@@ -146,6 +147,8 @@ SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metad
 - [Supabase Staging 복원 훈련 보고서](docs/test-reports/2026-09-07-staging-restore-rehearsal.md)
 - [Sites Staging 배포 전 테스트 보고서](docs/test-reports/2026-09-07-staging-site-pre-deploy.md)
 - [Sites Staging 버전 2 배포 후 테스트 보고서](docs/test-reports/2026-09-07-staging-v2-post-deploy.md)
+- [이슈 #44 마지막 한글 보존 배포 전 테스트 보고서](docs/test-reports/2026-09-07-b4153ed-issue-44-pre-deploy.md)
+- [이슈 #44 마지막 한글 보존 Staging 배포 후 테스트 보고서](docs/test-reports/2026-09-07-b730355-issue-44-staging-post-deploy.md)
 - [제품 요구사항](docs/PRODUCT.md)
 - [입력 항목 분류](docs/FIELD_REQUIREMENTS.md)
 - [실제 Word 4개 비교 분석](docs/MULTI_DOC_ANALYSIS.md)

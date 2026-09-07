@@ -107,6 +107,31 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
     const firstSubmission = (await createSubmission.json()).submission;
     const updateSubmission = await appFetch("/api/submissions", { method: "PUT", headers: workerHeaders, body: JSON.stringify({ submission: { ...firstSubmission, monthlyNotice: "수정됨" } }) });
     await assertStatus(updateSubmission, 200);
+    const updatedSubmission = (await updateSubmission.json()).submission;
+    const completionRequest = {
+      ...updatedSubmission,
+      status: "completed",
+      completedAt: new Date().toISOString(),
+      news: [{
+        ...updatedSubmission.news[0],
+        title: "신규모집",
+        description: "상세 내용의 마지막 한글도 보존합니다.",
+        applicationInfo: "문의 후 신청",
+        extraFields: [{ id: newsId + 1, label: "대상", value: "누구나" }],
+      }],
+    };
+    const completeSubmission = await appFetch("/api/submissions", {
+      method: "PUT",
+      headers: workerHeaders,
+      body: JSON.stringify({ submission: completionRequest }),
+    });
+    await assertStatus(completeSubmission, 200);
+    const completedSubmission = (await completeSubmission.json()).submission;
+    assert.equal(completedSubmission.status, "completed");
+    assert.equal(completedSubmission.news[0].title, "신규모집");
+    assert.equal(completedSubmission.news[0].description, "상세 내용의 마지막 한글도 보존합니다.");
+    assert.equal(completedSubmission.news[0].applicationInfo, "문의 후 신청");
+    assert.deepEqual(completedSubmission.news[0].extraFields, completionRequest.news[0].extraFields);
     const staleSubmission = await appFetch("/api/submissions", { method: "PUT", headers: workerHeaders, body: JSON.stringify({ submission: { ...firstSubmission, monthlyNotice: "뒤늦은 저장" } }) });
     assert.equal(staleSubmission.status, 409);
 

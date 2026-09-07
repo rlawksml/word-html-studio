@@ -32,7 +32,8 @@ import {
   urlToBlob,
 } from "@/lib/workspace-client";
 import { forgetSubmissionDraft, recoverSubmissionDraft, rememberSubmissionDraft } from "@/lib/submission-draft";
-import type { Bookstore, EditingPresenceTarget, NewsImage, NewsItem, Submission, Workspace, WorkStatus } from "@/lib/workspace-types";
+import { assertSubmissionContentMatches, buildCompletedSubmission } from "@/lib/submission-completion";
+import type { Bookstore, EditingPresenceTarget, NewsImage, NewsItem, Submission, Workspace } from "@/lib/workspace-types";
 
 /**
  * 세 역할이 공유하는 상태와 업무 명령을 한곳에서 조정하는 application controller입니다.
@@ -73,6 +74,7 @@ export function useStudioController(initialMonth: string) {
   const openingBookstoreRef = useRef<number | null>(null);
   const pendingImageDeletesRef = useRef(new Map<number, NewsImage[]>());
   const imageUploadInProgressRef = useRef(false);
+  const textCompositionActiveRef = useRef(false);
   // 저장 버튼이나 뒤로가기가 같은 프레임에서 실행되어도 가장 최근 입력값을 즉시 읽을 수 있는 setter입니다.
   const setSubmissions = useCallback<Dispatch<SetStateAction<Submission[]>>>((action) => {
     const next = typeof action === "function" ? action(submissionsRef.current) : action;
@@ -84,6 +86,14 @@ export function useStudioController(initialMonth: string) {
   const notify = useCallback((message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(""), 2400);
+  }, []);
+
+  // 한글 IME 조합 중에는 완료 저장을 시작하지 않습니다. blur 뒤 compositionend가 오면 최신 onChange가 ref에 반영됩니다.
+  const beginTextComposition = useCallback(() => {
+    textCompositionActiveRef.current = true;
+  }, []);
+  const endTextComposition = useCallback(() => {
+    textCompositionActiveRef.current = false;
   }, []);
 
   const applyInitialWorkspace = useCallback((workspace: Workspace, restoredRole: Role) => {
@@ -552,14 +562,20 @@ export function useStudioController(initialMonth: string) {
 
   // 필수값을 확인한 뒤 completed로 바꿉니다. 이후 수정은 updateCurrent가 다시 draft로 전환합니다.
   const completeSubmission = async () => {
-    if (!currentSubmission) return;
+    if (!selectedBookstoreId) return;
     if (imageUploadInProgressRef.current) {
       notify("사진 저장이 끝난 뒤 입력을 마무리해 주세요.");
       return;
     }
-    const incompleteNewsIndex = currentSubmission.news.findIndex((news) => !news.title.trim() || !news.description.trim());
+    if (textCompositionActiveRef.current) {
+      notify("한글 입력을 확정한 뒤 입력 마무리를 다시 눌러 주세요.");
+      return;
+    }
+    // 렌더 클로저의 currentSubmission 대신 같은 프레임의 마지막 onChange까지 담은 ref를 사용합니다.
+    const completed = buildCompletedSubmission(submissionsRef.current, selectedBookstoreId, month, nowIso());
+    const incompleteNewsIndex = completed.news.findIndex((news) => !news.title.trim() || !news.description.trim());
     if (incompleteNewsIndex >= 0) {
-      const incompleteNews = currentSubmission.news[incompleteNewsIndex];
+      const incompleteNews = completed.news[incompleteNewsIndex];
       const missingField = !incompleteNews.title.trim() ? "title" : "description";
       const missingLabel = missingField === "title" ? "소식 제목" : "상세 내용";
       const newsCard = document.querySelectorAll<HTMLElement>(".news-editor-card")[incompleteNewsIndex];
@@ -571,11 +587,11 @@ export function useStudioController(initialMonth: string) {
       notify(`소식 ${incompleteNewsIndex + 1}의 ${missingLabel}을 입력해 주세요.`);
       return;
     }
-    const completed = { ...currentSubmission, status: "completed" as WorkStatus, completedAt: nowIso() };
     setSubmissions((current) => current.map((item) => item.id === completed.id ? completed : item));
     setSaveState("입력 완료 내용을 저장 중...");
     try {
-      await saveSubmissionSnapshot(completed);
+      const saved = await saveSubmissionSnapshot(completed);
+      assertSubmissionContentMatches(completed, saved);
       forgetSubmissionDraft(completed);
       setStorageError("");
       setInputView("list");
@@ -583,7 +599,13 @@ export function useStudioController(initialMonth: string) {
       notify("책방 소식 입력을 저장하고 완료했습니다.");
     } catch (error) {
       // 서버가 확인하지 못한 완료 상태를 목록에 성공처럼 표시하지 않고 편집 화면에 그대로 남깁니다.
-      setSubmissions((current) => current.map((item) => item.id === completed.id ? { ...completed, status: "draft", completedAt: "" } : item));
+      let recoveryDraft: Submission | null = null;
+      setSubmissions((current) => current.map((item) => {
+        if (item.id !== completed.id) return item;
+        recoveryDraft = { ...item, status: "draft", completedAt: "" };
+        return recoveryDraft;
+      }));
+      if (recoveryDraft) rememberSubmissionDraft(recoveryDraft);
       const message = error instanceof Error ? error.message : "입력 완료 내용을 저장하지 못했습니다.";
       setStorageError(message);
       setSaveState("입력 완료 저장 실패");
@@ -695,6 +717,7 @@ export function useStudioController(initialMonth: string) {
     saveBookstore,
     addImages, reorderNews, moveNews, reorderImages, moveImage, copyPrevious, manualSave,
     completeSubmission, completionShareMessage, copyText, downloadPhotoZip, reorderDigest,
+    beginTextComposition, endTextComposition,
     updatePublished, bookstoreColor, calendarItems, retryInitialLoad, reloadWorkspace, notify,
   };
 }
