@@ -148,6 +148,7 @@ SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metad
 - [Sites Staging 배포 전 테스트 보고서](docs/test-reports/2026-09-07-staging-site-pre-deploy.md)
 - [Sites Staging 버전 2 배포 후 테스트 보고서](docs/test-reports/2026-09-07-staging-v2-post-deploy.md)
 - [이슈 #44 마지막 한글 보존 배포 전 테스트 보고서](docs/test-reports/2026-09-07-b4153ed-issue-44-pre-deploy.md)
+- [이슈 #44 마지막 한글 보존 Staging 배포 후 테스트 보고서](docs/test-reports/2026-09-07-b730355-issue-44-staging-post-deploy.md)
 - [제품 요구사항](docs/PRODUCT.md)
 - [입력 항목 분류](docs/FIELD_REQUIREMENTS.md)
 - [실제 Word 4개 비교 분석](docs/MULTI_DOC_ANALYSIS.md)
