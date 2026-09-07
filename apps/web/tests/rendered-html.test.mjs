@@ -13,6 +13,7 @@ const applicationSourceFiles = [
   "../lib/improvement-types.ts",
   "../lib/improvements-client.ts",
   "../lib/workspace-client.ts",
+  "../lib/submission-completion.ts",
   "../lib/workspace-formatters.ts",
   "../components/atoms/BrandIdentity.tsx",
   "../components/atoms/BrandButton.tsx",
@@ -458,23 +459,32 @@ test("keeps the route and global stylesheet as thin Atomic Design composition po
 });
 
 test("saves the exact latest draft before leaving and limits sorting to drag handles", async () => {
-  const [controller, persistence, editor, editorCard, draftRecovery, inputStyles] = await Promise.all([
+  const [controller, persistence, editor, editorCard, draftRecovery, completion, inputStyles] = await Promise.all([
     readFile(new URL("../hooks/use-studio-controller.ts", import.meta.url), "utf8"),
     readFile(new URL("../hooks/use-workspace-persistence.ts", import.meta.url), "utf8"),
     readFile(new URL("../components/organisms/NewsEditorWorkspace.tsx", import.meta.url), "utf8"),
     readFile(new URL("../components/molecules/NewsEditorCard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/submission-draft.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/submission-completion.ts", import.meta.url), "utf8"),
     readFile(new URL("../styles/input.css", import.meta.url), "utf8"),
   ]);
 
   assert.match(controller, /submissionsRef\.current = next/);
   assert.match(controller, /await saveSubmissionSnapshot\(snapshot\)/);
-  assert.match(controller, /await saveSubmissionSnapshot\(completed\)/);
+  assert.match(controller, /buildCompletedSubmission\(submissionsRef\.current/);
+  assert.match(controller, /const saved = await saveSubmissionSnapshot\(completed\)/);
+  assert.match(controller, /assertSubmissionContentMatches\(completed, saved\)/);
+  assert.match(controller, /textCompositionActiveRef\.current/);
   assert.match(controller, /rememberSubmissionDraft\(currentSubmission\)/);
   assert.match(controller, /recoverSubmissionDraft\(base\)/);
   assert.match(editor, /onClick=\{requestEditorLeave\}/);
   assert.match(persistence, /const saveSubmissionSnapshot/);
   assert.match(draftRecovery, /sessionStorage/);
+  assert.match(completion, /SubmissionContentMismatchError/);
+  assert.match(editor, /onCompositionStartCapture=\{beginTextComposition\}/);
+  assert.match(editor, /onCompositionEndCapture=\{endTextComposition\}/);
+  assert.match(editor, /onPointerDown/);
+  assert.match(editor, /active\.blur\(\)/);
 
   assert.doesNotMatch(editorCard, /<article className="news-editor-card" draggable/);
   assert.match(editorCard, /className="drag-handle"\s+draggable/);
