@@ -29,7 +29,11 @@ function normalizeText<T>(value: T): T {
   if (Array.isArray(value)) return value.map((item) => normalizeText(item)) as T;
   if (value && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, normalizeText(item)]),
+      // PostgreSQL JSONB는 객체 키 순서를 보존하지 않습니다. 배열 순서는 그대로 두고
+      // 객체 키만 정렬해야 같은 저장 내용을 키 순서 차이로 실패 처리하지 않습니다.
+      Object.entries(value)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, item]) => [key, normalizeText(item)]),
     ) as T;
   }
   return value;
@@ -38,8 +42,10 @@ function normalizeText<T>(value: T): T {
 function comparableSubmission(submission: Submission) {
   return normalizeText({
     ...submission,
-    // 저장 시각과 표시용 서명 URL은 서버가 새로 만들기 때문에 본문 검증에서 제외합니다.
+    // 저장·완료·게시 시각과 표시용 서명 URL은 서버가 만들거나 ISO 표기를 바꿀 수 있어 본문 검증에서 제외합니다.
     updatedAt: "",
+    completedAt: "",
+    publishedAt: "",
     news: submission.news.map((news) => ({
       ...news,
       images: news.images.map((image) => ({

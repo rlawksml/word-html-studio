@@ -72,6 +72,8 @@ test("rejects a save response that lost the final Korean characters", () => {
 
 test("verifies title, detail, and optional fields while ignoring server-only image URLs", () => {
   const requested = submission({
+    status: "completed",
+    completedAt: "2026-09-07T01:00:00.000Z",
     news: [{
       ...submission().news[0],
       images: [{
@@ -88,6 +90,7 @@ test("verifies title, detail, and optional fields while ignoring server-only ima
   const saved = {
     ...requested,
     updatedAt: "2026-09-07T01:00:01.000Z",
+    completedAt: "2026-09-07T01:00:00+00:00",
     news: [{
       ...requested.news[0],
       images: [{
@@ -111,5 +114,45 @@ test("verifies title, detail, and optional fields while ignoring server-only ima
 test("treats canonically equivalent Korean text as the same saved content", () => {
   const requested = submission({ monthlyNotice: "소식".normalize("NFD") });
   const saved = { ...requested, updatedAt: "2026-09-07T01:00:01.000Z", monthlyNotice: "소식".normalize("NFC") };
+  assert.doesNotThrow(() => assertSubmissionContentMatches(requested, saved));
+});
+
+test("ignores JSONB object key ordering while preserving saved content", () => {
+  const requested = submission({ status: "completed" });
+  const news = requested.news[0];
+  const saved = {
+    publishedUrl: requested.publishedUrl,
+    news: [{
+      includeInDigest: news.includeInDigest,
+      images: news.images,
+      links: news.links,
+      extraFields: news.extraFields.map((field) => ({
+        value: field.value,
+        label: field.label,
+        id: field.id,
+      })),
+      applyUrl: news.applyUrl,
+      applicationInfo: news.applicationInfo,
+      fee: news.fee,
+      place: news.place,
+      deadline: news.deadline,
+      displayLabel: news.displayLabel,
+      regular: news.regular,
+      scheduleText: news.scheduleText,
+      dates: news.dates,
+      description: news.description,
+      title: news.title,
+      id: news.id,
+    }],
+    monthlyNotice: requested.monthlyNotice,
+    publishedAt: requested.publishedAt,
+    completedAt: requested.completedAt,
+    updatedAt: "2026-09-07T01:00:01.000Z",
+    status: requested.status,
+    month: requested.month,
+    bookstoreId: requested.bookstoreId,
+    id: requested.id,
+  };
+
   assert.doesNotThrow(() => assertSubmissionContentMatches(requested, saved));
 });
