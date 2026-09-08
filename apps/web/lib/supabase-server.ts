@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { canonicalizeAccessCode } from "./access-code-normalization.mjs";
 import { assertSupabaseRuntimeTarget } from "./supabase-environment.mjs";
 
 // 이 파일은 API Route에서만 사용합니다. SECRET_KEY를 쓰는 admin client를 Client Component에 import하면 안 됩니다.
@@ -63,15 +64,16 @@ export async function retryFutureJwt<T extends SupabaseResult>(
 
 export type WorkerRole = "input" | "html";
 
-// 쉼표로 구분한 환경변수 암호를 NFC로 정규화해 한글·영문 자판 입력을 같은 규칙으로 비교합니다.
+// 쉼표로 구분한 환경변수 암호를 실제 두벌식 키 조합으로 정규화합니다.
 function accessCodes(role: WorkerRole): readonly string[] {
   const configured = process.env[role === "input" ? "INPUT_ACCESS_CODES" : "HTML_ACCESS_CODES"];
-  return configured ? configured.split(",").map((value) => value.normalize("NFC").trim()).filter(Boolean) : [];
+  return configured ? configured.split(",").map(canonicalizeAccessCode).filter(Boolean) : [];
 }
 
 export function hasWorkspaceWriteAccess(role: unknown, code: unknown) {
   if ((role !== "input" && role !== "html") || typeof code !== "string") return false;
-  return accessCodes(role).includes(code.normalize("NFC").trim());
+  const submitted = canonicalizeAccessCode(code);
+  return Boolean(submitted && accessCodes(role).includes(submitted));
 }
 
 export function isWorkerRole(value: unknown): value is WorkerRole {

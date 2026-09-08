@@ -21,7 +21,7 @@
 
 방문자 헤더의 `소식 입력` 또는 `HTML 편집` 버튼을 먼저 선택한 뒤 서버 환경변수에 등록한 역할별 암호를 입력합니다. 실제 작업 암호는 공개 저장소와 브라우저 코드에 포함하지 않습니다. 방문자는 암호 없이 바로 이용합니다.
 
-한글·영문 자판 중 어느 상태로 입력해도 같은 역할로 접속됩니다. 암호는 서버에서만 확인합니다. 작업 상태는 HttpOnly 서명 쿠키와 현재 탭의 임의 세션 ID를 함께 사용하므로 새로고침에는 유지되고, 탭을 닫거나 로그아웃하면 작업 API 접근이 끝납니다.
+한글·영문 자판 중 어느 상태로 입력해도 같은 역할로 접속됩니다. 서버가 한글 두벌식 결과를 실제 영문 키 조합으로 정규화한 뒤 환경변수와 비교하며, 암호 원문은 브라우저 번들이나 로그에 넣지 않습니다. 작업 상태는 HttpOnly 서명 쿠키와 현재 탭의 임의 세션 ID를 함께 사용하므로 새로고침에는 유지되고, 탭을 닫거나 로그아웃하면 작업 API 접근이 끝납니다.
 
 ## 데이터에 관한 중요 안내
 
@@ -100,7 +100,7 @@ page.tsx
 | 공용 데이터 읽기 | `app/api/workspace/route.ts` |
 | 책방·월별 소식 저장 | `app/api/bookstores/route.ts`, `app/api/submissions/route.ts` |
 | 사진 업로드·삭제·원본 다운로드 | `app/api/images/route.ts` |
-| 작업 암호와 탭 세션 | `app/api/session/route.ts`, `lib/workspace-session.ts` |
+| 작업 암호와 탭 세션 | `app/api/session/route.ts`, `lib/access-code-normalization.mjs`, `lib/workspace-session.ts` |
 | 동시 편집 안내 | `hooks/use-editing-presence.ts`, `app/api/presence/route.ts`, `styles/presence.css` |
 | 버그·개선 접수·상태·내보내기 | `components/organisms/ImprovementsWorkspace.tsx`, `app/api/improvements/route.ts`, `lib/improvement-export.ts` |
 | 웹 도움말과 PDF 연결 | `components/organisms/HelpWorkspace.tsx`, `app/help/page.tsx`, `public/guides/` |
