@@ -151,6 +151,17 @@
   - API는 제품 `1.1.0-rc.1`, DB `202609070002`를 식별한다.
   - 기존 Staging 행 수·사진 manifest는 테스트 전후가 같다.
 
+### TC-DR-010 · GitHub Actions 지원 런타임 유지
+
+- 우선순위/구분: P1 / 자동·CI
+- 절차:
+  1. `verify`와 `supabase-integration` job의 checkout·Node 설치 action 버전을 검사한다.
+  2. PR 검증과 수동 Staging 통합 workflow를 각각 실행한다.
+- 기대 결과:
+  - 두 job 모두 GitHub가 지원하는 Node 24 기반 action major를 사용한다.
+  - 기존 Node 22 애플리케이션 실행, npm cache, 전체 Git 이력, Staging Environment 설정은 유지된다.
+  - Node.js 20 지원 종료 경고 없이 두 job이 통과한다.
+
 ## 1. 초기 로딩과 접속
 
 ### TC-LOAD-001 · 정상 초기 로딩

@@ -106,6 +106,7 @@
 - [x] 작업 암호 반복 실패 제한
 - [x] KST 기준 발행 월과 운영 빌드 hydration 회귀 확인
 - [x] GitHub Actions lint·build·회귀 테스트와 수동 Supabase 통합 테스트
+- [x] GitHub Actions checkout·Node 설치 단계를 지원 중인 Node 24 런타임 세대로 갱신
 - [x] 핵심 사용자 흐름·저장·사진·권한·동시 편집 TC 시나리오 문서화
 - [x] Lighthouse 기준 점검과 작업자 화면·ZIP 라이브러리 지연 로드
 - [x] canonical·Open Graph·Twitter Card·JSON-LD·robots·sitemap·manifest 구성
