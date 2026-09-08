@@ -679,7 +679,7 @@
 
 | 실행일 | 기준 커밋 | 자동 회귀 | Supabase 통합 | 빌드·린트 | 수동 운영 | 결과 |
 |---|---|---|---|---|---|---|
-| 2026-09-08 | `4c3729b` 이슈 #56 · Sites Staging v9 | 69/69 통과, GitHub verify·GitGuardian 통과 | 업무 데이터 쓰기 없음 | migration 검사·빌드·린트 통과 | 세션 API 영문·한글 로그인·복원·로그아웃 통과, 브라우저 실제 제출 확인 대기 | **조건부 PASS (Staging)** |
+| 2026-09-08 | `4c3729b` 이슈 #56 · Sites Staging v9 | 69/69 통과, GitHub verify·GitGuardian 통과 | 업무 데이터 쓰기 없음 | migration 검사·빌드·린트 통과 | 영문·한글 로그인, 새로고침 세션 유지, 로그아웃, 공개 데이터 5/19 유지 | **PASS (Staging)** |
 | 2026-09-08 | `1ec24fb` 이슈 #56 | 69/69 통과, 자판 집중 4/4 | DB 변경 없음·배포 후 세션 검증 예정 | migration 검사·빌드·린트 통과 | Staging secret 재설정과 영문·한글 로그인 예정 | **GO (Staging)** |
 | 2026-09-08 | `aa95e01` PR #55 · Sites Staging v8 | 앞선 65/65 통과 | 앞선 Staging 3/3·정리 | 앞선 migration 검사·빌드·린트 통과 | TC-AUTH-001 영문·한글 모두 401, #42·#43 작업자 시나리오 차단 | **NO-GO** |
 | 2026-09-07 | `b6476c3` Sites Staging v7 · 이슈 #46 | 누적 57/57 통과 | 앞선 Staging 3/3·정리 | migration 검사·빌드·린트 통과 | 주요 경로 200·버전 호환·배포 전후 DB/사진 해시 동일 | **PASS (develop 병합 가능)** |
