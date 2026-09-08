@@ -312,7 +312,7 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
       ...storageVerification,
       {
         label: "기간 일정 잔여 확인",
-        run: () => assertRowsAbsent(admin.from("news_schedule_ranges").select("id").eq("submission_id", submissionId).eq("news_item_id", newsId), "기간 일정"),
+        run: () => assertRowsAbsent(admin.from("news_schedule_ranges").select("submission_id,news_item_id").eq("submission_id", submissionId).eq("news_item_id", newsId), "기간 일정"),
       },
       {
         label: "소식 제출 잔여 확인",
