@@ -45,6 +45,8 @@ Atomic Design은 파일 수를 늘리는 목표가 아닙니다. 독립적으로
 
 `lib/submission-draft.ts`는 자동 저장 요청이 시작되기 전 새로고침·탭 내 이동에 대비한 보조 복구 계층입니다. Supabase가 원본 데이터이고 `sessionStorage`는 같은 탭의 최신 입력만 잠시 보관합니다. 서버의 `updated_at`이 복구본과 달라지면 다른 작업자의 최신 내용을 우선하고 오래된 복구본을 폐기합니다. 브라우저 저장 한도나 사생활 보호 설정으로 복구본을 쓰지 못해도 Supabase 저장 흐름은 중단하지 않습니다.
 
+`components/molecules/NewsDateField.tsx`는 브라우저 기본 날짜 선택기의 임시 값과 Submission의 실제 `dates[]`를 분리합니다. 월 탐색이나 날짜 선택은 컴포넌트 내부 상태만 바꾸며, 사용자가 `날짜 추가`를 눌러야 `lib/news-date-selection.ts`의 순수 함수를 거쳐 저장 대상에 반영됩니다. 기존 `dates[]` 형식은 유지하므로 DB 마이그레이션이나 기존 소식 변환이 필요하지 않습니다.
+
 `lib/workspace-client.ts`는 순간적인 5xx·429와 네트워크 단절을 최대 3회 짧게 재시도합니다. 첫 저장의 응답만 유실되어 재시도가 `409`가 된 경우 서버의 최신 내용이 요청 내용과 같은지 비교해 최신 버전을 이어받습니다. 사진 PUT은 45초 전송 제한 안에서 기존 서명으로 먼저 재시도하고, 연결이 끊기거나 서명이 무효하면 controller가 새 경로와 서명을 발급받아 다시 전송합니다. 업로드 중에는 다른 저장·이동을 막아 Storage 파일과 DB의 사진 메타데이터가 분리되지 않게 합니다. HEIC/HEIF 변환기는 일반 방문자 번들에 넣지 않고 해당 사진을 선택했을 때만 불러옵니다.
 
 `lib/supabase-server.ts`는 Cloudflare Worker와 Supabase의 순간적인 시계 오차에서만 발생하는 `PGRST303 / JWT issued at future`를 구분합니다. 이 오류는 Database·Storage 인증 전에 요청이 거부된 경우이므로 서버에서 최대 3회 재시도합니다. 일반 5xx나 쓰기 타임아웃은 중복 실행 여부가 불명확하므로 서버 재시도 대상에 넣지 않습니다.

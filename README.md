@@ -7,7 +7,7 @@
 ## 현재 구현된 프로토타입
 
 - 방문자: 지관서가 동네책방 페이지 바로가기, 책방·소식 수 요약, 책방별 색상 일정과 툴팁을 갖춘 모바일 달력, 제목 중심 카드, 중앙 정렬 사진 상세 화면과 후면 스크롤 잠금, 디바운스 검색
-- 정보 입력자: 항상 보이는 3단계 안내, 월별 진행률, 한 책방씩 작성, 중앙 정렬 사진이 적용된 작성 중 HTML 미리보기와 후면 스크롤 잠금, 이번 달 운영 안내, 일정 문구·신청 방법·자유 항목·여러 링크, 여러 소식·날짜·사진과 손잡이 전용 소식·사진 드래그 정렬
+- 정보 입력자: 항상 보이는 3단계 안내, 월별 진행률, 한 책방씩 작성, 중앙 정렬 사진이 적용된 작성 중 HTML 미리보기와 후면 스크롤 잠금, 이번 달 운영 안내, 일정 문구·신청 방법·자유 항목·여러 링크, 선택 후 명시적으로 추가하는 여러 날짜, 여러 소식·사진과 손잡이 전용 드래그 정렬
 - 초기 연결: 위트 있는 전체 데이터 로딩 화면, 최대 3회 자동 확인, 8초 지연 안내와 수동 재시도, 빈 DB에서 첫 책방 등록 시작
 - 저장: 책방 관리 저장 성공 응답 확인, 책방·월별 소식 단위 자동 저장, 일시 오류 재시도, 이전 저장 요청 직렬화, 다른 브라우저 변경 충돌 안내, 수동 임시 저장, 지난달 내용 복사, 작성 중 이탈 시 계속 작성·임시 저장 후 이동·마지막 자동 저장 이후 변경 버리기 선택, 탭 안 임시 복구본, 한글 IME 직후 완료 시 최신 입력·서버 응답 일치 확인
 - 완료: 누락된 필수 항목으로 자동 이동, 책방별 입력 완료, 수정 시 자동으로 작성 중 전환, 책방별 소식 제목이 담긴 월 전체 완료 내용 복사
@@ -90,6 +90,7 @@ page.tsx
 | 방문자 달력·검색·소식 카드 | `components/organisms/VisitorWorkspace.tsx`, `components/molecules/NewsCalendar.tsx` |
 | 책방 목록과 월별 진행률 | `components/organisms/InputWorkspace.tsx` |
 | 소식 입력 폼과 사진 순서·작성 내용 미리보기 | `components/molecules/NewsEditorCard.tsx`, `components/molecules/SubmissionPreviewDialog.tsx` |
+| 행사 날짜 선택·추가·삭제 | `components/molecules/NewsDateField.tsx`, `lib/news-date-selection.ts` |
 | 개별·통합 HTML 화면 | `components/organisms/HtmlWorkspace.tsx` |
 | inline CSS HTML 결과 | `lib/html-generators.ts` |
 | 자동 저장·뒤로가기·입력 완료·충돌 처리 | `hooks/use-workspace-persistence.ts`, `lib/submission-draft.ts`, `lib/submission-completion.ts`, `app/api/bookstores`, `app/api/submissions` |

@@ -75,10 +75,16 @@
 .check-label { display:flex!important; flex-direction:row!important; align-items:center; gap:8px; }
 .check-label input { width:17px; height:17px; accent-color:#333; }
 .check-label span { margin:0; }
-.date-list { display:flex; flex-wrap:wrap; gap:7px; min-height:46px; padding:6px; border:1px solid #d2d2cf; background:#fbfbfa; }
+.news-date-field { min-width:0; margin:0; padding:0; border:0; }
+.news-date-field legend { display:block; width:100%; margin-bottom:7px; padding:0; color:#555; font-size:12px; font-weight:600; }
+.news-date-field legend em { margin-left:5px; color:#999; font-style:normal; font-weight:400; }
+.news-date-field>small { display:block; margin-top:6px; color:#777; font-size:10px; line-height:1.5; }
+.date-list { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:7px; padding:6px; border:1px solid #d2d2cf; background:#fbfbfa; }
 .date-list>span { display:inline-flex; align-items:center; gap:6px; padding:6px 8px; background:#eee; color:#555; font-size:10px; }
 .date-list>span button { border:0; background:transparent; padding:0; color:#777; }
-.date-list>input { width:150px; border:0; padding:6px; background:transparent; box-shadow:none; }
+.date-picker-row { display:grid; grid-template-columns:minmax(150px,220px) auto; gap:7px; justify-content:start; }
+.date-picker-row button { min-width:86px; border:1px solid #777; background:#fff; padding:0 13px; color:#333; font-size:11px; font-weight:600; }
+.date-picker-row button:disabled { border-color:#d2d2cf; color:#aaa; cursor:not-allowed; }
 .upload-box { min-height:145px; display:grid; place-items:center; align-content:center; gap:7px; position:relative; border:1px dashed #aaa; background:#f8f8f6; cursor:pointer; }
 .upload-box>input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
 .upload-box small { color:#888; font-size:10px; }
