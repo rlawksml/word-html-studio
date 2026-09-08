@@ -83,7 +83,7 @@ test("기간은 저장 API·방문자 상세·HTML 생성기에서 같은 규칙
   assert.match(records, /delete jsonItem\.scheduleRange/);
   assert.match(records, /rangesByNewsId/);
   assert.match(validation, /INVALID_SCHEDULE_RANGE/);
-  assert.match(controller, /newsVisibleInMonth/);
+  assert.match(controller, /newsVisibleInMonth\(news, submission\.month, month\)/);
   assert.match(controller, /newsOccursOnDate/);
   assert.match(detail, /formatNewsSchedule\(news\)/);
   assert.match(html, /formatNewsSchedule\(news\)/);

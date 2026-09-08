@@ -164,7 +164,7 @@ export function useStudioController(initialMonth: string) {
   const publicEntries = bookstores.map((bookstore) => ({
     bookstore,
     items: submissions.flatMap((submission) => submission.bookstoreId === bookstore.id
-      ? submission.news.filter((news) => news.title.trim() && newsVisibleInMonth(news, month, submission.month)).map((news) => ({ submission, news }))
+      ? submission.news.filter((news) => news.title.trim() && newsVisibleInMonth(news, submission.month, month)).map((news) => ({ submission, news }))
       : []),
   })).filter((entry) => entry.items.length > 0);
   const filteredEntries = publicEntries.filter(({ bookstore, items }) => {
