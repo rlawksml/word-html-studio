@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createClient } from "@supabase/supabase-js";
+import {
+  assertRowsAbsent,
+  assertStorageObjectAbsent,
+  runExactCleanup,
+} from "./helpers/supabase-cleanup-guard.mjs";
 
 const enabled = process.env.RUN_SUPABASE_INTEGRATION === "1";
 
@@ -42,6 +47,7 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
     auth: { autoRefreshToken: false, persistSession: false },
   });
   let uploadedImage = null;
+  let reservedImage = null;
 
   const appFetch = (path, init = {}) => worker.fetch(new Request(`http://localhost${path}`, init), runtime(), context());
   const sessionResponse = await appFetch("/api/session", {
@@ -260,6 +266,7 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
     await assertStatus(reserve, 201);
     const reservation = await reserve.json();
     uploadedImage = reservation.image;
+    reservedImage = reservation.image;
     assert.equal(uploadedImage.name, originalDisplayName);
     assert.match(uploadedImage.originalPath, /^originals\/2099-12\/\d+\/\d+\/[0-9a-f-]+\.jpg$/);
     assert.doesNotMatch(uploadedImage.originalPath, /[^\x00-\x7F]/);
@@ -275,16 +282,51 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
     await assertStatus(remove, 204);
     uploadedImage = null;
   } finally {
-    if (uploadedImage) {
-      await Promise.all([
-        admin.storage.from("bookstore-news-originals").remove([uploadedImage.originalPath]),
-        admin.storage.from("bookstore-news-previews").remove([uploadedImage.previewPath]),
-      ]);
-    }
-    await admin.from("news_schedule_ranges").delete().eq("submission_id", submissionId).eq("news_item_id", newsId);
-    await admin.from("submissions").delete().eq("id", submissionId);
-    await admin.from("bookstores").delete().eq("id", bookstoreId);
-    await admin.from("editing_leases").delete().eq("resource_key", `submission:2099-12:${bookstoreId}`);
+    const storageCleanup = uploadedImage ? [
+      {
+        label: "원본 사진 삭제",
+        run: () => admin.storage.from("bookstore-news-originals").remove([uploadedImage.originalPath]),
+      },
+      {
+        label: "미리보기 사진 삭제",
+        run: () => admin.storage.from("bookstore-news-previews").remove([uploadedImage.previewPath]),
+      },
+    ] : [];
+    const storageVerification = reservedImage ? [
+      {
+        label: "원본 사진 잔여 확인",
+        run: () => assertStorageObjectAbsent(admin.storage.from("bookstore-news-originals"), reservedImage.originalPath, "원본 사진"),
+      },
+      {
+        label: "미리보기 사진 잔여 확인",
+        run: () => assertStorageObjectAbsent(admin.storage.from("bookstore-news-previews"), reservedImage.previewPath, "미리보기 사진"),
+      },
+    ] : [];
+
+    await runExactCleanup([
+      ...storageCleanup,
+      { label: "기간 일정 삭제", run: () => admin.from("news_schedule_ranges").delete().eq("submission_id", submissionId).eq("news_item_id", newsId) },
+      { label: "소식 제출 삭제", run: () => admin.from("submissions").delete().eq("id", submissionId) },
+      { label: "책방 삭제", run: () => admin.from("bookstores").delete().eq("id", bookstoreId) },
+      { label: "편집 임대 삭제", run: () => admin.from("editing_leases").delete().eq("resource_key", `submission:2099-12:${bookstoreId}`) },
+      ...storageVerification,
+      {
+        label: "기간 일정 잔여 확인",
+        run: () => assertRowsAbsent(admin.from("news_schedule_ranges").select("submission_id,news_item_id").eq("submission_id", submissionId).eq("news_item_id", newsId), "기간 일정"),
+      },
+      {
+        label: "소식 제출 잔여 확인",
+        run: () => assertRowsAbsent(admin.from("submissions").select("id").eq("id", submissionId), "소식 제출"),
+      },
+      {
+        label: "책방 잔여 확인",
+        run: () => assertRowsAbsent(admin.from("bookstores").select("id").eq("id", bookstoreId), "책방"),
+      },
+      {
+        label: "편집 임대 잔여 확인",
+        run: () => assertRowsAbsent(admin.from("editing_leases").select("resource_key").eq("resource_key", `submission:2099-12:${bookstoreId}`), "편집 임대"),
+      },
+    ]);
   }
 });
 
@@ -356,7 +398,14 @@ test("rejects unauthorized operations and safely hands off exceptional editing l
       body: JSON.stringify({ name: "large.jpg", type: "image/jpeg", size: 20 * 1024 * 1024 + 1, previewSize: 100, month: "2099-11", bookstoreId, newsId: bookstoreId + 1 }),
     }), 413);
   } finally {
-    await admin.from("editing_leases").delete().in("resource_key", [`submission:2099-11:${bookstoreId}`, "digest:2099-11"]);
+    const resourceKeys = [`submission:2099-11:${bookstoreId}`, "digest:2099-11"];
+    await runExactCleanup([
+      { label: "예외 편집 임대 삭제", run: () => admin.from("editing_leases").delete().in("resource_key", resourceKeys) },
+      {
+        label: "예외 편집 임대 잔여 확인",
+        run: () => assertRowsAbsent(admin.from("editing_leases").select("resource_key").in("resource_key", resourceKeys), "예외 편집 임대"),
+      },
+    ]);
   }
 });
 
@@ -459,6 +508,14 @@ test("accepts public improvements and protects workflow status updates", { skip:
     });
     assert.equal(staleUpdate.status, 409);
   } finally {
-    if (improvementId) await admin.from("improvement_requests").delete().eq("id", improvementId);
+    if (improvementId) {
+      await runExactCleanup([
+        { label: "개선사항 삭제", run: () => admin.from("improvement_requests").delete().eq("id", improvementId) },
+        {
+          label: "개선사항 잔여 확인",
+          run: () => assertRowsAbsent(admin.from("improvement_requests").select("id").eq("id", improvementId), "개선사항"),
+        },
+      ]);
+    }
   }
 });
