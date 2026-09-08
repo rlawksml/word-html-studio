@@ -206,11 +206,16 @@ test("publishes complete SEO metadata, discovery routes, and a social preview", 
   ]);
 
   const home = await homeResponse.text();
-  assert.match(home, /rel="canonical" href="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/"/);
+  const productionOrigin = "https://bookstore-news-studio.rlawksml.chatgpt.site";
+  const homeCanonical = home.match(/rel="canonical" href="([^"]+)"/)?.[1];
+  const manifestHref = home.match(/rel="manifest" href="([^"]+)"/)?.[1];
+  assert.ok(homeCanonical, "홈 canonical 링크가 있어야 합니다.");
+  assert.ok(manifestHref, "웹 앱 manifest 링크가 있어야 합니다.");
+  assert.equal(new URL(homeCanonical, `${productionOrigin}/`).href, `${productionOrigin}/`);
   assert.match(home, /property="og:title" content="지관서가 동네책방 소식"/);
   assert.match(home, /property="og:image" content="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/og-bookstore-news\.png"/);
   assert.match(home, /name="twitter:card" content="summary_large_image"/);
-  assert.match(home, /rel="manifest" href="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/manifest\.webmanifest"/);
+  assert.equal(new URL(manifestHref, `${productionOrigin}/`).href, `${productionOrigin}/manifest.webmanifest`);
   assert.match(home, /application\/ld\+json/);
   assert.match(home, /CollectionPage/);
 

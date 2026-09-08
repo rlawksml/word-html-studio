@@ -69,3 +69,12 @@ test("pins Cloudflare build tooling beyond the audited vulnerable ranges", async
   assert.equal(packageJson.devDependencies.vite, "8.2.2");
   assert.equal(packageJson.devDependencies.wrangler, "4.129.1");
 });
+
+test("uses a vinext release that no longer installs the vulnerable image-size parser", async () => {
+  const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+  const packageLock = JSON.parse(await readFile(new URL("../package-lock.json", import.meta.url), "utf8"));
+
+  assert.equal(packageJson.devDependencies.vinext, "1.0.0-beta.9");
+  assert.equal(packageJson.devDependencies["@vitejs/plugin-rsc"], "0.5.34");
+  assert.equal(packageLock.packages["node_modules/image-size"], undefined);
+});
