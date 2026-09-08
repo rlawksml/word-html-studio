@@ -47,6 +47,8 @@ Atomic Design은 파일 수를 늘리는 목표가 아닙니다. 독립적으로
 
 `components/molecules/NewsDateField.tsx`는 브라우저 기본 날짜 선택기의 임시 값과 Submission의 실제 `dates[]`를 분리합니다. 월 탐색이나 날짜 선택은 컴포넌트 내부 상태만 바꾸며, 사용자가 `날짜 추가`를 눌러야 `lib/news-date-selection.ts`의 순수 함수를 거쳐 저장 대상에 반영됩니다. `NewsScheduleField.tsx`는 개별 날짜와 기간 입력을 전환하고, 시작일·종료일이 모두 유효할 때만 `기간 적용`으로 저장 상태를 바꿉니다. `lib/news-schedule.ts`가 월 겹침·선택일 포함·HTML 표시를 한 규칙으로 계산합니다.
 
+`lib/access-code-normalization.mjs`는 입력한 한글 완성형·자모를 두벌식 영문 키 조합으로 변환합니다. `/api/session`의 서버 인증 경계만 이 값을 사용하며 환경변수의 한 값으로 한글·영문 자판 입력을 함께 허용합니다. 일반 영문·숫자·기호와 대소문자는 그대로 유지하고 실제 작업 암호는 소스·테스트·로그에 넣지 않습니다.
+
 `lib/workspace-client.ts`는 순간적인 5xx·429와 네트워크 단절을 최대 3회 짧게 재시도합니다. 첫 저장의 응답만 유실되어 재시도가 `409`가 된 경우 서버의 최신 내용이 요청 내용과 같은지 비교해 최신 버전을 이어받습니다. 사진 PUT은 45초 전송 제한 안에서 기존 서명으로 먼저 재시도하고, 연결이 끊기거나 서명이 무효하면 controller가 새 경로와 서명을 발급받아 다시 전송합니다. 업로드 중에는 다른 저장·이동을 막아 Storage 파일과 DB의 사진 메타데이터가 분리되지 않게 합니다. HEIC/HEIF 변환기는 일반 방문자 번들에 넣지 않고 해당 사진을 선택했을 때만 불러옵니다.
 
 `lib/supabase-server.ts`는 Cloudflare Worker와 Supabase의 순간적인 시계 오차에서만 발생하는 `PGRST303 / JWT issued at future`를 구분합니다. 이 오류는 Database·Storage 인증 전에 요청이 거부된 경우이므로 서버에서 최대 3회 재시도합니다. 일반 5xx나 쓰기 타임아웃은 중복 실행 여부가 불명확하므로 서버 재시도 대상에 넣지 않습니다.
@@ -67,6 +69,7 @@ components
     → lib/submission-draft       # 같은 탭의 저장 전 입력 복구
     → lib/html-generators        # 개별·통합 inline CSS HTML
     → lib/news-schedule          # 개별 날짜·기간의 월 노출과 표시 규칙
+    → lib/access-code-normalization # 한글·영문 두벌식 작업 암호의 서버 정규화
     → lib/workspace-formatters   # 팩토리·날짜·안전한 URL·상태 표시
     → lib/workspace-types        # 공용 데이터 타입
 
