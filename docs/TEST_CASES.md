@@ -697,6 +697,20 @@
   - 기존 화면·저장·사진·권한 테스트가 통과하고 정확한 QA 데이터 정리를 확인한다.
   - Production 앱과 Production Supabase에는 변경이 없다.
 
+### TC-SEC-002 · Cloudflare·Vite 개발 도구 안전 업데이트
+
+- 우선순위/구분: P1 / 자동·Staging
+- 절차:
+  1. Cloudflare Vite plugin, Wrangler, Vite를 상호 호환되는 같은 세대의 안전 버전으로 고정한다.
+  2. `npm audit fix --dry-run`으로 강제·major 변경이 없는 간접 의존성만 확인한 뒤 적용한다.
+  3. clean install, 전체 audit, production build와 전체 회귀를 실행한다.
+  4. 실제 Supabase Staging 통합과 owner-private Sites Staging을 검증한다.
+- 기대 결과:
+  - 운영 의존성 audit 0건을 유지하고 전체 개발 audit은 이전보다 감소한다.
+  - `npm audit fix --force`나 vinext·drizzle-kit breaking 변경을 섞지 않는다.
+  - Vite config loader 호환 경고 없이 build와 75개 회귀가 통과한다.
+  - Production 앱과 Production Supabase에는 변경이 없다.
+
 ## 11. 실행·정리 기준
 
 ### 배포 가능 조건
@@ -720,6 +734,7 @@
 
 | 실행일 | 기준 커밋 | 자동 회귀 | Supabase 통합 | 빌드·린트 | 수동 운영 | 결과 |
 |---|---|---|---|---|---|---|
+| 2026-09-08 | `1737a98` 이슈 #64 · PR #65 · Sites Staging v12 | 75/75, 도구 버전 집중 5/5, 전체 audit 19→6·운영 0 | GitHub Staging 3/3 및 정확한 QA 키·파일 정리 | migration·배포 대상·빌드·린트 통과, Vite config 경고 0 | 3개 책방·3개 소식 유지, 도움말·개선사항·콘솔 정상, Worker 예외 0건 | **PASS (develop 병합 가능)** |
 | 2026-09-08 | `05a8a5c` 이슈 #62 · PR #63 · Sites Staging v11 | 74/74, 보안 gate 집중 4/4, 운영 audit 0 | GitHub Staging 3/3 및 정확한 QA 키·파일 정리 | migration·배포 대상·빌드·린트 통과 | 3개 책방·3개 소식 유지, 도움말·개선사항 정상, Worker 예외 0건 | **PASS (develop 병합 가능)** |
 | 2026-09-08 | `454fed1` 이슈 #60 · PR #61 | 73/73, 정리 안전장치 집중 3/3 | GitHub Staging 3/3 및 DB·Storage 정확한 키 잔여 0건 | migration·배포 대상·빌드·린트 통과 | 공개 Staging 3개 책방·3개 소식 유지, 브라우저 오류 0건 | **PASS (develop 병합 가능)** |
 | 2026-09-08 | `785039e` 이슈 #58 · PR #59 | 70/70, CI 런타임 집중 3/3 | GitHub Staging 3/3 및 전용 데이터 정리 | migration·배포 대상·빌드·린트 통과 | checkout/setup-node v7, Node 20 종료 경고 0건 | **PASS (develop 병합 가능)** |

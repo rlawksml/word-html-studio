@@ -163,6 +163,7 @@ SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metad
 - [이슈 #58 GitHub Actions Node 24 런타임 전환 검증 보고서](docs/test-reports/2026-09-08-785039e-issue-58-pre-deploy.md)
 - [이슈 #60 Supabase 통합 테스트 정리 안전장치 검증 보고서](docs/test-reports/2026-09-08-454fed1-issue-60-pre-deploy.md)
 - [이슈 #62 운영 의존성 보안 업데이트 Staging 검증 보고서](docs/test-reports/2026-09-08-05a8a5c-issue-62-staging.md)
+- [이슈 #64 Cloudflare·Vite 개발 도구 보안 업데이트 Staging 검증 보고서](docs/test-reports/2026-09-08-1737a98-issue-64-staging.md)
 - [제품 요구사항](docs/PRODUCT.md)
 - [입력 항목 분류](docs/FIELD_REQUIREMENTS.md)
 - [실제 Word 4개 비교 분석](docs/MULTI_DOC_ANALYSIS.md)

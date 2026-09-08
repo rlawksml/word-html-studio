@@ -109,6 +109,7 @@
 - [x] GitHub Actions checkout·Node 설치 단계를 지원 중인 Node 24 런타임 세대로 갱신
 - [x] Supabase 통합 테스트의 정리 오류 검출과 정확한 QA 데이터 잔여 0건 확인
 - [x] Next.js·React Server Components 운영 의존성 high 취약점 해소와 CI audit gate 적용
+- [x] Cloudflare Vite plugin·Wrangler·Vite 및 안전한 간접 개발 의존성 업데이트로 전체 audit 19건을 6건으로 축소
 - [x] 핵심 사용자 흐름·저장·사진·권한·동시 편집 TC 시나리오 문서화
 - [x] Lighthouse 기준 점검과 작업자 화면·ZIP 라이브러리 지연 로드
 - [x] canonical·Open Graph·Twitter Card·JSON-LD·robots·sitemap·manifest 구성
@@ -127,7 +128,7 @@
 - [ ] 암호화된 독립 저장소 백업과 보존 주기 확정
 - [ ] 사용 로그와 오류 관찰 도구 연결
 - [x] Next.js 내부 PostCSS 보안 경고를 안전한 상위 버전과 lockfile 갱신으로 해소
-- [ ] 개발·빌드 도구 audit 경고를 도구별 독립 이슈로 분리하고 안전한 업데이트 범위 검증
+- [ ] breaking 변경이 필요한 vinext·drizzle-kit 잔여 audit 6건을 각각 독립 검증
 
 완료 조건: 실제 한 달 발행 업무를 처음부터 끝까지 수행하고 게시 결과를 검증한다.
 
