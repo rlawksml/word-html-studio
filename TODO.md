@@ -129,6 +129,7 @@
 - [ ] 사용 로그와 오류 관찰 도구 연결
 - [x] Next.js 내부 PostCSS 보안 경고를 안전한 상위 버전과 lockfile 갱신으로 해소
 - [ ] breaking 변경이 필요한 vinext·drizzle-kit 잔여 audit 6건을 각각 독립 검증
+  - [ ] vinext 후보 자동·Staging 공개 검증 완료, 작업자 암호·세션 수동 P0 UAT 후 병합 판단 (#66·#67)
 
 완료 조건: 실제 한 달 발행 업무를 처음부터 끝까지 수행하고 게시 결과를 검증한다.
 

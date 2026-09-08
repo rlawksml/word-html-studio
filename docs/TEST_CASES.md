@@ -711,6 +711,22 @@
   - Vite config loader 호환 경고 없이 build와 75개 회귀가 통과한다.
   - Production 앱과 Production Supabase에는 변경이 없다.
 
+### TC-SEC-003 · vinext 이미지 파서 breaking 보안 업데이트
+
+- 우선순위/구분: P0 / 자동·Staging·수동
+- 절차:
+  1. vinext와 필수 peer인 `@vitejs/plugin-rsc`를 호환되는 정확한 버전으로 함께 고정한다.
+  2. lockfile에 취약한 `image-size@2.0.2`가 남지 않았는지 확인한다.
+  3. clean install, 전체 audit, production build, SEO·전체 회귀를 실행한다.
+  4. 실제 Supabase Staging 통합 테스트가 전용 QA 데이터만 생성·정리하는지 확인한다.
+  5. owner-private Sites Staging에서 공개 화면, 입력자 암호, HTML 편집자 암호, 새로고침 세션, 로그아웃을 확인한다.
+  6. 후보 검증에 실패하거나 수동 암호 검증을 완료하지 못하면 즉시 이전 Sites 버전으로 롤백한다.
+- 기대 결과:
+  - lockfile에서 `image-size`가 제거되고 전체 audit의 high 취약점이 0건이다.
+  - 전체 자동 회귀와 Supabase Staging 통합 테스트가 통과하며 QA 잔여 데이터가 0건이다.
+  - 두 작업자 역할의 암호 진입과 세션 흐름이 기존 버전과 동일하게 작동한다.
+  - 수동 P0 확인 전에는 PR을 병합하지 않으며 Production 앱·DB·Storage에는 변경이 없다.
+
 ## 11. 실행·정리 기준
 
 ### 배포 가능 조건
