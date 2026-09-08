@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   mergeNewsPreservingUnknownFields,
+  stripExternalNewsFields,
 } from "../lib/submission-json-compatibility.ts";
 import {
   findForbiddenMigrationStatements,
@@ -47,7 +48,7 @@ function knownNews(overrides = {}) {
   };
 }
 
-test("v1.0.1 저장은 자신이 모르는 v1.1 JSON 필드와 중첩 필드를 보존한다", () => {
+test("롤백된 v1.0.1 저장은 자신이 모르는 v1.1 JSON 필드와 중첩 필드를 보존한다", () => {
   const existing = [{
     ...knownNews({ title: "v1.1 제목" }),
     scheduleRangeRef: "range-101",
@@ -89,6 +90,12 @@ test("삭제된 소식과 사진은 되살리지 않고 요청 순서를 유지�
   assert.equal(merged[0].futureValue, "둘째");
   assert.equal(merged[1].futureValue, undefined);
   assert.deepEqual(merged[0].images, []);
+});
+
+test("별도 테이블 필드는 미래 JSON 보존과 무관하게 JSONB에서 제거한다", () => {
+  const cleaned = stripExternalNewsFields([{ ...knownNews(), scheduleRange: { startDate: "2026-06-17", endDate: "2026-08-12" }, futureValue: "유지" }]);
+  assert.equal(Object.prototype.hasOwnProperty.call(cleaned[0], "scheduleRange"), false);
+  assert.equal(cleaned[0].futureValue, "유지");
 });
 
 test("새 migration의 파괴적 SQL은 차단하고 additive SQL은 허용한다", () => {
@@ -140,8 +147,8 @@ test("이전 백업은 기존 테이블만, 새 백업은 호환 테이블까지
 test("migration manifest와 스키마 기반 migration이 일치한다", async () => {
   const result = await validateMigrationDirectory(new URL("../supabase/migrations/", import.meta.url));
   assert.equal(result.status, "PASS", result.failures.join("\n"));
-  assert.equal(APP_PRODUCT_VERSION, "1.0.1");
-  assert.equal(APP_SCHEMA_VERSION, 202609070001);
+  assert.equal(APP_PRODUCT_VERSION, "1.1.0-rc.1");
+  assert.equal(APP_SCHEMA_VERSION, 202609070002);
 
   const migration = await readFile(
     new URL("../supabase/migrations/202609070001_rollback_compatibility_foundation.sql", import.meta.url),
@@ -150,10 +157,21 @@ test("migration manifest와 스키마 기반 migration이 일치한다", async (
   assert.match(migration, /create table if not exists public\.app_schema_versions/);
   assert.match(migration, /create table if not exists public\.news_schedule_ranges/);
   assert.match(migration, /check \(end_date >= start_date\)/);
+
+  const rangeMigration = await readFile(
+    new URL("../supabase/migrations/202609070002_schedule_range_persistence.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(rangeMigration, /add column if not exists is_active/);
+  assert.match(rangeMigration, /save_submission_with_schedule_ranges/);
+  assert.match(rangeMigration, /p_sync_ranges/);
+  assert.doesNotMatch(rangeMigration, /delete\s+from/i);
 });
 
 test("Submission API가 서버의 기존 JSON을 호환 병합한다", async () => {
   const route = await readFile(new URL("../app/api/submissions/route.ts", import.meta.url), "utf8");
   assert.match(route, /mergeNewsPreservingUnknownFields/);
   assert.match(route, /existing\?\.news/);
+  assert.match(route, /save_submission_with_schedule_ranges/);
+  assert.match(route, /rangeWasSent/);
 });

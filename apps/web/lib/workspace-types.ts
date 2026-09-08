@@ -41,11 +41,18 @@ export type NewsImage = {
   caption: string;
 };
 
+export type NewsScheduleRange = {
+  startDate: string;
+  endDate: string;
+};
+
 export type NewsItem = {
   id: number;
   title: string;
   description: string;
   dates: string[];
+  // 기간은 구버전이 덮어쓰는 news JSON이 아니라 별도 DB 테이블에서 API가 결합합니다.
+  scheduleRange: NewsScheduleRange | null;
   scheduleText: string;
   regular: boolean;
   displayLabel: string;

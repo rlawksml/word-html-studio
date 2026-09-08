@@ -5,6 +5,7 @@
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { formatDate, formatMonth, safeClientHref, submissionStatus } from "@/lib/workspace-formatters";
 import type { Bookstore, LabeledLink, NewsItem, Submission } from "@/lib/workspace-types";
+import { formatNewsSchedule } from "@/lib/news-schedule";
 
 type PublicNewsDetailProps = {
   submission: Submission;
@@ -17,6 +18,7 @@ export function PublicNewsDetail({ submission, news, bookstore, onClose }: Publi
   useBodyScrollLock();
 
   const status = submissionStatus(submission);
+  const schedule = formatNewsSchedule(news);
   const links = [
     news.applyUrl ? { id: -1, label: "신청 및 자세히 보기", url: news.applyUrl } : null,
     ...news.links,
@@ -28,7 +30,7 @@ export function PublicNewsDetail({ submission, news, bookstore, onClose }: Publi
       {news.images.length > 0 && <div className={`public-detail-photos${news.images.length === 1 ? " single-photo" : ""}`}>{news.images.map((image) => <figure key={image.id}><img src={image.url} alt={image.caption || news.title} loading="lazy" />{image.caption && <figcaption>{image.caption}</figcaption>}</figure>)}</div>}
       <p className="public-detail-description">{news.description}</p>
       <dl className="public-detail-facts">
-        {(news.scheduleText || news.dates.length > 0) && <div><dt>일정</dt><dd>{news.scheduleText || news.dates.map(formatDate).join(", ")}</dd></div>}
+        {schedule && <div><dt>일정</dt><dd>{schedule}</dd></div>}
         {news.deadline && <div><dt>신청 마감</dt><dd>{formatDate(news.deadline)}</dd></div>}
         {news.place && <div><dt>장소</dt><dd>{news.place}</dd></div>}
         {news.fee && <div><dt>참가비</dt><dd>{news.fee}</dd></div>}

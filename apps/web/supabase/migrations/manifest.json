@@ -6,6 +6,7 @@
     "202607220002_editing_leases.sql": "e48c697bb15bc8be93982ff5fa8485ba2874c765b8399a88b05ab11906ae534c",
     "202607240001_improvement_requests.sql": "12758bf250035dec7c88b1ae62429e5ad26bedecd74b32d71904398722aacdc9",
     "202607240002_improvement_request_types.sql": "2e7a0a959f1317e350c7f90186c05c5be8ca16cab296ca45e116705e6bc17bbf",
-    "202609070001_rollback_compatibility_foundation.sql": "62e3a29870d8a5d1d4bae718c5094d5a1fae306d8d109a0efe4c26f2e5a475cc"
+    "202609070001_rollback_compatibility_foundation.sql": "62e3a29870d8a5d1d4bae718c5094d5a1fae306d8d109a0efe4c26f2e5a475cc",
+    "202609070002_schedule_range_persistence.sql": "096e5cecc4fac070ace38fc909383feeb26df8a5b5e15ff077edb5ef0d4fe440"
   }
 }

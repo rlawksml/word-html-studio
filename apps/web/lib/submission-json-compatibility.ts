@@ -41,3 +41,12 @@ function mergeEntityArray(existing: unknown, requested: unknown, nested = false)
 export function mergeNewsPreservingUnknownFields(existing: unknown, requested: unknown) {
   return mergeEntityArray(existing, requested, true);
 }
+
+// 기간은 별도 테이블의 단일 원본이므로 과거/테스트 JSON에 섞인 동일 키도 DB 저장 직전에 제거합니다.
+export function stripExternalNewsFields(news: JsonRecord[]) {
+  return news.map((item) => {
+    const next = { ...item };
+    delete next.scheduleRange;
+    return next;
+  });
+}

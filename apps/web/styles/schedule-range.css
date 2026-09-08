@@ -1,0 +1,26 @@
+/* 날짜 여러 개와 장기 기간 중 하나를 같은 일정 영역에서 선택하는 기능 전용 스타일입니다. */
+.news-schedule-field { min-width:0; margin:0; padding:0; border:0; }
+.news-schedule-field>legend { display:block; width:100%; margin-bottom:7px; padding:0; color:#555; font-size:12px; font-weight:600; }
+.news-schedule-field>legend em { margin-left:5px; color:#999; font-style:normal; font-weight:400; }
+.schedule-mode-tabs { display:grid; grid-template-columns:1fr 1fr; max-width:430px; margin-bottom:12px; border:1px solid #d2d2cf; }
+.schedule-mode-tabs button { min-height:40px; border:0; background:#f7f7f5; color:#777; font-size:11px; }
+.schedule-mode-tabs button+button { border-left:1px solid #d2d2cf; }
+.schedule-mode-tabs button.active { background:#292c2a; color:white; font-weight:600; }
+.schedule-range-panel { padding:14px; border:1px solid #d2d2cf; background:#fbfbfa; }
+.schedule-range-inputs { display:grid; grid-template-columns:minmax(145px,1fr) auto minmax(145px,1fr) auto; align-items:end; gap:8px; }
+.schedule-range-inputs>span { padding-bottom:13px; color:#888; }
+.schedule-range-inputs label span { font-size:10px; }
+.schedule-range-inputs>button { min-height:46px; border:1px solid #777; background:white; padding:0 14px; color:#333; font-size:11px; font-weight:600; }
+.schedule-range-panel>small { display:block; margin-top:8px; color:#777; font-size:10px; line-height:1.5; }
+.schedule-range-error { margin:8px 0 0; color:#a13e31; font-size:11px; font-weight:600; }
+.applied-range { display:flex; align-items:center; gap:9px; margin-bottom:12px; padding:10px 12px; background:#eeeae0; }
+.applied-range span { color:#7f745f; font-size:9px; }
+.applied-range strong { flex:1; color:#4e4637; font-size:12px; }
+.applied-range button { border:0; background:transparent; color:#8c5549; font-size:10px; text-decoration:underline; text-underline-offset:3px; }
+
+@media (max-width:680px) {
+  .schedule-mode-tabs { max-width:none; }
+  .schedule-range-inputs { grid-template-columns:1fr 1fr; }
+  .schedule-range-inputs>span { display:none; }
+  .schedule-range-inputs>button { grid-column:1/-1; }
+}

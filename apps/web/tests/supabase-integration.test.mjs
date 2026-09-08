@@ -68,9 +68,9 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
     const versionResponse = await appFetch("/api/version");
     await assertStatus(versionResponse, 200);
     const version = await versionResponse.json();
-    assert.equal(version.productVersion, "1.0.1");
-    assert.equal(version.databaseSchemaVersion, 202609070001);
-    assert.equal(version.expectedSchemaVersion, 202609070001);
+    assert.equal(version.productVersion, "1.1.0-rc.1");
+    assert.equal(version.databaseSchemaVersion, 202609070002);
+    assert.equal(version.expectedSchemaVersion, 202609070002);
     assert.equal(version.compatible, true);
 
     const firstLease = await appFetch("/api/presence", { method: "POST", headers: workerHeaders, body: JSON.stringify(presenceTarget) });
@@ -106,7 +106,7 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
     const submission = {
       id: submissionId, bookstoreId, month: "2099-12", status: "draft", updatedAt: "", completedAt: "", publishedAt: "", publishedUrl: "", monthlyNotice: "",
       news: [{
-        id: newsId, title: "통합 테스트 소식", description: "자동으로 정리되는 테스트 데이터입니다.", dates: ["2099-12-01"], scheduleText: "", regular: false,
+        id: newsId, title: "통합 테스트 소식", description: "자동으로 정리되는 테스트 데이터입니다.", dates: ["2099-12-01"], scheduleRange: null, scheduleText: "", regular: false,
         displayLabel: "", deadline: "", place: "", fee: "", applicationInfo: "", applyUrl: "https:/", extraFields: [], links: [], images: [], includeInDigest: true,
       }],
     };
@@ -141,6 +141,8 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
     });
     assert.equal(seedScheduleRange.error, null);
 
+    const oldClientNews = { ...updatedSubmission.news[0] };
+    delete oldClientNews.scheduleRange;
     const oldAppSave = await appFetch("/api/submissions", {
       method: "PUT",
       headers: workerHeaders,
@@ -149,6 +151,7 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
           ...updatedSubmission,
           updatedAt: compatibilityUpdatedAt,
           monthlyNotice: "v1.0.1에서 기존 필드만 수정",
+          news: [oldClientNews],
         },
       }),
     });
@@ -166,6 +169,51 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
       .single();
     assert.equal(preservedScheduleRange.error, null);
     assert.deepEqual(preservedScheduleRange.data, { start_date: "2099-12-01", end_date: "2100-01-31" });
+
+    const beforeInvalidRangeUpdatedAt = updatedSubmission.updatedAt;
+    const invalidRangeSave = await appFetch("/api/submissions", {
+      method: "PUT",
+      headers: workerHeaders,
+      body: JSON.stringify({
+        submission: {
+          ...updatedSubmission,
+          news: [{ ...updatedSubmission.news[0], dates: [], scheduleRange: { startDate: "2100-02-01", endDate: "2100-01-31" } }],
+        },
+      }),
+    });
+    assert.equal(invalidRangeSave.status, 400);
+    const invalidRangeBody = await invalidRangeSave.json();
+    assert.equal(invalidRangeBody.code, "INVALID_SCHEDULE_RANGE");
+    assert.equal(invalidRangeBody.fieldPath, "news.0.scheduleRange.endDate");
+    const afterInvalidRange = await admin.from("submissions").select("updated_at").eq("id", submissionId).single();
+    assert.equal(afterInvalidRange.error, null);
+    assert.equal(afterInvalidRange.data.updated_at, beforeInvalidRangeUpdatedAt, "잘못된 기간은 본문도 갱신하지 않아야 합니다.");
+
+    const validScheduleRange = { startDate: "2099-12-17", endDate: "2100-02-12" };
+    const rangeSave = await appFetch("/api/submissions", {
+      method: "PUT",
+      headers: workerHeaders,
+      body: JSON.stringify({
+        submission: {
+          ...updatedSubmission,
+          news: [{ ...updatedSubmission.news[0], dates: [], scheduleRange: validScheduleRange }],
+        },
+      }),
+    });
+    await assertStatus(rangeSave, 200);
+    updatedSubmission = (await rangeSave.json()).submission;
+    assert.deepEqual(updatedSubmission.news[0].scheduleRange, validScheduleRange);
+    assert.deepEqual(updatedSubmission.news[0].dates, []);
+    const storedRange = await admin.from("news_schedule_ranges").select("start_date,end_date,is_active").eq("submission_id", submissionId).eq("news_item_id", newsId).single();
+    assert.equal(storedRange.error, null);
+    assert.deepEqual(storedRange.data, { start_date: "2099-12-17", end_date: "2100-02-12", is_active: true });
+    const storedNews = await admin.from("submissions").select("news").eq("id", submissionId).single();
+    assert.equal(storedNews.error, null);
+    assert.equal(Object.prototype.hasOwnProperty.call(storedNews.data.news[0], "scheduleRange"), false, "기간은 롤백 호환 JSONB에 섞이면 안 됩니다.");
+    const publicWorkspace = await appFetch("/api/workspace");
+    await assertStatus(publicWorkspace, 200);
+    const publicSubmission = (await publicWorkspace.json()).submissions.find((item) => item.id === submissionId);
+    assert.deepEqual(publicSubmission.news[0].scheduleRange, validScheduleRange);
     const invalidCompletion = await appFetch("/api/submissions", {
       method: "PUT",
       headers: workerHeaders,

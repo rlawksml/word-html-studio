@@ -23,11 +23,14 @@ export function currentKstMonth(date = new Date()) {
 // 새 책방과 소식을 만들 때 선택 필드까지 빠짐없이 초기화하는 팩토리입니다.
 export const makeValue = (): LabeledValue => ({ id: Date.now() + Math.random(), label: "", value: "" });
 export const makeLink = (): LabeledLink => ({ id: Date.now() + Math.random(), label: "", url: "" });
-export const makeNews = (id = Date.now()): NewsItem => ({
+// 기간 테이블의 bigint 외래키로도 안전하게 쓸 수 있도록 소식 ID는 항상 정수로 만듭니다.
+export const makeNewsId = () => Date.now() * 1_000 + Math.floor(Math.random() * 1_000);
+export const makeNews = (id = makeNewsId()): NewsItem => ({
   id,
   title: "",
   description: "",
   dates: [],
+  scheduleRange: null,
   scheduleText: "",
   regular: false,
   displayLabel: "",
@@ -43,7 +46,7 @@ export const makeNews = (id = Date.now()): NewsItem => ({
 });
 export const makeSubmission = (bookstoreId: number, month: string): Submission => ({ id: Date.now(), bookstoreId, month, status: "draft", updatedAt: "", completedAt: "", publishedAt: "", publishedUrl: "", monthlyNotice: "", news: [makeNews()] });
 export const blankBookstore = (): Bookstore => ({ id: Date.now(), updatedAt: "", sortOrder: 0, name: "", region: "", address: "", hours: "", phone: "", sns: "", website: "", introduction: "", contacts: [], links: [] });
-export const hasSubmissionContent = (submission?: Submission) => Boolean(submission?.monthlyNotice.trim() || submission?.news.some((news) => news.title.trim() || news.description.trim() || news.dates.length || news.scheduleText.trim() || news.regular || news.displayLabel || news.deadline || news.place.trim() || news.fee.trim() || news.applicationInfo.trim() || news.applyUrl.trim() || news.extraFields.some((field) => field.label.trim() || field.value.trim()) || news.links.some((link) => link.label.trim() || link.url.trim()) || news.images.length));
+export const hasSubmissionContent = (submission?: Submission) => Boolean(submission?.monthlyNotice.trim() || submission?.news.some((news) => news.title.trim() || news.description.trim() || news.dates.length || news.scheduleRange || news.scheduleText.trim() || news.regular || news.displayLabel || news.deadline || news.place.trim() || news.fee.trim() || news.applicationInfo.trim() || news.applyUrl.trim() || news.extraFields.some((field) => field.label.trim() || field.value.trim()) || news.links.some((link) => link.label.trim() || link.url.trim()) || news.images.length));
 
 // 아래 함수는 UI 표시와 HTML 생성 양쪽에서 같은 날짜·URL·파일명 규칙을 사용하게 합니다.
 export const nowIso = () => new Date().toISOString();

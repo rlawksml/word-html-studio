@@ -9,6 +9,7 @@ import {
   BOOKSTORE_COLORS,
   formatMonth,
   hasSubmissionContent,
+  makeNewsId,
   makeSubmission,
   nowIso,
   previousMonth,
@@ -35,6 +36,7 @@ import { forgetSubmissionDraft, recoverSubmissionDraft, rememberSubmissionDraft 
 import { assertSubmissionContentMatches, buildCompletedSubmission } from "@/lib/submission-completion";
 import { findInvalidSubmissionUrl, normalizeSubmissionUrls } from "@/lib/submission-url-validation";
 import type { Bookstore, EditingPresenceTarget, NewsImage, NewsItem, Submission, Workspace } from "@/lib/workspace-types";
+import { newsOccursOnDate, newsVisibleInMonth } from "@/lib/news-schedule";
 
 /**
  * 세 역할이 공유하는 상태와 업무 명령을 한곳에서 조정하는 application controller입니다.
@@ -158,13 +160,20 @@ export function useStudioController(initialMonth: string) {
   const monthSubmissions = submissions.filter((item) => item.month === month);
   const completedBookstoreCount = monthSubmissions.filter((item) => item.status === "completed").length;
   const completionPercent = bookstores.length ? Math.round((completedBookstoreCount / bookstores.length) * 100) : 0;
-  const publicEntries = monthSubmissions.map((submission) => ({ submission, bookstore: bookstores.find((item) => item.id === submission.bookstoreId)! })).filter((item) => item.bookstore && item.submission.news.some((news) => news.title.trim()));
-  const filteredEntries = publicEntries.filter(({ bookstore, submission }) => {
-    const haystack = `${bookstore.name} ${bookstore.region} ${submission.news.map((news) => `${news.title} ${news.description} ${news.place}`).join(" ")}`.toLowerCase();
+  // 발행 월이 달라도 실제 날짜나 기간이 현재 달과 겹치면 방문자 달력에 함께 보여줍니다.
+  const publicEntries = bookstores.map((bookstore) => ({
+    bookstore,
+    items: submissions.flatMap((submission) => submission.bookstoreId === bookstore.id
+      ? submission.news.filter((news) => news.title.trim() && newsVisibleInMonth(news, submission.month, month)).map((news) => ({ submission, news }))
+      : []),
+  })).filter((entry) => entry.items.length > 0);
+  const filteredEntries = publicEntries.filter(({ bookstore, items }) => {
+    const haystack = `${bookstore.name} ${bookstore.region} ${items.map(({ news }) => `${news.title} ${news.description} ${news.place}`).join(" ")}`.toLowerCase();
     return haystack.includes(debouncedSearch.toLowerCase());
   }).sort((a, b) => {
-    const aDate = a.submission.news.flatMap((news) => news.dates).sort()[0] || "9999-12-31";
-    const bDate = b.submission.news.flatMap((news) => news.dates).sort()[0] || "9999-12-31";
+    const earliest = (items: typeof a.items) => items.flatMap(({ news }) => news.scheduleRange ? [news.scheduleRange.startDate] : news.dates).sort()[0] || "9999-12-31";
+    const aDate = earliest(a.items);
+    const bDate = earliest(b.items);
     return aDate.localeCompare(bDate);
   });
   const publicDetailData = publicDetail ? (() => {
@@ -398,7 +407,7 @@ export function useStudioController(initialMonth: string) {
     }));
   };
 
-  const updateNews = (newsId: number, key: keyof NewsItem, value: string | boolean | string[]) => updateCurrent((submission) => ({ ...submission, news: submission.news.map((news) => news.id === newsId ? { ...news, [key]: value } : news) }));
+  const updateNews = <Key extends keyof NewsItem>(newsId: number, key: Key, value: NewsItem[Key]) => updateCurrent((submission) => ({ ...submission, news: submission.news.map((news) => news.id === newsId ? { ...news, [key]: value } : news) }));
 
   const updateNewsValue = (newsId: number, collection: "extraFields" | "links", itemId: number, key: string, value: string) => updateCurrent((submission) => ({
     ...submission,
@@ -537,7 +546,7 @@ export function useStudioController(initialMonth: string) {
     if (!selectedBookstoreId || !currentSubmission) return;
     const previous = submissions.find((item) => item.bookstoreId === selectedBookstoreId && item.month === previousMonth(month));
     if (!previous) { notify("지난달에 복사할 소식이 없습니다."); return; }
-    const copied = previous.news.map((news) => ({ ...news, id: Date.now() + Math.random(), dates: [], scheduleText: "", deadline: "", applicationInfo: "", applyUrl: "", fee: "", displayLabel: "", images: [] }));
+    const copied = previous.news.map((news) => ({ ...news, id: makeNewsId(), dates: [], scheduleRange: null, scheduleText: "", deadline: "", applicationInfo: "", applyUrl: "", fee: "", displayLabel: "", images: [] }));
     updateCurrent((submission) => ({ ...submission, news: copied }));
     notify(`${formatMonth(previous.month)} 소식을 불러왔습니다. 일정·신청·참가비를 다시 확인해 주세요.`);
   };
@@ -709,8 +718,8 @@ export function useStudioController(initialMonth: string) {
   }, [month]);
 
   const bookstoreColor = (bookstoreId: number) => BOOKSTORE_COLORS[Math.max(0, bookstores.findIndex((bookstore) => bookstore.id === bookstoreId)) % BOOKSTORE_COLORS.length];
-  const calendarItems = (date: string) => publicEntries.flatMap(({ bookstore, submission }) => {
-    const titles = submission.news.filter((news) => news.dates.includes(date)).map((news) => news.title);
+  const calendarItems = (date: string) => publicEntries.flatMap(({ bookstore, items }) => {
+    const titles = items.filter(({ news }) => newsOccursOnDate(news, date)).map(({ news }) => news.title);
     return titles.length ? [{ bookstore, titles, color: bookstoreColor(bookstore.id) }] : [];
   });
 

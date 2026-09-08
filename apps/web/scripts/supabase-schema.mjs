@@ -1,10 +1,10 @@
 export const SUPABASE_TABLE_SPECS = [
-  { name: "bookstores", orderColumn: "id", legacyRequired: true },
-  { name: "submissions", orderColumn: "id", legacyRequired: true },
-  { name: "editing_leases", orderColumn: "resource_key", legacyRequired: true },
-  { name: "improvement_requests", orderColumn: "id", legacyRequired: true },
-  { name: "app_schema_versions", orderColumn: "component", legacyRequired: false },
-  { name: "news_schedule_ranges", orderColumn: "submission_id", legacyRequired: false },
+  { name: "bookstores", orderColumns: ["id"], legacyRequired: true },
+  { name: "submissions", orderColumns: ["id"], legacyRequired: true },
+  { name: "editing_leases", orderColumns: ["resource_key"], legacyRequired: true },
+  { name: "improvement_requests", orderColumns: ["id"], legacyRequired: true },
+  { name: "app_schema_versions", orderColumns: ["component"], legacyRequired: false },
+  { name: "news_schedule_ranges", orderColumns: ["submission_id", "news_item_id"], legacyRequired: false },
 ];
 
 export function isMissingTableError(error) {

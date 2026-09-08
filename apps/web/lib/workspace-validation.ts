@@ -1,4 +1,4 @@
-import type { Bookstore, LabeledLink, LabeledValue, NewsImage, NewsItem, Submission } from "@/lib/workspace-types";
+import type { Bookstore, LabeledLink, LabeledValue, NewsImage, NewsItem, NewsScheduleRange, Submission } from "@/lib/workspace-types";
 import { findBlockingSubmissionUrl } from "@/lib/submission-url-validation";
 
 export class WorkspaceValidationError extends Error {
@@ -93,7 +93,26 @@ function image(value: unknown): NewsImage {
   };
 }
 
-function newsItem(value: unknown): NewsItem {
+function scheduleRange(value: unknown, newsIndex: number): NewsScheduleRange | null {
+  if (value === undefined || value === null) return null;
+  if (!isObject(value)) throw new WorkspaceValidationError("행사 기간 형식이 올바르지 않습니다.", "INVALID_SCHEDULE_RANGE", `news.${newsIndex}.scheduleRange.startDate`);
+  let startDate = "";
+  let endDate = "";
+  try {
+    startDate = dateOnly(value.startDate, "행사 시작일", false);
+  } catch {
+    throw new WorkspaceValidationError("행사 시작일을 선택해 주세요.", "INVALID_SCHEDULE_RANGE", `news.${newsIndex}.scheduleRange.startDate`);
+  }
+  try {
+    endDate = dateOnly(value.endDate, "행사 종료일", false);
+  } catch {
+    throw new WorkspaceValidationError("행사 종료일을 선택해 주세요.", "INVALID_SCHEDULE_RANGE", `news.${newsIndex}.scheduleRange.endDate`);
+  }
+  if (endDate < startDate) throw new WorkspaceValidationError("종료일은 시작일보다 빠를 수 없습니다.", "INVALID_SCHEDULE_RANGE", `news.${newsIndex}.scheduleRange.endDate`);
+  return { startDate, endDate };
+}
+
+function newsItem(value: unknown, newsIndex: number): NewsItem {
   if (!isObject(value)) throw new WorkspaceValidationError("소식 형식이 올바르지 않습니다.");
   const dates = list(value.dates, "행사 날짜", 100).map((date) => dateOnly(date, "행사 날짜", false));
   if (typeof value.regular !== "boolean" || typeof value.includeInDigest !== "boolean") throw new WorkspaceValidationError("소식 선택값이 올바르지 않습니다.");
@@ -102,6 +121,7 @@ function newsItem(value: unknown): NewsItem {
     title: text(value.title, "소식 제목", 300),
     description: text(value.description, "상세 내용", 30_000),
     dates,
+    scheduleRange: scheduleRange(value.scheduleRange, newsIndex),
     scheduleText: text(value.scheduleText, "일정 안내", 2_000),
     regular: value.regular,
     displayLabel: text(value.displayLabel, "표시 라벨", 100),
@@ -154,7 +174,7 @@ export function parseSubmission(value: unknown): Submission {
     publishedAt: iso(value.publishedAt, "게시 완료 시각"),
     publishedUrl: httpUrl(value.publishedUrl, "게시 URL"),
     monthlyNotice: text(value.monthlyNotice, "이번 달 운영 안내", 10_000),
-    news: list(value.news, "소식", 100).map(newsItem),
+    news: list(value.news, "소식", 100).map((item, index) => newsItem(item, index)),
   };
   const issue = findBlockingSubmissionUrl(submission);
   if (issue) throw new WorkspaceValidationError(issue.message, issue.code, issue.fieldPath);
