@@ -52,3 +52,11 @@ test("uses GitHub Actions releases backed by the supported Node 24 runtime", asy
   assert.equal((workflow.match(/actions\/setup-node@v7/g) ?? []).length, 2);
   assert.doesNotMatch(workflow, /actions\/(?:checkout|setup-node)@v[1-4]\b/);
 });
+
+test("blocks high-severity production dependency advisories in CI", async () => {
+  const workflow = await readFile(new URL("../../../.github/workflows/ci.yml", import.meta.url), "utf8");
+  const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+
+  assert.equal(packageJson.scripts["audit:production"], "npm audit --omit=dev --audit-level=high");
+  assert.match(workflow, /- run: npm run audit:production/);
+});
