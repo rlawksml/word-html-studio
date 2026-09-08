@@ -683,6 +683,20 @@
   - 작업자 역할 전환과 ZIP 기능은 지연 로드 후 정상 동작한다.
   - 앱 코드가 만든 접근성·SEO 감사 실패가 없고, Cloudflare 보안 스크립트 영향은 별도 관찰 항목으로 기록한다.
 
+### TC-SEC-001 · 운영 의존성 high 취약점 차단
+
+- 우선순위/구분: P0 / 자동·Staging
+- 절차:
+  1. clean install 뒤 운영 번들 의존성 audit을 실행한다.
+  2. Next.js·React Server Components가 알려진 보안 수정 버전 이상인지 확인한다.
+  3. 전체 회귀와 실제 Supabase Staging 통합 테스트를 실행한다.
+  4. 배포 후 공개 데이터 수와 Worker 오류 로그를 확인한다.
+- 기대 결과:
+  - `npm audit --omit=dev --audit-level=high`가 취약점 0건으로 종료한다.
+  - CI `verify`에서 운영 audit gate를 삭제하거나 우회하면 회귀 테스트가 실패한다.
+  - 기존 화면·저장·사진·권한 테스트가 통과하고 정확한 QA 데이터 정리를 확인한다.
+  - Production 앱과 Production Supabase에는 변경이 없다.
+
 ## 11. 실행·정리 기준
 
 ### 배포 가능 조건
@@ -706,6 +720,7 @@
 
 | 실행일 | 기준 커밋 | 자동 회귀 | Supabase 통합 | 빌드·린트 | 수동 운영 | 결과 |
 |---|---|---|---|---|---|---|
+| 2026-09-08 | `05a8a5c` 이슈 #62 · PR #63 · Sites Staging v11 | 74/74, 보안 gate 집중 4/4, 운영 audit 0 | GitHub Staging 3/3 및 정확한 QA 키·파일 정리 | migration·배포 대상·빌드·린트 통과 | 3개 책방·3개 소식 유지, 도움말·개선사항 정상, Worker 예외 0건 | **PASS (develop 병합 가능)** |
 | 2026-09-08 | `454fed1` 이슈 #60 · PR #61 | 73/73, 정리 안전장치 집중 3/3 | GitHub Staging 3/3 및 DB·Storage 정확한 키 잔여 0건 | migration·배포 대상·빌드·린트 통과 | 공개 Staging 3개 책방·3개 소식 유지, 브라우저 오류 0건 | **PASS (develop 병합 가능)** |
 | 2026-09-08 | `785039e` 이슈 #58 · PR #59 | 70/70, CI 런타임 집중 3/3 | GitHub Staging 3/3 및 전용 데이터 정리 | migration·배포 대상·빌드·린트 통과 | checkout/setup-node v7, Node 20 종료 경고 0건 | **PASS (develop 병합 가능)** |
 | 2026-09-08 | `8d80b25` 이슈 #43 · Sites Staging v10 | 69/69, 기간 집중 7/7 통과 | 3/3 및 QA 책방 1·소식 5·기간 4 저장·정리 | 통과 | 누락·역전 차단, 저장·재진입·HTML, 6~8월·9~10월·12~1월 경계, 390px 확인 | **PASS (develop 병합 가능)** |
