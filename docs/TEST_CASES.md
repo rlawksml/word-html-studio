@@ -151,6 +151,17 @@
   - API는 제품 `1.1.0-rc.1`, DB `202609070002`를 식별한다.
   - 기존 Staging 행 수·사진 manifest는 테스트 전후가 같다.
 
+### TC-DR-010 · GitHub Actions 지원 런타임 유지
+
+- 우선순위/구분: P1 / 자동·CI
+- 절차:
+  1. `verify`와 `supabase-integration` job의 checkout·Node 설치 action 버전을 검사한다.
+  2. PR 검증과 수동 Staging 통합 workflow를 각각 실행한다.
+- 기대 결과:
+  - 두 job 모두 GitHub가 지원하는 Node 24 기반 action major를 사용한다.
+  - 기존 Node 22 애플리케이션 실행, npm cache, 전체 Git 이력, Staging Environment 설정은 유지된다.
+  - Node.js 20 지원 종료 경고 없이 두 job이 통과한다.
+
 ## 1. 초기 로딩과 접속
 
 ### TC-LOAD-001 · 정상 초기 로딩
@@ -679,6 +690,7 @@
 
 | 실행일 | 기준 커밋 | 자동 회귀 | Supabase 통합 | 빌드·린트 | 수동 운영 | 결과 |
 |---|---|---|---|---|---|---|
+| 2026-09-08 | `785039e` 이슈 #58 · PR #59 | 70/70, CI 런타임 집중 3/3 | GitHub Staging 3/3 및 전용 데이터 정리 | migration·배포 대상·빌드·린트 통과 | checkout/setup-node v7, Node 20 종료 경고 0건 | **PASS (develop 병합 가능)** |
 | 2026-09-08 | `8d80b25` 이슈 #43 · Sites Staging v10 | 69/69, 기간 집중 7/7 통과 | 3/3 및 QA 책방 1·소식 5·기간 4 저장·정리 | 통과 | 누락·역전 차단, 저장·재진입·HTML, 6~8월·9~10월·12~1월 경계, 390px 확인 | **PASS (develop 병합 가능)** |
 | 2026-09-08 | `4c3729b` 이슈 #56 · Sites Staging v9 | 69/69 통과, GitHub verify·GitGuardian 통과 | 업무 데이터 쓰기 없음 | migration 검사·빌드·린트 통과 | 영문·한글 로그인, 새로고침 세션 유지, 로그아웃, 공개 데이터 5/19 유지 | **PASS (Staging)** |
 | 2026-09-08 | `1ec24fb` 이슈 #56 | 69/69 통과, 자판 집중 4/4 | DB 변경 없음·배포 후 세션 검증 예정 | migration 검사·빌드·린트 통과 | Staging secret 재설정과 영문·한글 로그인 예정 | **GO (Staging)** |
