@@ -60,3 +60,12 @@ test("blocks high-severity production dependency advisories in CI", async () => 
   assert.equal(packageJson.scripts["audit:production"], "npm audit --omit=dev --audit-level=high");
   assert.match(workflow, /- run: npm run audit:production/);
 });
+
+test("pins Cloudflare build tooling beyond the audited vulnerable ranges", async () => {
+  const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+
+  // 세 도구는 함께 호환되는 버전으로 고정해야 Vite plugin과 Wrangler가 서로 다른 Miniflare를 끌어오지 않습니다.
+  assert.equal(packageJson.devDependencies["@cloudflare/vite-plugin"], "1.54.5");
+  assert.equal(packageJson.devDependencies.vite, "8.2.2");
+  assert.equal(packageJson.devDependencies.wrangler, "4.129.1");
+});
