@@ -466,6 +466,23 @@
   - 작업자 역할 전환과 ZIP 기능은 지연 로드 후 정상 동작한다.
   - 앱 코드가 만든 접근성·SEO 감사 실패가 없고, Cloudflare 보안 스크립트 영향은 별도 관찰 항목으로 기록한다.
 
+### TC-OPS-001 · Production Supabase 자동 유지 점검
+
+- 우선순위/구분: P1 / 자동·운영 읽기 전용
+- 사전조건:
+  - Production `/api/workspace`가 공개 GET에 HTTP 200을 반환한다.
+  - GitHub Actions 예약 workflow가 기본 브랜치에서 활성화돼 있다.
+- 절차:
+  1. `.github/workflows/production-supabase-keepalive.yml`의 예약 주기와 요청 메서드를 정적 테스트한다.
+  2. workflow를 수동 실행한다.
+  3. Actions 로그에 HTTP 상태만 남고 응답 본문·환경 비밀값이 없는지 확인한다.
+- 기대 결과:
+  - UTC `00:17`, `08:17`, `16:17`에 실행되어 8시간 간격의 GET 요청을 보낸다.
+  - HTTP 200이면 성공하고, 제한된 재시도 후에도 실패하면 workflow가 실패한다.
+  - Database·Storage 생성·수정·삭제와 Supabase 비밀키 사용이 없다.
+  - 자동 복구나 배포를 수행하지 않는다.
+- 자동화: `apps/web/tests/production-keepalive-workflow.test.mjs`
+
 ## 11. 실행·정리 기준
 
 ### 배포 가능 조건
