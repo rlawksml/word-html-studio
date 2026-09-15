@@ -121,6 +121,8 @@ npm run test:integration:local
 
 `test:integration:local`은 `.env.local`의 Supabase에 테스트 전용 책방·소식·사진을 잠시 만들고 저장 충돌과 파일 정리를 확인한 뒤 모두 삭제합니다. GitHub Actions에서는 기본 lint·build·회귀 테스트를 자동 실행하고, 저장소 Secret이 설정된 수동 실행에서 같은 Supabase 통합 테스트를 수행합니다.
 
+Free Plan Supabase의 저활동 자동 일시정지 가능성을 낮추기 위해 `Production Supabase keepalive` GitHub Actions가 8시간마다 공개 `/api/workspace`를 GET으로 확인합니다. 응답 본문은 버리고 HTTP 상태만 기록하며 DB·Storage 쓰기나 비밀키를 사용하지 않습니다. 실패 시 Actions 실행이 실패로 표시되지만 자동 복구나 데이터 변경은 하지 않습니다. GitHub가 비활성 저장소의 예약 workflow를 중지하거나 Supabase 자체 장애가 발생할 수 있으므로 이 점검은 무중단 보장이 아니며, 자동 일시정지를 확실히 막아야 하는 운영 단계에서는 Supabase Pro를 검토합니다.
+
 SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metadata.ts`에서 관리합니다. 운영 도메인이 바뀌면 `SITE_URL`을 먼저 변경하고 canonical, Open Graph, sitemap을 다시 확인합니다. Lighthouse 성능은 앱 코드 외에도 Cloudflare 보안 스크립트와 첫 요청의 콜드 스타트에 영향을 받으므로 배포 전 로컬 빌드와 배포 후 운영 주소를 모두 측정합니다.
 
 ## 배포

@@ -1,0 +1,44 @@
+name: Production Supabase keepalive
+
+on:
+  schedule:
+    # 8시간마다 실행한다. UTC 기준 00:17, 08:17, 16:17이다.
+    - cron: "17 */8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-supabase-keepalive
+  cancel-in-progress: false
+
+jobs:
+  workspace-health:
+    name: Read-only workspace health check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Keep Production Supabase active
+        env:
+          HEALTH_URL: https://bookstore-news-studio.rlawksml.chatgpt.site/api/workspace
+        shell: bash
+        run: |
+          status="$(curl \
+            --silent \
+            --show-error \
+            --output /dev/null \
+            --write-out "%{http_code}" \
+            --retry 3 \
+            --retry-delay 5 \
+            --retry-all-errors \
+            --connect-timeout 10 \
+            --max-time 30 \
+            "$HEALTH_URL")"
+
+          if [[ "$status" != "200" ]]; then
+            echo "::error::Production workspace health check failed with HTTP $status"
+            exit 1
+          fi
+
+          echo "Production workspace health check passed (HTTP 200)."
