@@ -249,7 +249,7 @@ export function useStudioController(initialMonth: string) {
         notify("저장이 끝난 뒤 이동할 수 있습니다.");
         return;
       }
-      setLeaveTarget("visitor");
+      setLeaveTarget(element.closest(".worker-nav") ? "logout" : "visitor");
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("click", handleNavigationClick, true);
@@ -305,6 +305,46 @@ export function useStudioController(initialMonth: string) {
     setPublicDetail(null);
   };
 
+  // 방문자 화면에서 같은 역할로 돌아올 때는 이 탭의 기존 서버 세션을 확인해 암호 재입력을 생략합니다.
+  const requestWorkerAccess = async (targetRole: Exclude<Role, "visitor">) => {
+    if (pendingActionRef.current) return;
+    setPassword("");
+    const savedRole = window.sessionStorage.getItem("bookstore-news-role");
+    const sessionId = window.sessionStorage.getItem("bookstore-news-session-id");
+    if (savedRole === targetRole && sessionId) {
+      if (!beginPendingAction("login-workspace")) return;
+      setAccessRole(targetRole);
+      try {
+        const response = await fetch("/api/session", {
+          cache: "no-store",
+          headers: workspaceSessionHeaders(),
+          signal: AbortSignal.timeout(10_000),
+        });
+        const session = await response.json().catch(() => null) as { role?: Role } | null;
+        if (response.ok && session?.role === targetRole) {
+          replaceWorkspace(await loadWorkspace(true));
+          setRole(targetRole);
+          setAccessRole(null);
+          setStorageError("");
+          return;
+        }
+        if (response.status !== 401 && response.status !== 403) {
+          throw new Error("작업자 접속 상태를 확인하지 못했습니다.");
+        }
+        window.sessionStorage.removeItem("bookstore-news-role");
+        window.sessionStorage.removeItem("bookstore-news-session-id");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "작업자 접속 상태를 확인하지 못했습니다.";
+        setStorageError(message);
+        notify(message);
+        return;
+      } finally {
+        finishPendingAction();
+      }
+    }
+    setAccessRole(targetRole);
+  };
+
   const goToBookstoreList = () => {
     setInputView("list");
     setSelectedBookstoreId(null);
@@ -328,6 +368,22 @@ export function useStudioController(initialMonth: string) {
   };
 
   const returnToVisitor = () => {
+    if (pendingActionRef.current && pendingActionRef.current !== "leave-save" && pendingActionRef.current !== "leave-discard") {
+      notify("진행 중인 작업이 끝난 뒤 이동할 수 있습니다.");
+      return;
+    }
+    void releasePresence();
+    resetVisitorPage();
+    setRole("visitor");
+    setInputView("list");
+    setSelectedBookstoreId(null);
+    setAccessRole(null);
+    setPassword("");
+    setLeaveTarget(null);
+  };
+
+  // 로그아웃만 서버 쿠키와 탭 범위 sessionId를 지웁니다. 로고의 메인 이동과 분리해야 합니다.
+  const logout = () => {
     if (pendingActionRef.current && pendingActionRef.current !== "leave-save" && pendingActionRef.current !== "leave-discard") {
       notify("진행 중인 작업이 끝난 뒤 로그아웃할 수 있습니다.");
       return;
@@ -364,6 +420,7 @@ export function useStudioController(initialMonth: string) {
       }
       setStorageError("");
       if (leaveTarget === "visitor") returnToVisitor();
+      else if (leaveTarget === "logout") logout();
       else goToBookstoreList();
     } catch (error) {
       const message = error instanceof Error ? error.message : "임시 저장하지 못했습니다.";
@@ -393,6 +450,7 @@ export function useStudioController(initialMonth: string) {
       }
       setStorageError("");
       if (target === "visitor") returnToVisitor();
+      else if (target === "logout") logout();
       else goToBookstoreList();
       notify("마지막 자동 저장 이후 변경을 버리고 이동했습니다.");
     } catch (error) {
@@ -817,7 +875,7 @@ export function useStudioController(initialMonth: string) {
     setInputView, setSelectedSubmissionId, setHtmlView, setPreviewMode, setSearch, setSelectedDay,
     setDraggedNewsId, setDraggedImageId, setDraggedDigestId, setPublicDetail, setLeaveTarget,
     setEditingEntryBlock,
-    login, returnToVisitor, confirmLeave, discardLeave, requestEditorLeave, openBookstore, updateCurrent, updateNews, updateNewsValue,
+    login, requestWorkerAccess, returnToVisitor, logout, confirmLeave, discardLeave, requestEditorLeave, openBookstore, updateCurrent, updateNews, updateNewsValue,
     saveBookstore,
     addImages, reorderNews, moveNews, reorderImages, moveImage, copyPrevious, manualSave,
     completeSubmission, completionShareMessage, copyText, downloadPhotoZip, reorderDigest,
