@@ -734,7 +734,7 @@
 
 | 실행일 | 기준 커밋 | 자동 회귀 | Supabase 통합 | 빌드·린트 | 수동 운영 | 결과 |
 |---|---|---|---|---|---|---|
-| 2026-09-21 | `3b02f1a` · Sites Staging v15 · 이슈 #72/#73 | 77/77, 운영 audit 0·전체 audit high 6 | GitHub Staging 3/3·정확한 전용 데이터 정리 | 빌드·린트·migration·Staging 대상·diff 통과 | 최초 입력·5건 저장·사진·완료·공개·HTML, 자동저장 무한 반복 0회, 로고 메인 이동 뒤 같은 역할 무암호 재진입 통과; 날짜·사진 정렬/삭제·ZIP 산출물·2세션·Lighthouse 잔존 | **NO-GO (PASS 10 / FAIL 1 / BLOCKED 6 / SKIP 1)** |
+| 2026-09-21 | `3b02f1a` · Sites Staging v15 · 이슈 #72/#73 | 77/77, 운영 audit 0·전체 audit high 6 | GitHub Staging 3/3·정확한 전용 데이터 정리 | 빌드·린트·migration·Staging 대상·diff 통과 | 최초 입력·5건 저장·다중 사진·순서 버튼·정확한 사진 삭제·완료·공개·HTML, 자동저장 무한 반복 0회, 로고 메인 이동 뒤 같은 역할 무암호 재진입 통과; 날짜·손잡이 드래그·ZIP 산출물·2세션·Lighthouse 잔존 | **NO-GO (PASS 10 / FAIL 1 / BLOCKED 6 / SKIP 1)** |
 | 2026-09-21 | `7a86132` v1.1 develop 로컬 전체 점검 | 75/75, 운영 audit 0·전체 audit high 6 | GitHub Staging 3/3·정확한 QA 키와 파일 정리 | migration·Staging 대상·빌드·린트·diff 통과 | localhost 로딩 실패 3회·오류 안내, 390px 도움말 통과; 작업자 브라우저 UAT 대기 | **NO-GO (Staging 브라우저 UAT 필요)** |
 | 2026-09-08 | `1737a98` 이슈 #64 · PR #65 · Sites Staging v12 | 75/75, 도구 버전 집중 5/5, 전체 audit 19→6·운영 0 | GitHub Staging 3/3 및 정확한 QA 키·파일 정리 | migration·배포 대상·빌드·린트 통과, Vite config 경고 0 | 3개 책방·3개 소식 유지, 도움말·개선사항·콘솔 정상, Worker 예외 0건 | **PASS (develop 병합 가능)** |
 | 2026-09-08 | `05a8a5c` 이슈 #62 · PR #63 · Sites Staging v11 | 74/74, 보안 gate 집중 4/4, 운영 audit 0 | GitHub Staging 3/3 및 정확한 QA 키·파일 정리 | migration·배포 대상·빌드·린트 통과 | 3개 책방·3개 소식 유지, 도움말·개선사항 정상, Worker 예외 0건 | **PASS (develop 병합 가능)** |
