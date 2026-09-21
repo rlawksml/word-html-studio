@@ -1,5 +1,26 @@
 import type { Submission } from "@/lib/workspace-types";
 
+const fingerprint = (submission: Submission) => JSON.stringify(submission);
+
+/**
+ * 저장 요청 뒤 서버가 URL·선택값 등을 정규화했으면 응답 전체를 화면 기준으로 채택합니다.
+ * 다만 요청이 진행되는 동안 사용자가 새로 입력했다면 그 최신 화면 내용은 유지하고,
+ * 다음 저장이 충돌하지 않도록 서버가 발급한 버전·발행 정보만 이어받습니다.
+ */
+export function reconcilePersistedSubmission(
+  requested: Submission,
+  saved: Submission,
+  current: Submission,
+) {
+  if (fingerprint(current) === fingerprint(requested)) return saved;
+  return {
+    ...current,
+    updatedAt: saved.updatedAt,
+    publishedAt: saved.publishedAt,
+    publishedUrl: saved.publishedUrl,
+  };
+}
+
 /**
  * 저장 큐 앞쪽의 자동 저장이 updatedAt을 바꿨어도 사용자가 보고 있던 마지막 본문은 유지합니다.
  * 다른 탭의 버전은 클라이언트에 없으므로 서버의 기존 충돌 검사가 그대로 막습니다.
