@@ -87,7 +87,7 @@ styles/              공통 기반 및 역할·기능별 스타일
 
 ### 자동 역할 선택
 
-- 새 버그나 GitHub Issue가 들어오면 `issue_analyst`가 먼저 재현·원인·영향 범위·데이터 위험·TC를 분석한다. 분석이 끝나기 전에 수정하지 않으며, 사용자가 분석만 요청했다면 여기서 멈춘다.
+- 새 버그나 GitHub Issue가 들어오면 `issue_analyst`가 먼저 재현·원인·영향 범위·데이터 위험·TC를 분석한다. 화면과 Console만 보지 않고 Network/API 요청, 서버 로그, 반복 실행 시 메모리·리소스 증가까지 증거표로 확인한다. 분석이 끝나기 전에 수정하지 않으며, 사용자가 분석만 요청했다면 여기서 멈춘다.
 - 기능 목적이나 범위가 불명확하면 `product_planner`, 비개발자·모바일 사용 흐름을 바꾸면 `ux_designer`를 사용한다.
 - Database, Storage, 세션, 동시 편집, 마이그레이션, 롤백 또는 배포 경계를 바꾸면 `safety_architect` 검토를 구현 전에 반드시 거친다.
 - 승인된 단일 변경은 `feature_developer`가 구현한다. 한 번에 서로 무관한 이슈를 함께 수정하지 않는다.
@@ -104,6 +104,10 @@ styles/              공통 기반 및 역할·기능별 스타일
 4. `qa_validator`: 목표 TC와 관련 회귀 테스트를 실행한다.
 5. 필요 시 `usability_tester`, `release_reviewer` 또는 `astra_release_reviewer`: 사용성과 사이드 이펙트를 독립 검토한다.
 6. 주 에이전트: 사용자가 GitHub 반영까지 허용한 경우에만 Issue에 분석·수정·검증 결과를 기록하고 한 이슈 단위로 커밋·PR을 만든다. merge와 배포는 별도 허가 없이는 진행하지 않는다.
+
+로그인·인증·세션 실패는 영향이 확인될 때까지 P0로 다룬다. `issue_analyst`의 Console·Network/API·세션 복구·메모리/리소스 증거, `qa_validator`의 격리 환경 반복 검증, `release_reviewer`의 독립 확인 중 하나라도 빠지면 Production 판정은 `NO-GO`다. 실제 암호, 쿠키, 세션 ID, Authorization 헤더, Supabase 키와 서명 URL은 로그·HAR·스크린샷·Issue에 남기지 않는다.
+
+별도의 명시적 사용자 승인 없이는 Production에서 비인증 `GET`·`HEAD` 상태 확인과 로그 조회만 허용한다. 로그인 제출, 세션 발급, 비-GET 요청, 쿠키·rate limit·presence·Database·Storage 또는 그 밖의 숨은 상태 변경은 테스트 목적으로 실행하지 않는다. 로그인 실패·복구와 메모리 반복 검증은 로컬 mock 또는 격리 Staging에서만 수행한다.
 
 하위 에이전트의 성공 보고를 그대로 승인 근거로 사용하지 않는다. 주 에이전트는 쓰기 에이전트 실행 전후의 실제 diff와 테스트 증거를 확인하고, 역할 지침 밖의 변경이 없는지 검토한 뒤에만 다음 단계로 이동한다. 자세한 사용법은 `docs/AGENT_WORKFLOW.md`를 따른다.
 

@@ -6,8 +6,12 @@ sandbox_mode = "workspace-write"
 developer_instructions = """
 Validate the changed behavior independently from the implementation summary.
 Select meaningful Vitest, Playwright, API, and Supabase Staging tests in proportion to risk. Verify targeted TC first, then related regression and required P0 flows.
-Never run write tests against Production. Use uniquely prefixed Staging fixtures, record exact identifiers, and verify cleanup without touching pre-existing data.
+For authentication, login, session, or authorization changes, require isolated browser evidence for all of these channels: Console errors/warnings/unhandled rejections; Network method/status/timing/request count/retry behavior with secrets redacted; cookie and session rollback plus successful recovery; and repeated-cycle memory/resource checks for heap, DOM nodes, listeners, timers, pending requests, and object URLs. A unit test alone is not sufficient for release approval.
+Exercise failure, timeout, duplicate submission, retry, cancellation or navigation, rate-limit response, and a subsequent successful login where the environment safely permits it. Use local mocks or isolated Staging; never generate intentional authentication failures against Production.
+Without separate explicit user authorization, Production permits only non-authenticated GET or HEAD health checks and log inspection. Do not submit a login, issue a session, send any non-GET request, or change cookies, rate-limit counters, presence, Database, Storage, or any other visible or hidden Production state.
+Never run state-changing tests against Production. Use uniquely prefixed Staging fixtures, record exact identifiers, and verify cleanup without touching pre-existing data.
 Update only test cases or test reports when explicitly requested; do not fix application code.
 Return commands, TC results, evidence, cleanup proof, known gaps, and a GO, CONDITIONAL GO, or NO-GO decision.
+Authentication evidence must omit passwords, cookies, session IDs, authorization headers, Supabase keys, signed URLs, and personal data. Mark any missing Console, Network/API, recovery, or memory evidence BLOCKED or SKIPPED with a reason.
 Do not commit, push, create or merge a PR, deploy, or close issues.
 """

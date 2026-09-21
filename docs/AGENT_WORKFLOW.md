@@ -89,6 +89,29 @@ product_planner + ux_designer
 
 검토 결과가 GO여도 배포 요청을 대신하지 않는다. Staging과 Production 배포는 사용자의 명시적인 실행 요청이 있을 때만 진행한다.
 
+### 로그인·인증 실패 전용 P0 흐름
+
+로그인 실패는 단순히 “암호가 맞지 않는다”는 화면 문제로만 처리하지 않는다. 인증 API, 작업 공간 로딩, 쿠키와 탭 세션 rollback, 중복 요청, rate limit, 네트워크 지연, 반복 실패 뒤 복구와 장시간 사용 시 리소스 누적이 연결될 수 있으므로 영향이 확인될 때까지 P0로 관리한다.
+
+`issue_analyst`는 다음 증거표를 채운 뒤에만 원인과 수정 범위를 제안한다.
+
+| 확인 채널 | 필수 확인 내용 | 민감정보 처리 |
+|---|---|---|
+| 사용자 흐름 | 입력, Enter·클릭 연타, 취소·이동, 실패 후 재시도, 이후 정상 로그인 | 화면에 실제 암호를 표시하지 않음 |
+| Console | error, warning, unhandled rejection, hydration 오류와 발생 순서 | 메시지 안의 토큰·식별자 제거 |
+| Network/API | `/api/session`, `/api/workspace`, rollback 요청의 method·status·timing·횟수·retry·응답 종류 | body, Cookie, Authorization, signed URL을 저장하지 않음 |
+| 세션 복구 | 실패 후 cookie·sessionStorage 정리, 다른 탭 세션 보존, 정상 재로그인 | 실제 쿠키·session ID 값은 기록하지 않음 |
+| 서버 로그 | 같은 시간대 Worker·Route·Supabase 오류와 request correlation | 키·개인정보를 마스킹하고 필요한 최소 구간만 사용 |
+| 메모리·리소스 | 반복 주기 뒤 heap 추세, detached DOM, listener·timer·pending request·AbortController·object URL 누적 | 로컬 또는 격리 Staging에서만 반복 실패 생성 |
+
+메모리 검증은 한 번의 숫자 비교로 통과시키지 않는다. 로컬 mock 또는 격리 Staging에서 같은 로그인 실패·모달 닫기·재시도 주기를 여러 번 반복하고, 정리 또는 garbage collection 뒤의 heap·DOM·listener 추세를 비교한다. 값이 반복마다 계속 증가하면 retaining path를 찾고 원인이 설명되기 전까지 FAIL로 둔다. 브라우저나 권한 때문에 측정하지 못하면 PASS가 아니라 BLOCKED 또는 SKIPPED로 기록한다.
+
+`qa_validator`는 수정 뒤 실패·timeout·중복 제출·retry·취소 또는 이동·rate limit·정상 복구를 검증한다. 단위 테스트만으로 인증 이슈를 승인하지 않으며 Playwright나 브라우저 Network 기록, API 검증과 메모리 반복 검사를 함께 사용한다. 이 동적 검증은 로컬 mock 또는 격리 Staging에서만 수행한다.
+
+별도의 명시적 사용자 승인 없이는 Production에서 비인증 `GET`·`HEAD` 상태 확인과 로그 조회만 허용한다. 성공·실패 여부와 관계없이 로그인 제출, 세션 발급, 비-GET 요청, 쿠키·rate limit·presence·Database·Storage 또는 그 밖의 숨은 상태 변경은 실행하지 않는다. 단순히 기존 데이터를 직접 수정하지 않았다는 이유로 Production 로그인 테스트를 허용해서는 안 된다.
+
+`release_reviewer`는 Console, Network/API, 세션 rollback·복구, 메모리·리소스 증거가 모두 있는지 확인한다. 한 채널이라도 근거 없이 PASS 처리됐거나 보고서에 실제 암호·쿠키·세션 ID·Authorization 헤더·Supabase 키·서명 URL이 노출되면 `NO-GO`다.
+
 ## 사용자가 직접 역할을 지정하고 싶을 때
 
 필요한 경우에만 자연어로 추가한다.
