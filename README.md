@@ -142,6 +142,7 @@ SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metad
 ## 문서
 
 - [개발 에이전트 구조·CSS 분리 규칙](AGENTS.md)
+- [다중 에이전트 역할과 자동 작업 흐름](docs/AGENT_WORKFLOW.md)
 - [사용자 흐름](docs/USER_FLOW.md)
 - [운영 테스트 가이드](docs/TEST_GUIDE.md)
 - [v1.1 사용자 검증 시나리오](docs/V1_1_USER_UAT.md)
