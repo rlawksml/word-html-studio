@@ -31,12 +31,25 @@ import {
   triggerDownload,
   uploadFileToSignedUrl,
   urlToBlob,
+  workspaceSessionHeaders,
 } from "@/lib/workspace-client";
 import { forgetSubmissionDraft, recoverSubmissionDraft, rememberSubmissionDraft } from "@/lib/submission-draft";
 import { assertSubmissionContentMatches, buildCompletedSubmission } from "@/lib/submission-completion";
 import { findInvalidSubmissionUrl, normalizeSubmissionUrls } from "@/lib/submission-url-validation";
 import type { Bookstore, EditingPresenceTarget, NewsImage, NewsItem, Submission, Workspace } from "@/lib/workspace-types";
 import { newsOccursOnDate, newsVisibleInMonth } from "@/lib/news-schedule";
+import { createPendingActionLock } from "@/lib/pending-action-lock.mjs";
+
+export type PendingAction =
+  | "login-authenticating"
+  | "login-workspace"
+  | "manual-save"
+  | "complete-submission"
+  | "leave-save"
+  | "leave-discard"
+  | "download-photos"
+  | "download-bundle"
+  | null;
 
 /**
  * 세 역할이 공유하는 상태와 업무 명령을 한곳에서 조정하는 application controller입니다.
@@ -73,7 +86,10 @@ export function useStudioController(initialMonth: string) {
   const [openingBookstoreId, setOpeningBookstoreId] = useState<number | null>(null);
   const [imageUploadNewsId, setImageUploadNewsId] = useState<number | null>(null);
   const [storageError, setStorageError] = useState("");
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const submissionsRef = useRef(submissions);
+  const pendingActionRef = useRef<PendingAction>(null);
+  const [pendingActionLock] = useState(() => createPendingActionLock<Exclude<PendingAction, null>>(() => undefined));
   const openingBookstoreRef = useRef<number | null>(null);
   const pendingImageDeletesRef = useRef(new Map<number, NewsImage[]>());
   const imageUploadInProgressRef = useRef(false);
@@ -90,6 +106,24 @@ export function useStudioController(initialMonth: string) {
     setToast(message);
     window.setTimeout(() => setToast(""), 2400);
   }, []);
+
+  // React 렌더링 전에 연속 클릭과 Enter가 같은 프레임에 들어와도 비동기 작업은 한 번만 시작합니다.
+  const beginPendingAction = useCallback((action: Exclude<PendingAction, null>) => {
+    if (!pendingActionLock.begin(action)) return false;
+    pendingActionRef.current = action;
+    setPendingAction(action);
+    return true;
+  }, [pendingActionLock]);
+  const changePendingAction = useCallback((action: Exclude<PendingAction, null>) => {
+    pendingActionLock.change(action);
+    pendingActionRef.current = action;
+    setPendingAction(action);
+  }, [pendingActionLock]);
+  const finishPendingAction = useCallback(() => {
+    pendingActionLock.finish();
+    pendingActionRef.current = null;
+    setPendingAction(null);
+  }, [pendingActionLock]);
 
   // 한글 IME 조합 중에는 완료 저장을 시작하지 않습니다. blur 뒤 compositionend가 오면 최신 onChange가 ref에 반영됩니다.
   const beginTextComposition = useCallback(() => {
@@ -211,6 +245,10 @@ export function useStudioController(initialMonth: string) {
       if (!element) return;
       event.preventDefault();
       event.stopPropagation();
+      if (pendingActionRef.current === "manual-save" || pendingActionRef.current === "complete-submission") {
+        notify("저장이 끝난 뒤 이동할 수 있습니다.");
+        return;
+      }
       setLeaveTarget("visitor");
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -219,12 +257,13 @@ export function useStudioController(initialMonth: string) {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("click", handleNavigationClick, true);
     };
-  }, [currentSubmission, hasDraftInProgress]);
+  }, [currentSubmission, hasDraftInProgress, notify]);
 
   // 작업 암호는 서버로만 보내며 성공하면 현재 탭의 임의 sessionId와 HttpOnly 쿠키를 함께 사용합니다.
   const login = async () => {
     const normalizedPassword = password.normalize("NFC").trim();
-    if (!accessRole) return;
+    if (!accessRole || !normalizedPassword || !beginPendingAction("login-authenticating")) return;
+    let sessionEstablished = false;
     try {
       const sessionId = crypto.randomUUID();
       const response = await fetch("/api/session", {
@@ -233,8 +272,10 @@ export function useStudioController(initialMonth: string) {
         body: JSON.stringify({ role: accessRole, code: normalizedPassword, sessionId }),
       });
       if (!response.ok) { notify(await responseMessage(response, "작업 암호를 확인해 주세요.")); return; }
+      sessionEstablished = true;
       window.sessionStorage.setItem("bookstore-news-role", accessRole);
       window.sessionStorage.setItem("bookstore-news-session-id", sessionId);
+      changePendingAction("login-workspace");
       const workspace = await loadWorkspace(true);
       replaceWorkspace(workspace);
       setRole(accessRole);
@@ -242,9 +283,17 @@ export function useStudioController(initialMonth: string) {
       setPassword("");
       setStorageError("");
     } catch (error) {
+      if (sessionEstablished) {
+        // 인증 뒤 Workspace 준비가 실패하면 쿠키와 탭 세션을 함께 되돌려 다음 접속과 섞이지 않게 합니다.
+        await fetch("/api/session", { method: "DELETE", headers: workspaceSessionHeaders(), signal: AbortSignal.timeout(3_000) }).catch(() => undefined);
+        window.sessionStorage.removeItem("bookstore-news-role");
+        window.sessionStorage.removeItem("bookstore-news-session-id");
+      }
       const message = error instanceof Error ? error.message : "작업 화면에 접속하지 못했습니다.";
       setStorageError(message);
       notify(message);
+    } finally {
+      finishPendingAction();
     }
   };
 
@@ -267,6 +316,10 @@ export function useStudioController(initialMonth: string) {
       notify("사진 저장이 끝난 뒤 책방 목록으로 이동해 주세요.");
       return;
     }
+    if (pendingActionRef.current === "manual-save" || pendingActionRef.current === "complete-submission") {
+      notify("저장이 끝난 뒤 책방 목록으로 이동해 주세요.");
+      return;
+    }
     if (hasDraftInProgress) {
       setLeaveTarget("list");
       return;
@@ -275,6 +328,10 @@ export function useStudioController(initialMonth: string) {
   };
 
   const returnToVisitor = () => {
+    if (pendingActionRef.current && pendingActionRef.current !== "leave-save" && pendingActionRef.current !== "leave-discard") {
+      notify("진행 중인 작업이 끝난 뒤 로그아웃할 수 있습니다.");
+      return;
+    }
     void releasePresence();
     void fetch("/api/session", { method: "DELETE" });
     window.sessionStorage.removeItem("bookstore-news-role");
@@ -294,6 +351,7 @@ export function useStudioController(initialMonth: string) {
       notify("사진 저장이 끝난 뒤 이동해 주세요.");
       return;
     }
+    if (!beginPendingAction("leave-save")) return;
     try {
       const snapshot = selectedBookstoreId
         ? submissionsRef.current.find((item) => item.bookstoreId === selectedBookstoreId && item.month === month)
@@ -311,6 +369,8 @@ export function useStudioController(initialMonth: string) {
       const message = error instanceof Error ? error.message : "임시 저장하지 못했습니다.";
       setStorageError(message);
       notify(message);
+    } finally {
+      finishPendingAction();
     }
   };
 
@@ -320,6 +380,7 @@ export function useStudioController(initialMonth: string) {
       notify("사진 저장이 끝난 뒤 이동해 주세요.");
       return;
     }
+    if (!beginPendingAction("leave-discard")) return;
     const target = leaveTarget;
     const snapshot = selectedBookstoreId
       ? submissionsRef.current.find((item) => item.bookstoreId === selectedBookstoreId && item.month === month)
@@ -338,6 +399,8 @@ export function useStudioController(initialMonth: string) {
       const message = error instanceof Error ? error.message : "저장하지 않은 내용을 정리하지 못했습니다.";
       setStorageError(message);
       notify(message);
+    } finally {
+      finishPendingAction();
     }
   };
 
@@ -392,6 +455,7 @@ export function useStudioController(initialMonth: string) {
   // 모든 소식 수정은 이 함수를 통과합니다. 완료본을 수정하면 draft로 돌리고 제거된 사진도 정리합니다.
   const updateCurrent = (change: (submission: Submission) => Submission) => {
     if (!currentSubmission) return;
+    if (pendingActionRef.current === "complete-submission") return;
     setSubmissions((current) => current.map((item) => {
       if (item.id !== currentSubmission.id) return item;
       const changed = change(item);
@@ -556,6 +620,7 @@ export function useStudioController(initialMonth: string) {
       notify("사진 저장이 끝난 뒤 임시 저장해 주세요.");
       return;
     }
+    if (!beginPendingAction("manual-save")) return;
     try {
       setSaveState("공용 저장소에 저장 중...");
       await saveNow(true);
@@ -567,6 +632,8 @@ export function useStudioController(initialMonth: string) {
       setStorageError(message);
       setSaveState("임시 저장 실패");
       notify(message);
+    } finally {
+      finishPendingAction();
     }
   };
 
@@ -611,6 +678,7 @@ export function useStudioController(initialMonth: string) {
       notify(invalidUrl.message);
       return;
     }
+    if (!beginPendingAction("complete-submission")) return;
     setSubmissions((current) => current.map((item) => item.id === completed.id ? completed : item));
     setSaveState("입력 완료 내용을 저장 중...");
     try {
@@ -634,6 +702,8 @@ export function useStudioController(initialMonth: string) {
       setStorageError(message);
       setSaveState("입력 완료 저장 실패");
       notify(message);
+    } finally {
+      finishPendingAction();
     }
   };
 
@@ -652,28 +722,38 @@ export function useStudioController(initialMonth: string) {
 
   // HTML 편집자가 외부 게시판에 올릴 수 있도록 비공개 원본 사진과 선택적 HTML을 ZIP으로 묶습니다.
   const downloadPhotoZip = async (submission: Submission, bookstore: Bookstore, withHtml: boolean) => {
-    // 방문자와 입력자가 ZIP 라이브러리까지 내려받지 않도록 실제 다운로드 순간에만 불러옵니다.
-    const { default: JSZip } = await import("jszip");
-    const zip = new JSZip();
-    const imageFolder = zip.folder("사진");
-    for (let newsIndex = 0; newsIndex < submission.news.length; newsIndex += 1) {
-      const news = submission.news[newsIndex];
-      for (let imageIndex = 0; imageIndex < news.images.length; imageIndex += 1) {
-        const item = news.images[imageIndex];
-        const extension = item.name.split(".").pop() || "jpg";
-        const filename = `${submission.month}_${safeFilename(bookstore.name)}_${String(newsIndex + 1).padStart(2, "0")}_${String(imageIndex + 1).padStart(2, "0")}_${safeFilename(news.title)}.${extension}`;
-        imageFolder?.file(filename, await urlToBlob(item.originalUrl || item.url));
+    const downloadAction = withHtml ? "download-bundle" : "download-photos";
+    if (!beginPendingAction(downloadAction)) return;
+    try {
+      // 방문자와 입력자가 ZIP 라이브러리까지 내려받지 않도록 실제 다운로드 순간에만 불러옵니다.
+      const { default: JSZip } = await import("jszip");
+      const zip = new JSZip();
+      const imageFolder = zip.folder("사진");
+      for (let newsIndex = 0; newsIndex < submission.news.length; newsIndex += 1) {
+        const news = submission.news[newsIndex];
+        for (let imageIndex = 0; imageIndex < news.images.length; imageIndex += 1) {
+          const item = news.images[imageIndex];
+          const extension = item.name.split(".").pop() || "jpg";
+          const filename = `${submission.month}_${safeFilename(bookstore.name)}_${String(newsIndex + 1).padStart(2, "0")}_${String(imageIndex + 1).padStart(2, "0")}_${safeFilename(news.title)}.${extension}`;
+          imageFolder?.file(filename, await urlToBlob(item.originalUrl || item.url));
+        }
       }
+      if (withHtml) {
+        const pasteReadyHtml = generatedHtml(submission, bookstore, false);
+        const baseFilename = `${submission.month}_${safeFilename(bookstore.name)}`;
+        // HTML은 브라우저 미리보기용 전체 문서, TXT는 외부 HTML 편집기에 그대로 붙여넣는 본문 마크업입니다.
+        zip.file(`${baseFilename}.html`, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${bookstore.name}</title></head><body>${pasteReadyHtml}</body></html>`);
+        zip.file(`${baseFilename}_HTML코드_복사용.txt`, pasteReadyHtml);
+        zip.file("사진배치안내.txt", submission.news.map((news, index) => `${index + 1}. ${news.title}\n${news.images.map((image, imageIndex) => `- ${submission.month}_${safeFilename(bookstore.name)}_${String(index + 1).padStart(2, "0")}_${String(imageIndex + 1).padStart(2, "0")}_${safeFilename(news.title)}.${image.name.split(".").pop() || "jpg"}`).join("\n")}`).join("\n\n"));
+      }
+      triggerDownload(`${submission.month}_${safeFilename(bookstore.name)}_${withHtml ? "작업파일" : "사진"}.zip`, await zip.generateAsync({ type: "blob" }));
+      notify(withHtml ? "HTML·TXT·사진 ZIP을 준비했습니다." : "사진 ZIP을 준비했습니다.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "다운로드 파일을 준비하지 못했습니다.";
+      notify(message);
+    } finally {
+      finishPendingAction();
     }
-    if (withHtml) {
-      const pasteReadyHtml = generatedHtml(submission, bookstore, false);
-      const baseFilename = `${submission.month}_${safeFilename(bookstore.name)}`;
-      // HTML은 브라우저 미리보기용 전체 문서, TXT는 외부 HTML 편집기에 그대로 붙여넣는 본문 마크업입니다.
-      zip.file(`${baseFilename}.html`, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${bookstore.name}</title></head><body>${pasteReadyHtml}</body></html>`);
-      zip.file(`${baseFilename}_HTML코드_복사용.txt`, pasteReadyHtml);
-      zip.file("사진배치안내.txt", submission.news.map((news, index) => `${index + 1}. ${news.title}\n${news.images.map((image, imageIndex) => `- ${submission.month}_${safeFilename(bookstore.name)}_${String(index + 1).padStart(2, "0")}_${String(imageIndex + 1).padStart(2, "0")}_${safeFilename(news.title)}.${image.name.split(".").pop() || "jpg"}`).join("\n")}`).join("\n\n"));
-    }
-    triggerDownload(`${submission.month}_${safeFilename(bookstore.name)}_${withHtml ? "작업파일" : "사진"}.zip`, await zip.generateAsync({ type: "blob" }));
   };
 
   // 통합본 순서는 해당 월의 완료 Submission 구간 안에서만 바꿉니다.
@@ -728,7 +808,7 @@ export function useStudioController(initialMonth: string) {
     role, accessRole, password, bookstores, submissions, month, selectedBookstoreId, inputView,
     selectedSubmissionId, htmlView, previewMode, search, selectedDay, toast, saveState,
     draggedNewsId, draggedImageId, draggedDigestId, publicDetail, leaveTarget, editingEntryBlock,
-    openingBookstoreId, imageUploadNewsId, storageError, editingPresence,
+    openingBookstoreId, imageUploadNewsId, storageError, editingPresence, pendingAction,
     initialLoadState,
     currentSubmission, htmlReady, selectedHtmlSubmission, selectedHtmlBookstore, generatedCode,
     generatedPreview, combinedHtml, monthSubmissions, completedBookstoreCount, completionPercent,

@@ -66,7 +66,7 @@ export function triggerDownload(filename: string, blob: Blob) {
   URL.revokeObjectURL(url);
 }
 
-export function workspaceSessionHeaders() {
+export function workspaceSessionHeaders(): Record<string, string> {
   // HttpOnly 쿠키와 별도로 현재 탭의 sessionId를 보내 탭 종료 후 작업 권한이 재사용되지 않게 합니다.
   const sessionId = window.sessionStorage.getItem("bookstore-news-session-id") || "";
   return sessionId ? { "x-workspace-session-id": sessionId } : {};
