@@ -232,8 +232,10 @@ test("publishes complete SEO metadata, discovery routes, and a social preview", 
 });
 
 test("keeps passcodes in server environment variables and uses a tab-scoped worker session", async () => {
-  const [source, sessionRoute, sessionLibrary, serverLibrary] = await Promise.all([
+  const [source, controller, appHeader, sessionRoute, sessionLibrary, serverLibrary] = await Promise.all([
     readApplicationSource(),
+    readFile(new URL("../hooks/use-studio-controller.ts", import.meta.url), "utf8"),
+    readFile(new URL("../components/molecules/AppHeader.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/session/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/workspace-session.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/supabase-server.ts", import.meta.url), "utf8"),
@@ -276,7 +278,17 @@ test("keeps passcodes in server environment variables and uses a tab-scoped work
   assert.match(source, /forgetSubmissionDraft\(snapshot\)/);
   assert.match(source, /<BrandButton onClick=\{returnToVisitor\} \/>/);
   assert.match(source, /aria-label="동네책방 소식 홈"/);
-  assert.match(source, /<button onClick=\{returnToVisitor\}>로그아웃<\/button>/);
+  assert.match(appHeader, /requestWorkerAccess\("input"\)/);
+  assert.match(appHeader, /requestWorkerAccess\("html"\)/);
+  assert.match(appHeader, /<button onClick=\{logout\}>로그아웃<\/button>/);
+  const returnToVisitorBody = controller.match(/const returnToVisitor = \(\) => \{([\s\S]*?)\n  \};/)?.[1] || "";
+  const logoutBody = controller.match(/const logout = \(\) => \{([\s\S]*?)\n  \};/)?.[1] || "";
+  assert.doesNotMatch(returnToVisitorBody, /DELETE|removeItem/);
+  assert.match(returnToVisitorBody, /resetVisitorPage\(\)/);
+  assert.match(logoutBody, /method: "DELETE"/);
+  assert.match(logoutBody, /removeItem\("bookstore-news-role"\)/);
+  assert.match(controller, /setLeaveTarget\(element\.closest\("\.worker-nav"\) \? "logout" : "visitor"\)/);
+  assert.match(controller, /session\?\.role === targetRole/);
   assert.match(source, /← 뒤로가기/);
   assert.doesNotMatch(source, /장의 사진 업로드|월별 현황 메시지 복사|completion-modal|재게시를 알려주세요|setCompletion/);
 });

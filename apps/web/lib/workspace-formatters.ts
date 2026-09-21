@@ -2,7 +2,7 @@ import type { Bookstore, LabeledLink, LabeledValue, NewsItem, Submission } from 
 
 // 네트워크나 React 상태에 의존하지 않는 생성·표시·검증 함수만 두는 도메인 유틸리티입니다.
 export type Role = "visitor" | "input" | "html";
-export type LeaveTarget = "visitor" | "list";
+export type LeaveTarget = "visitor" | "logout" | "list";
 
 export const BOOKSTORE_COLORS = ["#d96c5f", "#4f83a8", "#d19a3e", "#5f9274", "#8c6bb1", "#c56f9a", "#6f8f3d", "#b66d3f", "#397f86", "#7d756d"];
 export const DISPLAY_LABELS = ["신청 중", "신청 마감", "행사 종료", "신규 모집", "상시 운영"];
