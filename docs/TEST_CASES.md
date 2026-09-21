@@ -734,7 +734,7 @@
 
 | 실행일 | 기준 커밋 | 자동 회귀 | Supabase 통합 | 빌드·린트 | 수동 운영 | 결과 |
 |---|---|---|---|---|---|---|
-| 2026-09-21 | `7a86132` v1.1 develop 로컬 전체 점검 | 75/75, 운영 audit 0·전체 audit high 6 | 로컬 env가 Production을 가리켜 3건 SKIPPED | migration·Staging 대상·빌드·린트·diff 통과 | localhost 로딩 실패 3회·오류 안내, 390px 도움말 통과; 데이터 기반 UAT 차단 | **NO-GO (Staging 전용 로컬 환경 필요)** |
+| 2026-09-21 | `7a86132` v1.1 develop 로컬 전체 점검 | 75/75, 운영 audit 0·전체 audit high 6 | GitHub Staging 3/3·정확한 QA 키와 파일 정리 | migration·Staging 대상·빌드·린트·diff 통과 | localhost 로딩 실패 3회·오류 안내, 390px 도움말 통과; 작업자 브라우저 UAT 대기 | **NO-GO (Staging 브라우저 UAT 필요)** |
 | 2026-09-08 | `1737a98` 이슈 #64 · PR #65 · Sites Staging v12 | 75/75, 도구 버전 집중 5/5, 전체 audit 19→6·운영 0 | GitHub Staging 3/3 및 정확한 QA 키·파일 정리 | migration·배포 대상·빌드·린트 통과, Vite config 경고 0 | 3개 책방·3개 소식 유지, 도움말·개선사항·콘솔 정상, Worker 예외 0건 | **PASS (develop 병합 가능)** |
 | 2026-09-08 | `05a8a5c` 이슈 #62 · PR #63 · Sites Staging v11 | 74/74, 보안 gate 집중 4/4, 운영 audit 0 | GitHub Staging 3/3 및 정확한 QA 키·파일 정리 | migration·배포 대상·빌드·린트 통과 | 3개 책방·3개 소식 유지, 도움말·개선사항 정상, Worker 예외 0건 | **PASS (develop 병합 가능)** |
 | 2026-09-08 | `454fed1` 이슈 #60 · PR #61 | 73/73, 정리 안전장치 집중 3/3 | GitHub Staging 3/3 및 DB·Storage 정확한 키 잔여 0건 | migration·배포 대상·빌드·린트 통과 | 공개 Staging 3개 책방·3개 소식 유지, 브라우저 오류 0건 | **PASS (develop 병합 가능)** |
