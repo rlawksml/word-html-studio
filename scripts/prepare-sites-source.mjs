@@ -22,8 +22,8 @@ export async function prepareSitesSource(repository, revision) {
     const parts = name.split("/");
     if (type !== "blob" || !["100644", "100755"].includes(mode)) throw new Error("Symlinks and submodules cannot be exported.");
     if (parts.some((part) => !part || part === ".." || part === "." || part.includes("\\"))) throw new Error("Unsafe source path.");
-    if (parts.some((part) => ["node_modules", ".git", "dist", ".next", ".wrangler", "backups"].includes(part)
-      || (part.startsWith(".env") && part !== ".env.example") || /\.(pem|key|p12)$/i.test(part))) {
+    if (parts.some((part) => ["node_modules", ".git", "dist", ".next", ".wrangler", "backups", ".npmrc", ".netrc", "credentials"].includes(part)
+      || (part.startsWith(".env") && part !== ".env.example") || /\.(pem|key|p12|pfx|jks)$/i.test(part))) {
       throw new Error("Sensitive or generated files are tracked; export refused.");
     }
     return { mode, object, name };
@@ -31,6 +31,7 @@ export async function prepareSitesSource(repository, revision) {
   const manifestEntry = entries.find((entry) => entry.name === ".openai/hosting.json");
   if (!manifestEntry) throw new Error("App hosting manifest is missing.");
   const manifest = JSON.parse(git(repository, ["cat-file", "blob", manifestEntry.object]).toString());
+  if (Object.keys(manifest).some((key) => !["project_id", "static", "d1", "r2", "capabilities"].includes(key))) throw new Error("Unexpected hosting manifest key.");
   if (manifest.project_id !== STAGING_PROJECT) throw new Error("Only the existing Staging project may be prepared.");
   if (entries.some((entry) => entry.name === "deployment-provenance.json")) throw new Error("Reserved provenance filename already exists.");
 
