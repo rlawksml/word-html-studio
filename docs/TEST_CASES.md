@@ -1,6 +1,6 @@
 # 동네책방 소식 스튜디오 테스트 케이스
 
-이 문서는 기능 변경 후 반복 실행할 수 있는 회귀 테스트 기준입니다. 실제 운영 데이터를 직접 수정하는 수동 테스트는 테스트 전용 책방·발행 월을 사용하고, 종료 후 생성한 소식·사진·편집 잠금을 정리합니다.
+이 문서는 기능 변경 후 반복 실행할 수 있는 회귀 테스트 기준입니다. 상태 변경 테스트는 격리 환경의 테스트 전용 책방·발행 월에서만 실행하며, 운영 데이터는 수정하지 않습니다. 종료 후 해당 실행이 생성한 데이터만 정리합니다.
 
 ## 문서 정보
 
@@ -8,7 +8,17 @@
 - 최초 작성일: 2026-07-28
 - 운영 주소: `https://bookstore-news-studio.rlawksml.chatgpt.site/`
 - 자동 테스트 위치: `apps/web/tests/`
-- 실행 명령: `npm run lint`, `npm test`, `npm run build`, `npm run test:integration:local`
+- 실행 명령: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, 격리 환경에서만 `npm run test:integration:local`
+
+## 타입 검사 회귀 게이트 (#75)
+
+| TC | 우선순위 | 실행 / 기대 결과 | 자동화 |
+|---|---|---|---|
+| TC-TYPE-001 | P0 | `npm run typecheck`: 이미지 경로 narrowing·Cloudflare 바인딩·Vite 설정을 포함해 오류 0건 | tsc / CI |
+| TC-TYPE-002 | P0 | `npm test`: 확장자 없는 sites 플러그인 import로 빌드 및 전체 회귀 통과 | Node tests / CI |
+| TC-TYPE-003 | P1 | CI verify 로그에 독립 `npm run typecheck` 단계가 실행되고 성공 | GitHub Actions |
+
+사전 조건: lockfile 기준 의존성 설치. 위 세 TC는 DB·Storage 쓰기가 필요 없습니다. 로컬 빌드 통과와 실제 Staging 통합 검증 완료를 구분합니다.
 
 ## 우선순위와 실행 구분
 

@@ -33,6 +33,7 @@ jobs:
         env:
           MIGRATION_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
       - run: npm run lint
+      - run: npm run typecheck
       - run: npm test
 
   supabase-integration:

@@ -122,6 +122,7 @@ npm run dev
 
 ```bash
 npm run lint
+npm run typecheck
 npm test
 npm run build
 npm run migration:check
@@ -133,7 +134,9 @@ npm run backup:verify -- /absolute/path/to/backup
 
 로딩의 브라우저 회귀는 빌드 후 `npm run test:browser-loading`으로 실행합니다. Playwright가 별도 도구 환경에 설치돼 있다면 `PLAYWRIGHT_MODULE_PATH`에 해당 `playwright/index.mjs` 절대 경로를 지정합니다. 이 검증은 임시 로컬 서버와 메모리 fixture만 사용하고 모든 API를 mock 처리하므로 Supabase 키·실제 암호가 필요 없습니다. 보고서: [로딩·세션 통합 검증](docs/test-reports/2026-09-22-issue-75-local-browser.md).
 
-`test:integration:local`은 `.env.local`의 Supabase에 테스트 전용 책방·소식·사진을 잠시 만들고 저장 충돌과 파일 정리를 확인한 뒤 모두 삭제합니다. GitHub Actions에서는 기본 lint·build·회귀 테스트를 자동 실행하고, 저장소 Secret이 설정된 수동 실행에서 같은 Supabase 통합 테스트를 수행합니다.
+`test:integration:local`은 `.env.local`의 Supabase에 테스트 전용 책방·소식·사진을 잠시 만들고 저장 충돌과 파일 정리를 확인한 뒤 모두 삭제합니다. 격리 Staging 연결인지 반드시 확인하며 운영 연결에서는 실행하지 않습니다. GitHub Actions에서는 기본 lint·typecheck·build·회귀 테스트를 자동 실행하고, 저장소 Secret이 설정된 수동 실행에서 같은 Supabase 통합 테스트를 수행합니다.
+
+Vite 빌드는 TypeScript 문법을 변환하지만 전체 타입 검사를 대신하지 않습니다. 배포 전 `npm run typecheck` 통과가 필수입니다. Cloudflare 타입은 개발 의존성으로만 제공하며 `cloudflare-env.d.ts`의 선택적 D1 선언은 DB를 생성하거나 Supabase 연결을 바꾸지 않습니다.
 
 SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metadata.ts`에서 관리합니다. 운영 도메인이 바뀌면 `SITE_URL`을 먼저 변경하고 canonical, Open Graph, sitemap을 다시 확인합니다. Lighthouse 성능은 앱 코드 외에도 Cloudflare 보안 스크립트와 첫 요청의 콜드 스타트에 영향을 받으므로 배포 전 로컬 빌드와 배포 후 운영 주소를 모두 측정합니다.
 
