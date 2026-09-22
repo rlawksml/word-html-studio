@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createClient } from "@supabase/supabase-js";
+import { assertIntegrationTarget } from "./helpers/integration-target-guard.mjs";
 import {
   assertRowsAbsent,
   assertStorageObjectAbsent,
@@ -8,6 +9,8 @@ import {
 } from "./helpers/supabase-cleanup-guard.mjs";
 
 const enabled = process.env.RUN_SUPABASE_INTEGRATION === "1";
+// Must fail before Worker imports, session requests, DB clients or cleanup.
+if (enabled) assertIntegrationTarget(process.env);
 
 async function loadWorker() {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
