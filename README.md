@@ -9,6 +9,8 @@
 - 방문자: 지관서가 동네책방 페이지 바로가기, 책방·소식 수 요약, 책방별 색상 일정과 툴팁을 갖춘 모바일 달력, 제목 중심 카드, 중앙 정렬 사진 상세 화면과 후면 스크롤 잠금, 디바운스 검색
 - 정보 입력자: 항상 보이는 3단계 안내, 월별 진행률, 한 책방씩 작성, 중앙 정렬 사진이 적용된 작성 중 HTML 미리보기와 후면 스크롤 잠금, 이번 달 운영 안내, 일정 문구·신청 방법·자유 항목·여러 링크, 선택 후 명시적으로 추가하는 여러 날짜 또는 시작일·종료일 기간, 여러 소식·사진과 손잡이 전용 드래그 정렬
 - 초기 연결: 위트 있는 전체 데이터 로딩 화면, 최대 3회 자동 확인, 8초 지연 안내와 수동 재시도, 빈 DB에서 첫 책방 등록 시작
+- 작업 피드백: 로그인 암호 확인·작업 공간 준비 단계 안내, 연속 클릭 중복 세션 차단, 수동 저장·입력 마무리·이탈·ZIP 준비 중 버튼별 로딩과 재시도
+- 세션 복귀·종료: 메인 이동 후 같은 역할 복귀 시 세션 확인 로딩, 로그인 요청 시간 제한, 로그아웃 응답 완료까지 재접속 차단과 실패 안내
 - 저장: 책방 관리 저장 성공 응답 확인, 책방·월별 소식 단위 자동 저장, 일시 오류 재시도, 이전 저장 요청 직렬화, 다른 브라우저 변경 충돌 안내, 수동 임시 저장, 지난달 내용 복사, 작성 중 이탈 시 계속 작성·임시 저장 후 이동·마지막 자동 저장 이후 변경 버리기 선택, 탭 안 임시 복구본, 한글 IME 직후 완료 시 최신 입력·서버 응답 일치 확인
 - 완료: 누락된 필수 항목으로 자동 이동, 책방별 입력 완료, 수정 시 자동으로 작성 중 전환, 책방별 소식 제목이 담긴 월 전체 완료 내용 복사
 - HTML 편집자: 입력 완료 자료만 열람, 개별 HTML 복사·미리보기, 사진 ZIP과 HTML·복사용 TXT·사진 ZIP
@@ -120,6 +122,7 @@ npm run dev
 
 ```bash
 npm run lint
+npm run typecheck
 npm test
 npm run build
 npm run migration:check
@@ -129,7 +132,11 @@ npm run backup:verify -- /absolute/path/to/backup
 
 로컬 주소는 `http://localhost:3000`입니다.
 
-`test:integration:local`은 `.env.local`의 Supabase에 테스트 전용 책방·소식·사진을 잠시 만들고 저장 충돌과 파일 정리를 확인한 뒤 모두 삭제합니다. GitHub Actions에서는 기본 lint·build·회귀 테스트를 자동 실행하고, 저장소 Secret이 설정된 수동 실행에서 같은 Supabase 통합 테스트를 수행합니다.
+로딩의 브라우저 회귀는 빌드 후 `npm run test:browser-loading`으로 실행합니다. Playwright가 별도 도구 환경에 설치돼 있다면 `PLAYWRIGHT_MODULE_PATH`에 해당 `playwright/index.mjs` 절대 경로를 지정합니다. 이 검증은 임시 로컬 서버와 메모리 fixture만 사용하고 모든 API를 mock 처리하므로 Supabase 키·실제 암호가 필요 없습니다. 보고서: [로딩·세션 통합 검증](docs/test-reports/2026-09-22-issue-75-local-browser.md).
+
+`test:integration:local`은 `.env.local`의 Supabase에 테스트 전용 책방·소식·사진을 잠시 만들고 저장 충돌과 파일 정리를 확인한 뒤 모두 삭제합니다. 격리 Staging 연결인지 반드시 확인하며 운영 연결에서는 실행하지 않습니다. GitHub Actions에서는 기본 lint·typecheck·build·회귀 테스트를 자동 실행하고, 저장소 Secret이 설정된 수동 실행에서 같은 Supabase 통합 테스트를 수행합니다.
+
+Vite 빌드는 TypeScript 문법을 변환하지만 전체 타입 검사를 대신하지 않습니다. 배포 전 `npm run typecheck` 통과가 필수입니다. Cloudflare 타입은 개발 의존성으로만 제공하며 `cloudflare-env.d.ts`의 선택적 D1 선언은 DB를 생성하거나 Supabase 연결을 바꾸지 않습니다.
 
 SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metadata.ts`에서 관리합니다. 운영 도메인이 바뀌면 `SITE_URL`을 먼저 변경하고 canonical, Open Graph, sitemap을 다시 확인합니다. Lighthouse 성능은 앱 코드 외에도 Cloudflare 보안 스크립트와 첫 요청의 콜드 스타트에 영향을 받으므로 배포 전 로컬 빌드와 배포 후 운영 주소를 모두 측정합니다.
 

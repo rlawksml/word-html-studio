@@ -85,6 +85,7 @@
   .html-main-head { align-items:flex-start; flex-direction:column; }
   .html-main-head>div:last-child { width:100%; }
   .html-main-head button { flex:1; }
+  .download-actions small { text-align:left; }
   .html-tabs { gap:14px; }
   .digest-work { display:block; height:auto; padding:14px; }
   .digest-control { max-height:none; }

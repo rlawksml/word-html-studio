@@ -3,7 +3,7 @@ import type { StudioController } from "@/hooks/use-studio-controller";
 import Link from "next/link";
 
 export function AppHeader({ studio }: { studio: StudioController }) {
-  const { role, returnToVisitor, setAccessRole, setPassword } = studio;
+  const { role, requestWorkerAccess, returnToVisitor, logout, pendingAction } = studio;
   return <header className="topbar">
     <BrandButton onClick={returnToVisitor} />
     <div className="header-actions">
@@ -12,9 +12,9 @@ export function AppHeader({ studio }: { studio: StudioController }) {
         <Link href="/help">도움말</Link>
       </nav>
       {role === "visitor" ? <div className="staff-actions">
-        <button className="staff-access" onClick={() => { setAccessRole("input"); setPassword(""); }}>소식 입력</button>
-        <button className="staff-access" onClick={() => { setAccessRole("html"); setPassword(""); }}>HTML 편집</button>
-      </div> : <div className="worker-nav"><span>{role === "input" ? "책방 정보 입력" : "HTML 편집"}</span><button onClick={returnToVisitor}>로그아웃</button></div>}
+        <button className="staff-access" disabled={pendingAction !== null} onClick={() => void requestWorkerAccess("input")}>소식 입력</button>
+        <button className="staff-access" disabled={pendingAction !== null} onClick={() => void requestWorkerAccess("html")}>HTML 편집</button>
+      </div> : <div className="worker-nav"><span>{role === "input" ? "책방 정보 입력" : "HTML 편집"}</span><button disabled={pendingAction !== null} aria-busy={pendingAction === "logout"} onClick={() => void logout()}>{pendingAction === "logout" ? "로그아웃 중..." : "로그아웃"}</button></div>}
     </div>
   </header>;
 }
