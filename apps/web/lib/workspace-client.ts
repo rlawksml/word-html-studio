@@ -171,8 +171,9 @@ export async function persistSubmission(submission: Submission) {
   }
 }
 
-export async function heartbeatEditingPresence(target: EditingPresenceTarget) {
+export async function heartbeatEditingPresence(target: EditingPresenceTarget, signal?: AbortSignal) {
   const response = await fetch("/api/presence", {
+    signal,
     method: "POST",
     headers: { "content-type": "application/json", ...workspaceSessionHeaders() },
     body: JSON.stringify(target),
@@ -182,13 +183,16 @@ export async function heartbeatEditingPresence(target: EditingPresenceTarget) {
   return response.json() as Promise<{ owned: boolean; activeRole: "input" | "html"; expiresAt: string }>;
 }
 
-export function releaseEditingPresence(target: EditingPresenceTarget) {
+export function releaseEditingPresence(target: EditingPresenceTarget, signal?: AbortSignal) {
   const sessionId = window.sessionStorage.getItem("bookstore-news-session-id") || "";
+  // 로그아웃 후 effect cleanup은 인증 없는 해제 요청을 반복하지 않습니다.
+  if (!sessionId) return Promise.resolve(new Response(null, { status: 204 }));
   return fetch("/api/presence", {
     method: "DELETE",
     headers: { "content-type": "application/json", ...workspaceSessionHeaders() },
     body: JSON.stringify({ ...target, sessionId }),
     keepalive: true,
+    signal,
   });
 }
 

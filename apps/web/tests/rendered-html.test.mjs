@@ -280,9 +280,10 @@ test("keeps passcodes in server environment variables and uses a tab-scoped work
   assert.match(source, /aria-label="동네책방 소식 홈"/);
   assert.match(appHeader, /requestWorkerAccess\("input"\)/);
   assert.match(appHeader, /requestWorkerAccess\("html"\)/);
-  assert.match(appHeader, /<button onClick=\{logout\}>로그아웃<\/button>/);
+  assert.match(appHeader, /onClick=\{\(\) => void logout\(\)\}/);
+  assert.match(appHeader, /aria-busy=\{pendingAction === "logout"\}/);
   const returnToVisitorBody = controller.match(/const returnToVisitor = \(\) => \{([\s\S]*?)\n  \};/)?.[1] || "";
-  const logoutBody = controller.match(/const logout = \(\) => \{([\s\S]*?)\n  \};/)?.[1] || "";
+  const logoutBody = controller.match(/const logout = async \(\) => \{([\s\S]*?)\n  \};/)?.[1] || "";
   assert.doesNotMatch(returnToVisitorBody, /DELETE|removeItem/);
   assert.match(returnToVisitorBody, /resetVisitorPage\(\)/);
   assert.match(logoutBody, /method: "DELETE"/);

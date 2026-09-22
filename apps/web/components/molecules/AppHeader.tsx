@@ -14,7 +14,7 @@ export function AppHeader({ studio }: { studio: StudioController }) {
       {role === "visitor" ? <div className="staff-actions">
         <button className="staff-access" disabled={pendingAction !== null} onClick={() => void requestWorkerAccess("input")}>소식 입력</button>
         <button className="staff-access" disabled={pendingAction !== null} onClick={() => void requestWorkerAccess("html")}>HTML 편집</button>
-      </div> : <div className="worker-nav"><span>{role === "input" ? "책방 정보 입력" : "HTML 편집"}</span><button onClick={logout}>로그아웃</button></div>}
+      </div> : <div className="worker-nav"><span>{role === "input" ? "책방 정보 입력" : "HTML 편집"}</span><button disabled={pendingAction !== null} aria-busy={pendingAction === "logout"} onClick={() => void logout()}>{pendingAction === "logout" ? "로그아웃 중..." : "로그아웃"}</button></div>}
     </div>
   </header>;
 }

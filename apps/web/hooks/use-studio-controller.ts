@@ -43,6 +43,7 @@ import { createPendingActionLock } from "@/lib/pending-action-lock.mjs";
 export type PendingAction =
   | "login-authenticating"
   | "login-workspace"
+  | "logout"
   | "manual-save"
   | "complete-submission"
   | "leave-save"
@@ -227,7 +228,7 @@ export function useStudioController(initialMonth: string) {
     }
     return null;
   }, [htmlView, inputView, month, role, selectedBookstoreId, selectedHtmlBookstoreId]);
-  const { editingPresence, releasePresence } = useEditingPresence({ enabled: hydrated, role, target: presenceTarget });
+  const { editingPresence, releasePresence, refreshPresence } = useEditingPresence({ enabled: hydrated, role, target: presenceTarget });
 
   // 작성 중 이탈은 브라우저 종료와 앱 내부 이동을 모두 가로채 임시 저장 기회를 줍니다.
   useEffect(() => {
@@ -270,13 +271,14 @@ export function useStudioController(initialMonth: string) {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ role: accessRole, code: normalizedPassword, sessionId }),
+        signal: AbortSignal.timeout(12_000),
       });
       if (!response.ok) { notify(await responseMessage(response, "작업 암호를 확인해 주세요.")); return; }
       sessionEstablished = true;
       window.sessionStorage.setItem("bookstore-news-role", accessRole);
       window.sessionStorage.setItem("bookstore-news-session-id", sessionId);
       changePendingAction("login-workspace");
-      const workspace = await loadWorkspace(true);
+      const workspace = await loadWorkspace(true, AbortSignal.timeout(12_000));
       replaceWorkspace(workspace);
       setRole(accessRole);
       setAccessRole(null);
@@ -322,7 +324,7 @@ export function useStudioController(initialMonth: string) {
         });
         const session = await response.json().catch(() => null) as { role?: Role } | null;
         if (response.ok && session?.role === targetRole) {
-          replaceWorkspace(await loadWorkspace(true));
+          replaceWorkspace(await loadWorkspace(true, AbortSignal.timeout(12_000)));
           setRole(targetRole);
           setAccessRole(null);
           setStorageError("");
@@ -383,22 +385,47 @@ export function useStudioController(initialMonth: string) {
   };
 
   // 로그아웃만 서버 쿠키와 탭 범위 sessionId를 지웁니다. 로고의 메인 이동과 분리해야 합니다.
-  const logout = () => {
+  const logout = async () => {
     if (pendingActionRef.current && pendingActionRef.current !== "leave-save" && pendingActionRef.current !== "leave-discard") {
       notify("진행 중인 작업이 끝난 뒤 로그아웃할 수 있습니다.");
-      return;
+      return false;
     }
-    void releasePresence();
-    void fetch("/api/session", { method: "DELETE" });
-    window.sessionStorage.removeItem("bookstore-news-role");
-    window.sessionStorage.removeItem("bookstore-news-session-id");
-    resetVisitorPage();
-    setRole("visitor");
-    setInputView("list");
-    setSelectedBookstoreId(null);
-    setAccessRole(null);
-    setPassword("");
-    setLeaveTarget(null);
+    const inheritedLock = pendingActionRef.current === "leave-save" || pendingActionRef.current === "leave-discard";
+    if (!inheritedLock && !beginPendingAction("logout")) return false;
+    let responseReceived = false;
+    try {
+      // 세션 쿠키가 유효할 때 편집 임대를 먼저 해제합니다.
+      await releasePresence();
+      // 응답이 완료되기 전 새 로그인을 막아 늦은 쿠키 삭제가 새 세션을 지우지 않게 합니다.
+      const response = await fetch("/api/session", { method: "DELETE", headers: workspaceSessionHeaders(), signal: AbortSignal.timeout(10_000) });
+      responseReceived = true;
+      if (!response.ok) throw new Error("로그아웃하지 못했습니다. 다시 시도해 주세요.");
+      window.sessionStorage.removeItem("bookstore-news-role");
+      window.sessionStorage.removeItem("bookstore-news-session-id");
+      resetVisitorPage();
+      setRole("visitor");
+      setInputView("list");
+      setSelectedBookstoreId(null);
+      setAccessRole(null);
+      setPassword("");
+      setLeaveTarget(null);
+      return true;
+    } catch (error) {
+      if (!responseReceived || !await refreshPresence()) {
+        // 임대를 되찾지 못한 편집 화면은 닫되 입력 복구본은 같은 탭에 보존합니다.
+        const latestSubmission = submissionsRef.current.find((item) => item.id === currentSubmission?.id);
+        if (latestSubmission && pendingActionRef.current !== "leave-discard") rememberSubmissionDraft(latestSubmission);
+        goToBookstoreList();
+        window.sessionStorage.removeItem("bookstore-news-role");
+        window.sessionStorage.removeItem("bookstore-news-session-id");
+        setRole("visitor");
+        resetVisitorPage();
+      }
+      notify(error instanceof Error ? error.message : "로그아웃하지 못했습니다. 다시 시도해 주세요.");
+      return false;
+    } finally {
+      if (!inheritedLock) finishPendingAction();
+    }
   };
 
   const confirmLeave = async () => {
@@ -420,7 +447,7 @@ export function useStudioController(initialMonth: string) {
       }
       setStorageError("");
       if (leaveTarget === "visitor") returnToVisitor();
-      else if (leaveTarget === "logout") logout();
+      else if (leaveTarget === "logout") await logout();
       else goToBookstoreList();
     } catch (error) {
       const message = error instanceof Error ? error.message : "임시 저장하지 못했습니다.";
@@ -450,7 +477,7 @@ export function useStudioController(initialMonth: string) {
       }
       setStorageError("");
       if (target === "visitor") returnToVisitor();
-      else if (target === "logout") logout();
+      else if (target === "logout") { if (!await logout()) return; }
       else goToBookstoreList();
       notify("마지막 자동 저장 이후 변경을 버리고 이동했습니다.");
     } catch (error) {
