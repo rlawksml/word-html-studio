@@ -34,6 +34,8 @@ jobs:
           MIGRATION_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
       - run: npm run lint
       - run: npm run typecheck
+      - name: Verify isolated deployment source adapter
+        run: node --test ../../scripts/prepare-sites-source.test.mjs
       - run: npm test
 
   supabase-integration:
