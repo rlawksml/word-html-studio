@@ -12,7 +12,7 @@ function git(repository, args) {
 }
 
 // Local preparation only: never pushes, deploys, reads .env, or contacts a DB.
-export async function prepareSitesSource(repository, revision) {
+export function inspectSitesSource(repository, revision) {
   const commit = git(repository, ["rev-parse", "--verify", "--end-of-options", `${revision}^{commit}`]).toString().trim();
   const tree = git(repository, ["rev-parse", `${commit}:apps/web`]).toString().trim();
   const entries = git(repository, ["ls-tree", "-rz", tree]).toString().split("\0").filter(Boolean).map((line) => {
@@ -34,7 +34,11 @@ export async function prepareSitesSource(repository, revision) {
   if (Object.keys(manifest).some((key) => !["project_id", "static", "d1", "r2", "capabilities"].includes(key))) throw new Error("Unexpected hosting manifest key.");
   if (manifest.project_id !== STAGING_PROJECT) throw new Error("Only the existing Staging project may be prepared.");
   if (entries.some((entry) => entry.name === "deployment-provenance.json")) throw new Error("Reserved provenance filename already exists.");
+  return { commit, tree, entries, manifest };
+}
 
+export async function prepareSitesSource(repository, revision) {
+  const { commit, tree, entries, manifest } = inspectSitesSource(repository, revision);
   // Always a new directory: no overwrite/cleanup of any existing user's data.
   const destination = await mkdtemp(path.join(tmpdir(), "bookstore-sites-source-"));
   const files = [];

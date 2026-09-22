@@ -26,4 +26,6 @@ Staging version15 및 기존 원격 source3b02f1a는 보존한다. Supabase·Sto
 
 ## publish 전 필수 후속 gate
 
-현재 hash 확인은 export 직후에만 수행한다. 향후 실제 발행에 연결하기 전에 원본 Git tree와 배포 직전 파일의 누락·추가·symlink·mode·hash를 다시 대조하는 검증기를 추가해야 한다. 현재 도구는 publish-ready가 아니다. 작업 폴더가 dirty여도 명시한 커밋만 추출하는 것이 의도된 동작이며, 미저장 내용이 포함되지 않는다는 점을 provenance와 작업 보고서에서 명확히 한다.
+`node scripts/verify-sites-source.mjs <repository> <tested-commit> <clean-export>`로 원본 Git tree와 추출 파일의 바이트·누락·추가·symlink·실행 권한 및 provenance를 다시 검사한다. provenance 자체를 신뢰하지 않고 명시한 원본 커밋을 기준으로 비교한다. 이는 **설치·빌드 전 clean source** 전용이며 node_modules/dist/.git도 무시하지 않는다. 빌드된 디렉터리에 실행해 실패하면 파일을 삭제해 통과시키지 말고, 소스 검증 단계와 산출물 검증 단계를 분리해야 한다.
+
+공식 workflow에 연결한 발행 직전 소스/산출물 검증은 아직 미완료이므로 publish-ready가 아니다. 작업 폴더가 dirty여도 명시한 커밋만 추출하는 것이 의도된 동작이며, 미저장 내용이 포함되지 않는다는 점을 provenance와 작업 보고서에서 명확히 한다. 검사 중 파일을 수정하는 동시 작업은 금지한다.

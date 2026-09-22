@@ -19,3 +19,7 @@
 추출 앱의 전체 npm test는 실행하지 않았다. monorepo workflow 참조 테스트는 원본 CI에서 검증하며 export에서는 typecheck/build를 검증한다. 설치 개발 의존성의 기존 audit10건, 빌드의 native config 향후 변경·큰 chunk·route 분류 경고는 그대로이며 이번 범위에서 무관한 업그레이드는 하지 않았다.
 
 판정: 로컬 준비 도구 검증 PASS. #77 전체 완료 및 Staging 실제 배포는 BLOCKED. 기존 Sites version15, 원격 history, Supabase/Storage/환경변수는 변경하지 않았다. 플랫폼 bootstrap 제약을 이 도구가 해결했다고 주장하지 않는다.
+
+## 후속: clean source 재검증
+
+`verify-sites-source.mjs` 추가 후 Node TC는 11/11 PASS. 정상 소스 1개 및 변경·누락·추가·symlink·mode·provenance 변조 6개를 검사했다. 원본 앱567e47b의 143파일도 새로 추출 후 Git 기준 재검증했다. 명령은 원본과 추출물을 읽기만 하며 DB/Storage를 호출하지 않는다. 빌드 후 산출물 검증과 공식 workflow 연계는 여전히 미완료다.
