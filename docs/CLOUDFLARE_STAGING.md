@@ -1,5 +1,7 @@
 # 독립 Cloudflare 스테이징 — 준비 단계
 
+2026-09-29: 무료 계정에서 비공개 최초 업로드를 시도했으나 Cloudflare 이메일 미인증(10034)으로 Worker 생성이 차단됐다. 정적 asset 업로드만 진행됐고 완성된 배포는 없다. [실행 기록](test-reports/2026-09-29-staging-bootstrap.md).
+
 사용자 요청: 무료 플랜만 사용하며 운영 Sites와 운영 Supabase를 변경하지 않는다.
 기존 Sites 소스 bootstrap 제약의 대안으로 별도 Worker를 준비한다. 기존 Vite 설정과 Sites manifest는 유지한다.
 

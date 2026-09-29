@@ -12,6 +12,7 @@
 
 - [x] 독립 Cloudflare staging 설정 추가: 공개 URL 비활성, 테스트 DB 고정, dry-run 검증 명령
 - [ ] 무료 플랜·접근 보호·비밀키 설정 후 독립 staging 배포 및 P0 검증
+- [ ] Cloudflare 계정 이메일 인증 후 비공개 최초 업로드 재시도 (10034 차단, 2026-09-29)
 - [x] 독립 staging 입장 gate 구현: 서버 검증·서명 쿠키·Origin 검사·정적 파일 우회 차단
 - [ ] gate 실 Worker/브라우저 통합 검증, 무료 rate-limit 지원 및 강한 별도 secret 등록
 - [x] 인증 후 정적 JS/CSS 404 수정: staging 전용 adapter와 CI 로컬 workerd 통합 검증
