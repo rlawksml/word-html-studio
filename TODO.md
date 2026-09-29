@@ -10,6 +10,9 @@
 
 ## M1 — 화면 프로토타입
 
+- [x] 독립 Cloudflare staging 설정 추가: 공개 URL 비활성, 테스트 DB 고정, dry-run 검증 명령
+- [ ] 무료 플랜·접근 보호·비밀키 설정 후 독립 staging 배포 및 P0 검증
+
 - [x] #77 GitHub 구조를 보존하는 Staging 전용 배포 소스 추출·provenance·안전 테스트
 - [ ] #77 Sites 공식 원격 소스 bootstrap 호환성 해결 후 배포 및 실제 통합 검증
 

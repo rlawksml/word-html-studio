@@ -37,6 +37,8 @@ jobs:
       - name: Verify isolated deployment source adapter
         run: node --test ../../scripts/prepare-sites-source.test.mjs
       - run: npm test
+      - name: Verify independent Cloudflare staging config
+        run: node --test tests/cloudflare-staging-config.test.mjs
 
   supabase-integration:
     if: github.event_name == 'workflow_dispatch'
