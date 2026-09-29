@@ -15,6 +15,7 @@ import {
   rememberSubmissionDraft,
 } from "../lib/submission-draft.ts";
 import {
+  reconcilePersistedSubmission,
   rebaseSubmissionSnapshot,
   restoreSubmissionFromBaseline,
 } from "../lib/workspace-persistence.ts";
@@ -265,6 +266,57 @@ test("restores the last server baseline or removes a never-saved draft when leav
     restoreSubmissionFromBaseline([changed], changed.id),
     [],
   );
+});
+
+test("adopts the normalized server submission when no newer local edit exists", () => {
+  const requested = submission({
+    updatedAt: "2026-07-27T01:00:00.000Z",
+    news: [{
+      ...submission().news[0],
+      images: [{
+        id: 999,
+        name: "poster.jpg",
+        originalPath: "originals/2026-07/123/789/poster.jpg",
+        previewPath: "previews/2026-07/123/789/poster.jpg",
+        originalUrl: "",
+        url: "blob:temporary-preview",
+        caption: "포스터",
+      }],
+    }],
+  });
+  const saved = {
+    ...requested,
+    updatedAt: "2026-07-27T01:00:01.000Z",
+    news: requested.news.map((news) => ({
+      ...news,
+      images: news.images.map((image) => ({
+        ...image,
+        url: "https://storage.example.test/public/poster.jpg",
+      })),
+    })),
+  };
+
+  assert.deepEqual(reconcilePersistedSubmission(requested, saved, requested), saved);
+});
+
+test("preserves a newer local edit while adopting the saved server version", () => {
+  const requested = submission({
+    updatedAt: "2026-07-27T01:00:00.000Z",
+    news: [{ ...submission().news[0], title: "저장 요청 내용" }],
+  });
+  const saved = {
+    ...requested,
+    updatedAt: "2026-07-27T01:00:01.000Z",
+  };
+  const editedWhileSaving = {
+    ...requested,
+    news: [{ ...requested.news[0], title: "요청 중 새로 입력한 내용" }],
+  };
+  const reconciled = reconcilePersistedSubmission(requested, saved, editedWhileSaving);
+
+  assert.equal(reconciled.updatedAt, saved.updatedAt);
+  assert.equal(reconciled.news[0].title, "요청 중 새로 입력한 내용");
+  assert.notDeepEqual(reconciled, saved);
 });
 
 test("retries only the Supabase future-JWT clock-skew error", async () => {
