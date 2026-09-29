@@ -13,7 +13,8 @@ test("CF-STAGE-01 isolates identity and disables all public entry points", () =>
   assert.equal(config.preview_urls, false);
   assert.deepEqual(config.routes, []);
   // Exact allowlist also rejects future accidental schedules, bindings or secrets.
-  assert.deepEqual(Object.keys(config).sort(), ["$schema", "account_id", "name", "main", "compatibility_date", "compatibility_flags", "no_bundle", "rules", "assets", "workers_dev", "preview_urls", "routes", "vars"].sort());
+  assert.deepEqual(Object.keys(config).sort(), ["$schema", "account_id", "name", "main", "base_dir", "compatibility_date", "compatibility_flags", "no_bundle", "rules", "assets", "ratelimits", "workers_dev", "preview_urls", "routes", "vars"].sort());
+  assert.deepEqual(config.ratelimits, [{ name: "STAGING_LOGIN_LIMITER", namespace_id: "20260929", simple: { limit: 5, period: 60 } }]);
 });
 
 test("CF-STAGE-02 uses only staging DB and rejects production", () => {
@@ -40,11 +41,18 @@ test("CF-STAGE-03 matches freshly built runtime without additional services", as
   for (const [key, value] of Object.entries(built)) {
     if (!metadata.has(key)) assert.ok(isEmpty(value), `Review unexpected generated binding/config: ${key}`);
   }
-  assert.equal(config.main, "dist/server/index.js");
+  assert.equal(config.main, "worker/staging-entry.mjs");
+  assert.equal(config.base_dir, ".");
   assert.equal(built.main, "index.js");
-  assert.deepEqual(config.assets, { directory: "dist/client", binding: "ASSETS" });
+  assert.deepEqual(config.assets, { directory: "dist/client", binding: "ASSETS", run_worker_first: true });
   assert.equal(built.assets.directory, "../client");
-  for (const key of ["compatibility_date", "compatibility_flags", "no_bundle", "rules"]) assert.deepEqual(config[key], built[key]);
+  for (const key of ["compatibility_date", "compatibility_flags", "no_bundle"]) assert.deepEqual(config[key], built[key]);
+  assert.deepEqual(config.rules, [
+    { type: "ESModule", globs: ["worker/staging-*.mjs", "dist/server/**/*.js", "dist/server/**/*.mjs"] },
+    { type: "Text", globs: ["dist/server/**/*.txt", "dist/server/**/*.html"], fallthrough: false },
+    { type: "Data", globs: ["dist/server/**/*.bin"], fallthrough: false },
+    { type: "CompiledWasm", globs: ["dist/server/**/*.wasm"], fallthrough: false },
+  ]);
   await access(new URL(config.main, root));
   await access(new URL(config.assets.directory, root));
 });
@@ -52,4 +60,10 @@ test("CF-STAGE-03 matches freshly built runtime without additional services", as
 test("CF-STAGE-04 CI executes the staging gate after build tests", async () => {
   const workflow = await readFile(new URL("../../../.github/workflows/ci.yml", import.meta.url), "utf8");
   assert.match(workflow, /- run: npm test\s+- name: Verify independent Cloudflare staging config\s+run: node --test tests\/cloudflare-staging-config.test.mjs/);
+  assert.match(workflow, /run: npm run test:staging-worker/);
+  const pkg = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
+  assert.match(pkg.scripts["check:cloudflare-staging"], /npm run test:staging-worker/);
+  for (const file of ["staging-gate.test.mjs", "staging-assets.test.mjs", "staging-worker-runtime.test.mjs"]) {
+    assert.ok(pkg.scripts["test:staging-worker"].includes(`tests/${file}`));
+  }
 });

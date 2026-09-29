@@ -6,7 +6,8 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "check:cloudflare-staging": "npm run build && node --test tests/cloudflare-staging-config.test.mjs && wrangler deploy --dry-run --config wrangler.staging.json",
+    "check:cloudflare-staging": "npm run build && npm run test:staging-worker && wrangler deploy --dry-run --config wrangler.staging.json",
+    "test:staging-worker": "node --test tests/cloudflare-staging-config.test.mjs tests/staging-gate.test.mjs tests/staging-assets.test.mjs tests/staging-worker-runtime.test.mjs",
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
     "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
