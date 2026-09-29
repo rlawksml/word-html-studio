@@ -4,6 +4,18 @@
 
 ## 문서 정보
 
+### 독립 Staging 정적 파일 회귀 — STAGE-ASSET / STAGE-RUNTIME
+
+- 우선순위: P0, 로컬 격리 전용. 사전 조건: `npm ci`, `npm run build`, loopback 실행 권한. 실제 DB/비밀키 불필요.
+- 실행: `npm run test:staging-worker` (CI 및 `check:cloudflare-staging`에도 연결).
+- STAGE-ASSET: `tests/staging-assets.test.mjs`의 7개 테스트. GET/HEAD만 정적 전달, 정확한 404만 body 취소 후 앱 fallback, 기타 상태 보존, binding 오류 503, 경로/메서드 경계, 무인증 차단, 인증 cookie 제거를 검증한다.
+- STAGE-RUNTIME: `tests/staging-worker-runtime.test.mjs`의 8개 하위 시나리오. 로그인→실제 JS/CSS GET/HEAD의 bytes·MIME→기존 favicon/PDF→POST 경계→DB 미연결 API→변조/만료 cookie→로그아웃→native 로그인 시도 제한 순서로 실행한다.
+- 기대: 무인증 asset 401, 인증 asset 200 및 빌드 원본과 동일, private headers 유지, 외부 요청 0. DB를 주입하지 않으므로 인증된 version API의 정확한 설정 누락 503은 예상 결과다.
+- 브라우저 렌더링·메모리와 원격 Cloudflare/Supabase 검증은 별도이며 이 명령으로 완료 처리하지 않는다.
+- 결과: [2026-09-29 보고서](test-reports/2026-09-29-staging-assets.md).
+
+### 기본 정보
+
 - 기준 버전: `main`
 - 최초 작성일: 2026-07-28
 - 운영 주소: `https://bookstore-news-studio.rlawksml.chatgpt.site/`

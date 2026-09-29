@@ -7,11 +7,13 @@
 
 검증 명령 (apps/web): `npm run check:cloudflare-staging`
 
-빌드 → CF-STAGE-01~03 테스트 → dry-run만 수행한다. 업로드·DB 접속·데이터 쓰기를 하지 않는다. 생성된 기본 dist/server/wrangler.json으로 직접 배포하지 않는다.
+빌드 → `test:staging-worker`(설정·gate·assets 단위 및 로컬 Miniflare/workerd 통합) → dry-run만 수행한다. 업로드·DB 접속·데이터 쓰기를 하지 않는다. 로컬 통합 검증은 임의 loopback 포트를 사용하고 외부 fetch는 차단한다. 생성된 기본 dist/server/wrangler.json으로 직접 배포하지 않는다.
 
 ## 스테이징 입장 보호 (로컬 구현 단계)
 
 기존 Sites 및 역할별 앱 인증은 변경하지 않는다. 별도 Worker 진입점이 화면/API/정적 파일 전에 인증하며 `assets.run_worker_first: true`로 정적 파일 우회를 막는다. 공개 경로는 계속 꺼둔다.
+
+인증 후 `/assets/` GET·HEAD만 `staging-assets.mjs`가 ASSETS 바인딩으로 전달한다. 기존 서버 앱은 생성된 JS/CSS bundle을 직접 제공하지 않아 adapter 없이는 인증 후 404가 발생했다. ASSETS의 정확한 404만 body를 해제하고 앱에 넘기며, 다른 상태는 보존한다. 바인딩 누락/예외는 generic 503이다. API·페이지·public 파일은 기존 앱 라우팅을 유지하며, favicon/PDF 경로도 로컬 엔진에서 검증했다. gate가 항상 최외곽이므로 정적 응답도 쿠키 제거·no-store·noindex 정책을 따른다.
 
 배포 시 별개의 고엔트로피 `STAGING_ACCESS_PASSWORD`(최소 16자)와 `STAGING_SESSION_SECRET`(최소 32자)가 필요하다. 기존 역할 암호·세션 secret을 재사용하지 않는다. 실제 값은 소스/보고서/GitHub에 넣지 않는다. HTTP 전송과 설정 누락은 거부한다.
 

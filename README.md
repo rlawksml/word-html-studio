@@ -146,6 +146,8 @@ SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metad
 
 독립 스테이징은 별도 입장 암호 gate를 사용하며 기존 역할별 암호를 대체하지 않습니다. 원본 최근 3개월·글/미리보기 유지의 [사진 보관 정책](docs/PHOTO_RETENTION.md)은 설계 합의만 기록했으며 자동 삭제는 구현하거나 실행하지 않았습니다.
 
+인증 후 `/assets/`의 GET·HEAD는 별도 정적 파일 adapter가 처리합니다. 빌드 후 `npm run test:staging-worker`로 DB·외부 통신을 차단한 로컬 Worker 엔진에서 인증과 JS/CSS 전달을 검증하며 CI에도 포함됩니다. [정적 파일 404 수정 검증](docs/test-reports/2026-09-29-staging-assets.md)을 참고하세요. 로컬 통과는 원격 배포·브라우저·DB 전체 검증 완료를 뜻하지 않습니다.
+
 GitHub는 monorepo를 유지하며 배포 전용 앱 루트는 검증된 커밋에서 별도로 준비합니다. [Sites 소스 경계와 현재 bootstrap 제약](docs/SITES_SOURCE_ADAPTER.md)을 참고하세요. 준비 도구 자체는 배포하거나 DB에 접근하지 않습니다.
 
 현재 프로젝트는 vinext가 Next.js 코드를 Cloudflare Worker에서 실행할 수 있는 형태로 만들고, Sites가 그 결과를 Cloudflare 환경에 배포합니다. 즉 Vercel은 Next.js를 올릴 수 있는 여러 배포 서비스 중 하나일 뿐 필수 구성요소가 아닙니다. 화면과 API 실행은 Sites/Cloudflare가, 책방 데이터와 사진 보관은 Supabase가 담당합니다. 향후 독립 운영 도메인이나 Vercel의 관리 기능이 필요할 때 별도 배포 대상으로 검토할 수 있지만, 한 저장소에서 두 배포 환경을 동시에 운영하면 환경변수·배포 주소·장애 확인 지점이 두 벌이 되므로 운영 초기에는 한 플랫폼만 사용하는 편이 안전합니다.

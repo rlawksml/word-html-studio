@@ -60,4 +60,10 @@ test("CF-STAGE-03 matches freshly built runtime without additional services", as
 test("CF-STAGE-04 CI executes the staging gate after build tests", async () => {
   const workflow = await readFile(new URL("../../../.github/workflows/ci.yml", import.meta.url), "utf8");
   assert.match(workflow, /- run: npm test\s+- name: Verify independent Cloudflare staging config\s+run: node --test tests\/cloudflare-staging-config.test.mjs/);
+  assert.match(workflow, /run: npm run test:staging-worker/);
+  const pkg = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
+  assert.match(pkg.scripts["check:cloudflare-staging"], /npm run test:staging-worker/);
+  for (const file of ["staging-gate.test.mjs", "staging-assets.test.mjs", "staging-worker-runtime.test.mjs"]) {
+    assert.ok(pkg.scripts["test:staging-worker"].includes(`tests/${file}`));
+  }
 });
