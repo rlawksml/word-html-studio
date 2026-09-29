@@ -31,6 +31,15 @@ test("CF-STAGE-02 uses only staging DB and rejects production", () => {
 
 test("CF-STAGE-03 matches freshly built runtime without additional services", async () => {
   const built = JSON.parse(await readFile(new URL("dist/server/wrangler.json", root), "utf8"));
+  // Unknown generated settings must be reviewed instead of silently discarded.
+  const metadata = new Set(["topLevelName", "dev", "name", "compatibility_date", "compatibility_flags", "main", "jsx_factory", "jsx_fragment", "rules", "build", "no_bundle", "assets", "observability", "python_modules"]);
+  function isEmpty(value) {
+    if (Array.isArray(value)) return value.length === 0;
+    return value !== null && typeof value === "object" && Object.values(value).every(isEmpty);
+  }
+  for (const [key, value] of Object.entries(built)) {
+    if (!metadata.has(key)) assert.ok(isEmpty(value), `Review unexpected generated binding/config: ${key}`);
+  }
   assert.equal(config.main, "dist/server/index.js");
   assert.equal(built.main, "index.js");
   assert.deepEqual(config.assets, { directory: "dist/client", binding: "ASSETS" });
@@ -38,4 +47,9 @@ test("CF-STAGE-03 matches freshly built runtime without additional services", as
   for (const key of ["compatibility_date", "compatibility_flags", "no_bundle", "rules"]) assert.deepEqual(config[key], built[key]);
   await access(new URL(config.main, root));
   await access(new URL(config.assets.directory, root));
+});
+
+test("CF-STAGE-04 CI executes the staging gate after build tests", async () => {
+  const workflow = await readFile(new URL("../../../.github/workflows/ci.yml", import.meta.url), "utf8");
+  assert.match(workflow, /- run: npm test\s+- name: Verify independent Cloudflare staging config\s+run: node --test tests\/cloudflare-staging-config.test.mjs/);
 });
