@@ -39,6 +39,8 @@ jobs:
       - run: npm test
       - name: Verify independent Cloudflare staging config
         run: node --test tests/cloudflare-staging-config.test.mjs
+      - name: Verify staging access gate
+        run: node --test tests/staging-gate.test.mjs
 
   supabase-integration:
     if: github.event_name == 'workflow_dispatch'

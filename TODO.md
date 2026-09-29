@@ -12,6 +12,9 @@
 
 - [x] 독립 Cloudflare staging 설정 추가: 공개 URL 비활성, 테스트 DB 고정, dry-run 검증 명령
 - [ ] 무료 플랜·접근 보호·비밀키 설정 후 독립 staging 배포 및 P0 검증
+- [x] 독립 staging 입장 gate 구현: 서버 검증·서명 쿠키·Origin 검사·정적 파일 우회 차단
+- [ ] gate 실 Worker/브라우저 통합 검증, 무료 rate-limit 지원 및 강한 별도 secret 등록
+- [x] 글 유지·원본 최근 3개월·재사용 원본 제외 정책 문서화 (삭제 미실행)
 
 - [x] #77 GitHub 구조를 보존하는 Staging 전용 배포 소스 추출·provenance·안전 테스트
 - [ ] #77 Sites 공식 원격 소스 bootstrap 호환성 해결 후 배포 및 실제 통합 검증
