@@ -57,6 +57,8 @@ export const formatDate = (value: string) => {
 };
 export const formatSavedAt = (value: string) => value ? new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value)) : "아직 저장하지 않음";
 export const escapeHtml = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+// 외부 편집기가 white-space CSS를 제거해도 본문의 줄바꿈을 보존합니다. 속성·URL에는 사용하지 않습니다.
+export const escapeMultilineHtml = (value: string) => escapeHtml(value).replace(/\r\n|\r|\n/g, "<br>");
 export const safeClientHref = (value: string) => {
   try {
     const url = new URL(value);
