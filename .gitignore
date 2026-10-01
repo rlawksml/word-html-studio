@@ -9,6 +9,9 @@ build/
 __pycache__/
 .pytest_cache/
 .venv/
+playwright-report/
+test-results/
+.coverage
 uploads/
 results/
 backups/
