@@ -4,6 +4,16 @@
 
 ## 문서 정보
 
+### Python Playwright 로컬 mock smoke — PY-SAFE / PY-VISITOR / PY-AUTH
+
+- 위치: `e2e/python/`. 기존 Node 테스트를 대체하지 않는 별도 브라우저 기초 구성입니다.
+- 사전 조건: loopback에서 실행 중인 로컬 앱, Python 의존성과 Chromium. 실제 DB·Storage·역할 암호는 필요하지 않습니다.
+- 안전 경계: 파싱된 hostname이 loopback이고 포트가 명시된 base URL만 navigation 전에 허용합니다. Production·Staging·원격 호스트는 차단하며 API route mock은 예상하지 않은 상태 변경 요청을 실패 처리합니다.
+- PY-VISITOR: 공개 소식 상세 dialog와 검색을 확인합니다.
+- PY-AUTH: placeholder 암호로 mock session을 통과한 뒤 입력자 월 이동과 HTML 통합본 탭처럼 저장하지 않는 클릭만 확인합니다.
+- 실제 원격 역할 로그인: 정상 격리 Staging, 승인된 테스트 데이터와 자격증명이 입증될 때까지 `BLOCKED`. trace·video·screenshot·HAR·storage state를 생성하지 않습니다.
+- 실행과 결과 기록: `e2e/python/README.md`, [2026-10-01 기초 보고서](test-reports/2026-10-01-python-playwright-foundation.md).
+
 ### 독립 Staging 정적 파일 회귀 — STAGE-ASSET / STAGE-RUNTIME
 
 - 우선순위: P0, 로컬 격리 전용. 사전 조건: `npm ci`, `npm run build`, loopback 실행 권한. 실제 DB/비밀키 불필요.
