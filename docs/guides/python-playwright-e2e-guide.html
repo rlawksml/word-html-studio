@@ -49,8 +49,17 @@
 </head>
 <body>
   <header><div><p>동네책방 소식 스튜디오</p><h1>Python Playwright E2E<br>발표·학습 가이드</h1><p>처음 접하는 사람도 “무엇을, 왜, 어떻게 검증하는지” 설명하고 직접 시연할 수 있도록 만든 오프라인 안내서입니다.</p></div></header>
-  <nav aria-label="문서 목차"><a href="#concept">핵심 개념</a><a href="#structure">구조</a><a href="#safety">안전</a><a href="#demo">시연</a><a href="#result">결과</a><a href="#errors">오류</a><a href="#script">발표 대본</a></nav>
+  <nav aria-label="문서 목차"><a href="#lab">직접 실습</a><a href="#concept">핵심 개념</a><a href="#structure">구조</a><a href="#safety">안전</a><a href="#demo">시연</a><a href="#result">결과</a><a href="#errors">오류</a><a href="#script">발표 대본</a></nav>
   <main>
+    <section id="lab"><h2>0. 브라우저를 보며 바로 실습하기</h2><p class="lead">터미널 하나만 사용합니다. 실습기가 로컬 앱을 시작하고, 브라우저 테스트가 끝나면 자신이 시작한 앱만 종료합니다.</p>
+      <h3>최초 1회 준비</h3><pre><code>cd e2e/python
+python3 practice_runner.py setup</code></pre>
+      <h3>오늘 실습</h3><pre><code>python3 practice_runner.py check
+python3 practice_runner.py demo</code></pre>
+      <p><code>check</code>는 Python·Node·설치 상태와 실습 포트가 비어 있는지 확인합니다. <code>demo</code>는 앱을 <code>localhost:4173</code>에서만 열고, 브라우저 동작을 0.7초 간격으로 보여 준 뒤 자동 종료합니다. 화면 없이 빠르게 확인하려면 <code>python3 practice_runner.py test</code>를 사용합니다.</p>
+      <ol class="steps"><li><code>practice/test_practice.py</code>를 열어 주석 1~5를 순서대로 읽습니다.</li><li><code>demo</code>를 실행해 검색, 소식 열기, 내용 확인, 닫기를 눈으로 봅니다.</li><li>파일 아래 <code>TODO 1</code>대로 검색어를 <code>E2E</code>에서 <code>공개</code>로 바꿉니다.</li><li><code>demo</code>를 다시 실행하고 <code>1 passed</code>를 확인합니다.</li><li><code>TODO 3</code>으로 일부러 실패를 만들어 첫 오류를 읽은 뒤 원래 문장으로 되돌립니다.</li></ol>
+      <div class="callout"><strong>안전 범위:</strong> 실행기는 URL·암호·토큰 옵션을 받지 않습니다. 고정 loopback 주소와 메모리 mock만 쓰며 포트가 사용 중이면 다른 서버를 끄지 않고 중단합니다.</div>
+    </section>
     <section id="concept"><h2>1. 먼저 큰 그림</h2><p class="lead">E2E(End-to-End) 테스트는 사용자의 시작부터 결과까지를 실제 브라우저로 확인합니다. 이 구성은 로컬 앱만 열고 API 응답은 가짜 데이터로 바꿔 실제 DB를 건드리지 않습니다.</p>
       <div class="grid"><article class="card"><h3>Python</h3><p>테스트 순서를 적는 프로그래밍 언어입니다. 들여쓰기가 문장 묶음을 구분합니다.</p></article><article class="card"><h3>pytest</h3><p><code>test_</code> 함수를 찾고 준비물(fixture)을 주입한 뒤 성공과 실패를 모읍니다.</p></article><article class="card"><h3>Playwright</h3><p>Chromium을 열어 버튼 클릭, 글자 입력, 화면 표시 여부를 사람처럼 확인합니다.</p></article></div>
       <div class="flow" aria-label="테스트 실행 흐름"><div>pytest<br>테스트 발견</div><span aria-hidden="true">→</span><div>fixture<br>안전한 준비</div><span aria-hidden="true">→</span><div>Playwright<br>브라우저 조작</div><span aria-hidden="true">→</span><div>expect<br>결과 확인</div></div>

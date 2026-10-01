@@ -29,4 +29,6 @@
 - `npm run typecheck`: PASS
 - `npm test`: 87 PASS, 0 FAIL (빌밀값·DB·Storage 미사용)
 - `git diff --check`: PASS
+- 초보자 실습 러너 `python3 -u e2e/python/practice_runner.py test`: 1 PASS, 로컬 서버 자동 종료·포트 반환 PASS
+- 실습 러너·URL 안전 단위 TC: 20 PASS
 - 남은 위험: mock은 서버 인증·실제 배포·DB 연결을 보증하지 않음

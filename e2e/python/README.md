@@ -4,6 +4,28 @@
 
 발표를 처음 준비한다면 [Python Playwright E2E 발표·학습 가이드](../../docs/guides/python-playwright-e2e-guide.html)를 먼저 읽으세요. 용어, 코드 구조, 시연 순서, 결과 해석, 3분 발표 대본을 한 파일에 정리했습니다.
 
+## 가장 쉬운 실습 방법
+
+저장소 루트에서 아래 네 명령만 사용합니다. 실행기가 Python 환경, Chromium,
+Node 패키지, 로컬 앱 시작과 종료를 담당하므로 터미널 두 개를 관리할 필요가 없습니다.
+
+```bash
+cd e2e/python
+python3 practice_runner.py setup  # 최초 1회 설치
+python3 practice_runner.py check  # 준비 상태와 포트 확인
+python3 practice_runner.py test   # 브라우저 창 없이 빠른 확인
+python3 practice_runner.py demo   # 브라우저를 보며 0.7초 간격으로 실습
+```
+
+`demo`는 `practice/test_practice.py`만 실행합니다. 파일의 1~5단계를 읽고 맨 아래
+`TODO 1`부터 한 줄씩 바꿔 재실행해 보세요. 연습 TC는 기본 `pytest` 회귀 suite에는
+포함되지 않으므로 실수로 수정해도 제품 테스트 결과와 섞이지 않습니다.
+
+실습기는 주소를 입력받지 않고 `http://localhost:4173`만 사용합니다. 포트가 이미
+사용 중이면 그 프로세스를 종료하지 않고 안전하게 멈춥니다. 운영·Staging URL, 실제
+암호, API 키, 쿠키를 입력하는 옵션은 없습니다. 앱 서버도 실행기가 직접 시작한
+process group만 종료합니다.
+
 ## 세 도구를 한 문장씩 이해하기
 
 - **Python**: 테스트 절차를 사람이 읽기 쉬운 코드로 적는 언어입니다.
