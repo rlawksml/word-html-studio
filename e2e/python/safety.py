@@ -11,6 +11,11 @@ class UnsafeBaseUrl(ValueError):
 
 
 def require_loopback_base_url(raw_url: str) -> str:
+    """URL이 이 컴퓨터(loopback)의 명시적 HTTP 포트인지 확인해 정규화합니다.
+
+    안전하다고 증명할 수 없는 값은 허용하지 않는 fail-closed 방식입니다. 즉, 새롭거나
+    모호한 URL을 추측해서 실행하지 않고 ``UnsafeBaseUrl``로 중단합니다.
+    """
     value = raw_url.strip()
     try:
         parsed = urlsplit(value)
@@ -27,6 +32,7 @@ def require_loopback_base_url(raw_url: str) -> str:
     if port is None:
         raise UnsafeBaseUrl("로컬 개발 서버의 포트를 명시하세요.")
 
+    # localhost뿐 아니라 127.0.0.1과 IPv6 ::1 같은 표준 loopback 주소를 허용합니다.
     hostname = parsed.hostname.rstrip(".").lower()
     is_loopback = hostname == "localhost"
     if not is_loopback:

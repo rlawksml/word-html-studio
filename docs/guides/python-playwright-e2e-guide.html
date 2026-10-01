@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python Playwright E2E 발표·학습 가이드</title>
+  <style>
+    :root { --ink:#17221b; --muted:#59645d; --paper:#fffdf8; --green:#246b48; --green2:#e5f2e9; --line:#d9dfda; --amber:#fff3cd; --red:#8a2c2c; --code:#17211c; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin:0; color:var(--ink); background:#f3f1eb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans KR",sans-serif; line-height:1.7; }
+    a { color:var(--green); text-underline-offset:3px; }
+    header { color:white; background:linear-gradient(135deg,#153e2c,#2d7652); padding:clamp(2rem,6vw,5rem) 1.25rem; }
+    header > div, main { max-width:960px; margin:auto; }
+    h1 { margin:0 0 .5rem; font-size:clamp(2rem,5vw,3.6rem); line-height:1.15; letter-spacing:-.04em; }
+    header p { max-width:700px; margin:.5rem 0 0; color:#e9f5ed; font-size:1.1rem; }
+    nav { position:sticky; top:0; z-index:2; overflow-x:auto; white-space:nowrap; background:rgba(255,253,248,.96); border-bottom:1px solid var(--line); padding:.65rem max(1rem,calc((100vw - 960px)/2)); }
+    nav a { display:inline-block; margin-right:1rem; font-size:.92rem; font-weight:700; text-decoration:none; }
+    main { background:var(--paper); padding:clamp(1.25rem,4vw,3.5rem); }
+    section { margin:0 0 4rem; scroll-margin-top:4rem; }
+    h2 { margin:0 0 1rem; font-size:clamp(1.5rem,3vw,2.2rem); letter-spacing:-.03em; }
+    h3 { margin:1.7rem 0 .5rem; }
+    .lead { color:var(--muted); font-size:1.08rem; }
+    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; }
+    .card, .callout { border:1px solid var(--line); border-radius:14px; padding:1rem 1.1rem; background:white; }
+    .card h3 { margin-top:0; color:var(--green); }
+    .callout { margin:1.25rem 0; border-left:5px solid var(--green); background:var(--green2); }
+    .warning { border-left-color:#bd8121; background:var(--amber); }
+    code { font-family:"SFMono-Regular",Consolas,monospace; font-size:.92em; }
+    pre { overflow:auto; margin:1rem 0; padding:1rem; border-radius:12px; color:#eef7f1; background:var(--code); line-height:1.55; }
+    pre code { font-size:.88rem; }
+    .flow { display:flex; align-items:stretch; gap:.5rem; overflow-x:auto; padding:.5rem 0; }
+    .flow div { min-width:130px; flex:1; padding:1rem; border-radius:12px; text-align:center; background:var(--green2); font-weight:700; }
+    .flow span { align-self:center; color:var(--green); font-size:1.5rem; }
+    table { width:100%; border-collapse:collapse; margin:1rem 0; }
+    th,td { border-bottom:1px solid var(--line); padding:.75rem; text-align:left; vertical-align:top; }
+    th { background:#f4f7f4; }
+    .status { display:inline-block; min-width:5.5rem; padding:.1rem .5rem; border-radius:999px; text-align:center; font-weight:800; background:var(--green2); }
+    .fail { color:var(--red); background:#fde7e7; }
+    .skip { background:#edf0f2; }
+    .block { background:var(--amber); }
+    .tree { padding:1rem; border:1px dashed #9baa9f; border-radius:12px; background:#fafbf8; font-family:monospace; white-space:pre-wrap; }
+    ol.steps > li { margin:1rem 0; padding-left:.3rem; }
+    .script { border:2px solid var(--green); border-radius:16px; padding:1.25rem; background:#fbfffc; }
+    footer { padding:2rem 1rem; color:var(--muted); text-align:center; font-size:.9rem; }
+    @media (max-width:720px) { .grid { grid-template-columns:1fr; } main { padding-top:2rem; } table { display:block; overflow-x:auto; } }
+    @media print { nav { display:none; } body { background:white; } main { max-width:none; } section { break-inside:avoid; } }
+  </style>
+</head>
+<body>
+  <header><div><p>동네책방 소식 스튜디오</p><h1>Python Playwright E2E<br>발표·학습 가이드</h1><p>처음 접하는 사람도 “무엇을, 왜, 어떻게 검증하는지” 설명하고 직접 시연할 수 있도록 만든 오프라인 안내서입니다.</p></div></header>
+  <nav aria-label="문서 목차"><a href="#concept">핵심 개념</a><a href="#structure">구조</a><a href="#safety">안전</a><a href="#demo">시연</a><a href="#result">결과</a><a href="#errors">오류</a><a href="#script">발표 대본</a></nav>
+  <main>
+    <section id="concept"><h2>1. 먼저 큰 그림</h2><p class="lead">E2E(End-to-End) 테스트는 사용자의 시작부터 결과까지를 실제 브라우저로 확인합니다. 이 구성은 로컬 앱만 열고 API 응답은 가짜 데이터로 바꿔 실제 DB를 건드리지 않습니다.</p>
+      <div class="grid"><article class="card"><h3>Python</h3><p>테스트 순서를 적는 프로그래밍 언어입니다. 들여쓰기가 문장 묶음을 구분합니다.</p></article><article class="card"><h3>pytest</h3><p><code>test_</code> 함수를 찾고 준비물(fixture)을 주입한 뒤 성공과 실패를 모읍니다.</p></article><article class="card"><h3>Playwright</h3><p>Chromium을 열어 버튼 클릭, 글자 입력, 화면 표시 여부를 사람처럼 확인합니다.</p></article></div>
+      <div class="flow" aria-label="테스트 실행 흐름"><div>pytest<br>테스트 발견</div><span aria-hidden="true">→</span><div>fixture<br>안전한 준비</div><span aria-hidden="true">→</span><div>Playwright<br>브라우저 조작</div><span aria-hidden="true">→</span><div>expect<br>결과 확인</div></div>
+      <div class="callout"><strong>단위 테스트와 차이:</strong> 단위 테스트가 작은 함수 하나를 확인한다면 E2E는 브라우저에서 사용자가 겪는 연결된 흐름을 확인합니다. 둘은 경쟁 관계가 아니라 서로 다른 위험을 잡는 짝입니다.</div>
+    </section>
+
+    <section id="structure"><h2>2. 파일을 지도처럼 읽기</h2><div class="tree">e2e/python/
+├── requirements.txt      # 설치할 Python 패키지와 버전
+├── pytest.ini            # pytest 공통 옵션·marker
+├── .env.example          # 비밀값이 아닌 환경변수 이름 예시
+├── safety.py             # 원격 URL을 실행 전에 차단
+├── conftest.py           # 공통 fixture, mock API, 네트워크 통제
+└── tests/
+    ├── test_safety.py    # 안전장치 자체를 검증
+    └── test_smoke.py     # 로그인 모양·버튼 클릭 핵심 흐름</div>
+      <h3>테스트 한 줄 해석</h3><pre><code>app_page.get_by_role("button", name="E2E 공개 소식", exact=True).click()</code></pre><p><code>app_page</code>에서 → 접근성 역할이 <code>button</code>이고 → 이름이 정확히 “E2E 공개 소식”인 요소를 찾아 → 클릭하라는 뜻입니다. CSS 선택자보다 사용자가 보는 이름을 사용해 발표 중에도 읽기 쉽습니다.</p>
+      <pre><code>expect(dialog).to_contain_text("로컬 mock 상세 내용")</code></pre><p>상세 창 안에 기대한 문장이 실제로 나타날 때까지 기다려 확인합니다. 단순히 클릭 명령이 오류 없이 끝난 것만으로는 성공 처리하지 않습니다.</p>
+      <h3>fixture란?</h3><p>여러 테스트가 반복해서 쓰는 “준비물 생성 함수”입니다. <code>app_page</code> fixture는 안전한 URL, 가짜 책방 데이터, 네트워크 규칙이 적용된 브라우저 페이지를 준비합니다. 테스트 함수 매개변수에 <code>app_page</code>라고 쓰면 pytest가 자동으로 제공합니다.</p>
+    </section>
+
+    <section id="safety"><h2>3. 실제 데이터를 지키는 안전장치</h2><ol><li><strong>주소 사전 검사:</strong> 명시적 포트가 있는 <code>http://localhost</code>, <code>127.0.0.1</code>, <code>::1</code>만 허용합니다.</li><li><strong>외부 통신 차단:</strong> 브라우저가 허용된 로컬 origin 밖으로 HTTP(S) 요청을 보내면 중단합니다.</li><li><strong>API mock:</strong> workspace와 session 응답은 메모리에 만든 값으로 돌려주며 실제 DB·Storage에 연결하지 않습니다.</li><li><strong>예상 밖 API 요청 감지:</strong> 정의되지 않은 API 요청은 method와 관계없이 차단하고 테스트 마지막에 실패로 보고합니다.</li><li><strong>증거 최소화:</strong> trace, video, screenshot, HAR, storage state를 기본 생성하지 않아 비밀값 잔류 위험을 줄입니다.</li></ol>
+      <div class="callout warning"><strong>발표 때 꼭 말할 경계:</strong> 화면에서 로그인처럼 보이지만 실제 계정 로그인은 아닙니다. 입력 문자열은 mock 응답으로 처리됩니다. 운영 URL과 원격 Staging에서는 로그인·상태 변경 테스트를 실행하지 않습니다.</div>
+      <p>실제 암호, API 키, 쿠키, 세션은 코드·명령 기록·스크린샷에 넣지 않습니다. <code>.env.example</code>의 꺾쇠 값은 형식만 보여 주는 placeholder입니다.</p>
+    </section>
+
+    <section id="demo"><h2>4. 발표 전 준비와 정확한 시연 순서</h2><p class="lead">발표 전에 설치를 끝내고 전체 테스트를 한 번 통과시킨 뒤, 현장에서는 짧은 TC 하나만 창을 보이며 실행하는 것이 안정적입니다.</p>
+      <h3>최초 1회 준비</h3><pre><code>cd e2e/python
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m playwright install chromium</code></pre>
+      <h3>터미널 1 — 웹 앱 실행</h3><pre><code>cd apps/web
+npm ci
+npm run dev</code></pre><p><code>localhost:3000</code> 준비 메시지가 뜬 터미널은 그대로 둡니다.</p>
+      <h3>터미널 2 — 전체 안전 확인</h3><pre><code>cd e2e/python
+source .venv/bin/activate
+E2E_BASE_URL=http://localhost:3000 pytest -q</code></pre>
+      <h3>발표용 브라우저 시연</h3><pre><code>E2E_BASE_URL=http://localhost:3000 pytest tests/test_smoke.py \
+  -k visitor_can_open_and_close --headed --slowmo 700</code></pre>
+      <ol class="steps"><li>명령을 실행하기 전 “지금부터 방문자의 소식 열기·닫기를 검증합니다”라고 목적을 말합니다.</li><li>브라우저가 열리면 자동 클릭을 보여 줍니다. 시연 중 마우스로 개입하지 않습니다.</li><li>상세 내용이 확인되고 창이 닫힌 뒤 터미널의 <code>1 passed</code>를 보여 줍니다.</li><li>“실제 DB 대신 mock 데이터를 썼고 외부 요청은 차단됩니다”라고 안전 경계를 다시 말합니다.</li></ol>
+      <div class="callout"><strong>명령 읽는 법:</strong> <code>-k</code>는 이름에 해당 문자열이 있는 테스트만 선택하고, <code>--headed</code>는 브라우저 창을 보이며, <code>--slowmo 700</code>은 각 조작 사이를 700ms 늦춥니다.</div>
+    </section>
+
+    <section id="result"><h2>5. PASS, FAIL, SKIPPED, BLOCKED 읽기</h2><table><thead><tr><th>상태</th><th>뜻</th><th>발표 문장</th></tr></thead><tbody>
+      <tr><td><span class="status">PASSED</span></td><td>준비, 조작, 기대 결과가 모두 정상</td><td>“자동화한 범위에서 기대 결과를 확인했습니다.”</td></tr>
+      <tr><td><span class="status fail">FAILED</span></td><td>기대와 다르거나 실행 오류. 제품 버그라고 단정하기 전에 환경을 확인</td><td>“첫 오류 위치부터 원인을 분리해 확인합니다.”</td></tr>
+      <tr><td><span class="status skip">SKIPPED</span></td><td>코드에 적힌 조건 때문에 의도적으로 미실행</td><td>“조건이 충족되지 않아 테스트가 건너뛰어졌습니다.”</td></tr>
+      <tr><td><span class="status block">BLOCKED</span></td><td>pytest 자동 상태가 아니라 안전한 환경·승인·데이터가 없어 실행 불가하다는 보고 판단</td><td>“실패가 아니라, 안전 조건이 없어 실행하지 않았습니다.”</td></tr>
+    </tbody></table><p>성공 수치만 말하지 말고 테스트 대상, 로컬/mock 여부, 미검증 범위를 함께 말해야 결과가 과장되지 않습니다.</p></section>
+
+    <section id="errors"><h2>6. 자주 만나는 오류</h2><table><thead><tr><th>증상</th><th>먼저 확인할 것</th><th>해결</th></tr></thead><tbody>
+      <tr><td><code>Connection refused</code></td><td>웹 개발 서버가 실행 중인지, 포트가 3000인지</td><td>터미널 1에서 <code>npm run dev</code>를 실행하고 준비 메시지를 기다립니다.</td></tr>
+      <tr><td>browser executable 없음</td><td>Chromium 설치 여부</td><td>가상환경에서 <code>python -m playwright install chromium</code>을 실행합니다.</td></tr>
+      <tr><td><code>UnsafeBaseUrl</code></td><td>HTTPS, 원격 주소, 포트 누락 여부</td><td><code>http://localhost:3000</code>처럼 로컬 HTTP와 포트를 명시합니다. 안전장치를 우회하지 않습니다.</td></tr>
+      <tr><td><code>fixture ... not found</code></td><td><code>e2e/python</code>에서 실행했는지, 패키지를 설치했는지</td><td>현재 폴더와 활성화된 <code>.venv</code>를 확인합니다.</td></tr>
+      <tr><td>요소를 찾지 못해 timeout</td><td>개발 서버 코드와 테스트의 버튼 문구가 같은지</td><td>첫 실패 줄과 실제 화면을 비교합니다. 무작정 대기 시간을 늘리지 않습니다.</td></tr>
+    </tbody></table>
+      <div class="callout warning"><strong>하지 말 것:</strong> 오류를 없애려고 운영 URL을 넣거나 안전장치를 삭제하지 않습니다. 실제 자격증명을 복사해 테스트하지도 않습니다.</div>
+    </section>
+
+    <section id="script"><h2>7. 3분 발표 대본</h2><div class="script"><p><strong>0:00–0:30 — 목적</strong><br>“이번 기초 구성의 목적은 사용자가 실제 브라우저에서 겪는 핵심 흐름을 Python으로 자동 확인하는 것입니다. 기존 Node 테스트는 유지하고 Python E2E를 별도로 추가했습니다.”</p><p><strong>0:30–1:00 — 도구</strong><br>“Python은 절차를 적는 언어, pytest는 테스트를 찾아 실행하고 결과를 모으는 도구, Playwright는 Chromium을 조작하는 도구입니다.”</p><p><strong>1:00–1:35 — 구조와 안전</strong><br>“사용자 행동은 test_smoke.py, 공통 브라우저 준비와 mock API는 conftest.py, 로컬 주소 강제는 safety.py가 담당합니다. 운영과 원격 Staging은 이동 전에 차단하며 실제 DB나 암호를 사용하지 않습니다.”</p><p><strong>1:35–2:30 — 시연</strong><br>“지금 방문자가 공개 소식을 열고 내용을 확인한 뒤 닫는 한 흐름을 실행합니다.” (발표용 명령 실행) “브라우저가 사람 대신 버튼을 클릭하고 expect가 실제 표시를 확인했습니다.”</p><p><strong>2:30–3:00 — 결과와 한계</strong><br>“터미널의 PASS는 이 로컬 mock 범위의 성공입니다. 실제 원격 로그인은 격리 환경과 승인된 테스트 데이터가 없으므로 BLOCKED이며 성공으로 주장하지 않습니다. 다음 단계는 안전한 Staging이 준비된 뒤 별도 승인 아래 실제 역할 TC를 확장하는 것입니다.”</p></div></section>
+
+    <section><h2>8. 발표 직전 체크리스트</h2><ul><li>노트북에서 <code>pytest -q</code> 전체 통과를 확인했다.</li><li>인터넷 없이도 이 HTML 파일이 열리는지 확인했다.</li><li>두 터미널의 글자 크기를 키우고 알림을 껐다.</li><li>화면·명령 기록에 실제 암호, 키, 쿠키가 없다.</li><li>PASS의 범위가 “로컬 mock E2E”임을 말할 준비가 됐다.</li><li>원격 로그인은 BLOCKED라는 한계를 숨기지 않는다.</li></ul></section>
+  </main>
+  <footer>이 문서는 저장소 안에서 오프라인으로 열리며 외부 폰트·스크립트·이미지를 사용하지 않습니다.</footer>
+</body>
+</html>

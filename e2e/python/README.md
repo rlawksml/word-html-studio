@@ -2,6 +2,16 @@
 
 기존 `apps/web/tests` Node 테스트를 유지하면서, 브라우저에서 보이는 최소 흐름을 Python으로 검증합니다. 기본 테스트는 로컬 앱의 API를 메모리 fixture로 가로채므로 DB·Storage·실제 로그인 자격증명을 사용하거나 변경하지 않습니다.
 
+발표를 처음 준비한다면 [Python Playwright E2E 발표·학습 가이드](../../docs/guides/python-playwright-e2e-guide.html)를 먼저 읽으세요. 용어, 코드 구조, 시연 순서, 결과 해석, 3분 발표 대본을 한 파일에 정리했습니다.
+
+## 세 도구를 한 문장씩 이해하기
+
+- **Python**: 테스트 절차를 사람이 읽기 쉬운 코드로 적는 언어입니다.
+- **pytest**: `test_`로 시작하는 함수를 찾아 실행하고 PASS/FAIL 결과를 모아 줍니다.
+- **Playwright**: 실제 Chromium 브라우저를 열어 클릭·입력·화면 확인을 수행합니다.
+
+이 프로젝트에서 흐름은 `pytest → fixture 준비 → Playwright 브라우저 실행 → 로컬 앱 조작 → expect로 결과 확인` 순서입니다. `conftest.py`는 공통 준비와 네트워크 안전장치, `tests/test_smoke.py`는 사용자 행동, `tests/test_safety.py`는 잘못된 실행 주소 차단을 담당합니다.
+
 ## 처음 실행하기
 
 지원 범위는 Python 3.9 이상이며, 새 로컬 환경에서는 Python 3.11 이상을 권장합니다.
@@ -25,6 +35,15 @@ python -m playwright install chromium
 E2E_BASE_URL=http://localhost:3000 pytest
 ```
 
+처음에는 전체 결과를 짧게 보는 `pytest -q`도 유용합니다. 한 테스트의 동작을 화면으로 천천히 보고 싶다면 아래처럼 실행합니다.
+
+```bash
+E2E_BASE_URL=http://localhost:3000 pytest tests/test_smoke.py \
+  -k visitor_can_open_and_close --headed --slowmo 700
+```
+
+`--headed`는 브라우저 창을 보이게 하고 `--slowmo 700`은 각 동작을 0.7초 늦춥니다. 발표 전에는 먼저 일반 명령으로 전체 테스트가 통과하는지 확인하고, 발표에서는 위의 짧은 TC 하나만 보여 주는 편이 안정적입니다.
+
 `E2E_BASE_URL`은 명시적 포트가 있는 `http` loopback(`localhost`, `127.0.0.0/8`, `::1`)만 허용합니다. 운영·Staging·기타 원격 호스트는 브라우저 이동 전에 실패하며, smoke 경로의 외부 HTTP(S) 요청도 차단합니다. 현재 앱은 이 경로에서 WebSocket과 service worker를 사용하지 않으며, 향후 추가할 때는 별도 차단·관찰 fixture가 필요합니다. 현재 원격 Staging은 배포 성공 상태로 간주하지 않습니다.
 
 ## 역할별 실제 자격증명
@@ -40,3 +59,12 @@ E2E_BASE_URL=http://localhost:3000 pytest -q | tee ../../docs/test-reports/YYYY-
 ```
 
 보고서에는 commit, 명령, PASS/FAIL/SKIPPED/BLOCKED, 로컬 서버 종류와 남은 위험만 기록합니다. 실제 자격증명이나 요청 본문은 기록하지 않습니다.
+
+## 결과 읽기
+
+- `PASSED`: 준비부터 검증까지 기대대로 끝났습니다.
+- `FAILED`: 기대 결과가 다르거나 실행 중 오류가 났습니다. 실패 위치와 첫 오류부터 읽습니다.
+- `SKIPPED`: 코드가 조건에 따라 의도적으로 실행하지 않은 테스트입니다.
+- `BLOCKED`: pytest의 자동 상태가 아니라 검증 보고서에 쓰는 프로젝트 판단입니다. 예를 들어 승인된 격리 Staging이나 테스트 계정이 없어 안전하게 실행할 수 없는 경우입니다.
+
+`FAILED`는 제품 버그뿐 아니라 개발 서버 미실행, Chromium 미설치, 잘못된 포트 때문에도 생길 수 있습니다. HTML 가이드의 문제 해결 표에서 메시지별 확인 순서를 볼 수 있습니다.
