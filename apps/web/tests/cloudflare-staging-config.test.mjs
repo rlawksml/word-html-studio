@@ -1,10 +1,24 @@
 import assert from "node:assert/strict";
 import { readFile, access } from "node:fs/promises";
 import test from "node:test";
+import path from "node:path";
 import { assertSupabaseRuntimeTarget } from "../lib/supabase-environment.mjs";
 
 const root = new URL("../", import.meta.url);
 const config = JSON.parse(await readFile(new URL("wrangler.staging.json", root), "utf8"));
+
+test("CF-STAGE-05 entry imports resolve from Wrangler's uploaded basename", async () => {
+  // The upload API names the main module by basename, unlike filesystem-based tests.
+  assert.equal(config.main, path.posix.basename(config.main));
+  const entry = await readFile(new URL(config.main, root), "utf8");
+  const imports = [...entry.matchAll(/from\s+"([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(imports, ["./dist/server/index.js", "./worker/staging-gate.mjs", "./worker/staging-assets.mjs"]);
+  for (const specifier of imports) {
+    const uploadedName = path.posix.normalize(path.posix.join(path.posix.dirname(path.posix.basename(config.main)), specifier));
+    assert.ok(!uploadedName.startsWith("../"));
+    await access(new URL(uploadedName, root));
+  }
+});
 
 test("CF-STAGE-01 isolates identity and disables all public entry points", () => {
   assert.equal(config.account_id, "cbedea3823b7b51a1b7df6d8a2ceed39");
@@ -41,7 +55,7 @@ test("CF-STAGE-03 matches freshly built runtime without additional services", as
   for (const [key, value] of Object.entries(built)) {
     if (!metadata.has(key)) assert.ok(isEmpty(value), `Review unexpected generated binding/config: ${key}`);
   }
-  assert.equal(config.main, "worker/staging-entry.mjs");
+  assert.equal(config.main, "staging-entry.mjs");
   assert.equal(config.base_dir, ".");
   assert.equal(built.main, "index.js");
   assert.deepEqual(config.assets, { directory: "dist/client", binding: "ASSETS", run_worker_first: true });
@@ -63,7 +77,7 @@ test("CF-STAGE-04 CI executes the staging gate after build tests", async () => {
   assert.match(workflow, /run: npm run test:staging-worker/);
   const pkg = JSON.parse(await readFile(new URL("package.json", root), "utf8"));
   assert.match(pkg.scripts["check:cloudflare-staging"], /npm run test:staging-worker/);
-  for (const file of ["staging-gate.test.mjs", "staging-assets.test.mjs", "staging-worker-runtime.test.mjs"]) {
+  for (const file of ["staging-gate.test.mjs", "staging-assets.test.mjs", "staging-worker-runtime.test.mjs", "staging-upload-layout.test.mjs"]) {
     assert.ok(pkg.scripts["test:staging-worker"].includes(`tests/${file}`));
   }
 });

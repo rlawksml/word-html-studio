@@ -28,6 +28,8 @@
 
 ## 데이터에 관한 중요 안내
 
+독립 Cloudflare staging의 진입점은 `apps/web/staging-entry.mjs`입니다. Wrangler가 main을 basename으로 업로드하므로 앱 루트 위치를 유지합니다. `npm run test:staging-worker`는 실제 dry-run 산출물의 상대 import도 검증합니다.
+
 공용 저장소는 **Supabase**를 사용하며 기존 브라우저 `localStorage`의 샘플·임시 데이터는 가져오지 않습니다. Supabase가 연결되면 빈 운영 데이터에서 책방을 새로 등록해 시작합니다.
 
 - Supabase Database: 책방 기본정보, 월별 소식, 일정·작업 상태와 개선사항

@@ -67,7 +67,7 @@ async function consume(response) {
 
 test("STAGE-RUNTIME executes the staging gate, assets, app, and native limiter in Miniflare", async (t) => {
   const sourceModules = [
-    path.join(cwd, "worker/staging-entry.mjs"),
+    path.join(cwd, "staging-entry.mjs"),
     path.join(cwd, "worker/staging-gate.mjs"),
     path.join(cwd, "worker/staging-assets.mjs"),
     ...await moduleFiles(path.join(cwd, "dist/server")),
