@@ -2,7 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "account_id": "cbedea3823b7b51a1b7df6d8a2ceed39",
   "name": "bookstore-news-studio-staging",
-  "main": "worker/staging-entry.mjs",
+  "main": "staging-entry.mjs",
   "base_dir": ".",
   "compatibility_date": "2026-09-07",
   "compatibility_flags": ["nodejs_compat"],
