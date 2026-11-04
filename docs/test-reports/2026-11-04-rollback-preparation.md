@@ -45,6 +45,10 @@ Sites34/source28efad2의 succeeded 배포·archive 존재를 읽기 전용으로
 
 ## 후속
 
+추가 준비: Mac 제약을 우회 실행하는 대신, 고정 `FROM scratch`/검토된 hash Dockerfile과 표준 GitHub Linux 전용 workflow를 작성했다. host의 기존 Node/env·라이브러리와 정확한3source만 복사하고 외부 image/의존성을 받지 않는다. 비root·read-only·network none·memory256MiB/no swap·CPU1/30초·PID32·file8MiB/FD128·tmpfs16MiB·wall45초·출력64KiB·daemon log none을 적용한다. nonce/name/label/CID 검증으로 자기 컨테이너만 정리하며17TC/fail0/cancelled0/skipped0/todo0을 요구한다. Docker 지원/도구가 없으면 실패한다. 독립 source review는 차단 결함 없음/source-only GO를 반환했으며 실행 결과는 아직 미검증이다.
+
+저장소는 읽기 조회로 PUBLIC을 확인했으며 표준 public runner의 [공식 무료 사용 기준](https://docs.github.com/en/actions/concepts/billing-and-usage)을 확인했다. larger runner·유료 플랫폼 전환·artifact 업로드는 사용하지 않는다. 요금/결제 설정과 운영 서비스는 변경하지 않는다.
+
 1. 최종17TC와 필수 코드 검증을 안전한 격리 runner에서 실행한다.
 2. 정확한 fallback의 미래 데이터 호환성/환경 보존과 독립 최신 백업을 확인한다.
 3. 통합본 #86, CI 의존성 #87, 사진 조사 #88 및 남은 전체 P0를 이슈별 검증한다.

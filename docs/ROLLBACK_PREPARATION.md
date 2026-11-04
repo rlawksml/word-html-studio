@@ -58,6 +58,8 @@ node scripts/prepare-rollback.mjs /사용자가/지정한/rollback-prepare.json
 
 출력은 `BLOCKED`, `PREPARED_WITH_BLOCKERS`, `PREPARED_DECLARED_ONLY` 중 하나다. 마지막 상태도 **사용자 선언의 형식 검사 통과일 뿐**이며 항상 `DECLARED_NOT_VERIFIED`, `executionAvailable:false`, `deploymentAuthorized:false`다. 네트워크·배포 SDK·DB/Storage 호출은 없다. 이 도구는 CI/플랫폼의 자동 운영 배포를 강제 차단하는 실행 게이트가 아니다. 현재 CI에도 배포 job은 없으며 운영 전환은 별도 승인 절차로 유지한다.
 
+최종17개 정책 TC용 `.github/workflows/rollback-preparation.yml`은 표준 Linux runner에서 기존 Node/env 라이브러리만 고정 `FROM scratch` 이미지로 복사한다. 신규 의존성/외부 이미지를 설치·pull하지 않으며 저장소 JS는 호스트가 아닌 네트워크 없음·읽기전용·비root·메모리256MiB/CPU1/PID32/tmp16MiB/wall45초 컨테이너에서만 실행한다. 비밀값·DB 연결·호스트 mount는 없다. 결과17/0/skipped0과 출력/자원/정리 조건이 모두 맞아야 통과하며 도구/한도 불지원은 우회하지 않는다. 이는 정책 TC만의 검증이며 전체 브라우저/DB/릴리스 승인이 아니다.
+
 ## 4. 긴급 상황에서의 순서 — 아직 실행하지 않음
 
 1. 새 배포/추가 변경을 멈추고 장애 시각·증상·후보 commit을 기록한다.
