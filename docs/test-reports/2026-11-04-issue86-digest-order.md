@@ -2,7 +2,7 @@
 
 ## 현재 판정
 
-**P1 재현 / 수정 진행 중 / 운영 NO-GO.** 실제 DB에 없는 합성 자료로만 검증했다. 운영/staging의 기존 업무·보관 QA 자료, 사진, 편집 임대는 조회·변경하지 않았다. 새 QA 책방2곳은 아직 승인되지 않았으므로 생성하지 않았다. SQL 적용·merge·배포도 하지 않는다.
+**P1 로컬 수정·검증 완료 / 실제 SQL·Staging 검증 대기 / 운영 NO-GO.** 실제 DB에 없는 합성 자료로만 검증했다. 운영/staging의 기존 업무·보관 QA 자료, 사진, 편집 임대는 조회·변경하지 않았다. 새 QA 책방2곳은 아직 승인되지 않았으므로 생성하지 않았다. SQL 적용·merge·배포도 하지 않는다.
 
 기준: `codex/m1-digest-order-persistence`, 분기 기준 `cdf4be1`(롤백 문서-only 후속). Phase A는 `b4678f0`에 보존했다. 아래 최초 브라우저 결과는 수정 전 산출물의 재현이며, API 소스 추가 이후의 화면 수정 성공을 의미하지 않는다.
 
@@ -135,12 +135,40 @@ page/fetch22건 완료와 CDP/mock24건의 DELETE presence2건 차이는 최초 
 
 clone 관찰은 stream tee/수명/타이밍과 rejection 관측에 영향을 줄 수 있다. 무계측 제품의 장기 메모리·원격 연결 상태를 증명한 것은 아니다. 이 관찰자 분리와 API·React 안전 경계는 독립 source review를 거쳤다.
 
-## 6. 남은 검증
+## 6. Exact commit 재확인 — 2026-11-05 KST
+
+검증 코드 commit은 `87b2e08a384e1f1ad619c2cd8dfdbbdcc52092f6`이다. Git archive로 저장소 전체를 새 임시 경로에 추출해 이전 미커밋 gate/cleanup/retain-only/HTML-copy 테스트를 섞지 않았다. source tar SHA-256은 `355673895afa25eafc048e62d52eacbc07cab05f519a9edf3ec924feb373b0ea`다. 기존 설치 의존성을 읽기 링크로 재사용했으며 `npm ci` 재설치나 lockfile 재현성 검증을 새로 수행한 것은 아니다.
+
+| 실제 실행 | 결과 |
+|---|---|
+| exact Git 사본 fresh vinext build | PASS |
+| package scripts.test의 Node 기본 목록 전체 | 177 PASS / 실패·취소·제외0 |
+| 전체 tsc --noEmit --incremental false | PASS |
+| 전체 eslint . --ignore-pattern dist --ignore-pattern .next | PASS |
+| migration-policy (manifest/source) | PASS |
+| DIGEST01~03 same fresh build | 3 PASS / exit0 |
+| DIGEST04~07 same fresh build | 4 PASS / exit0 |
+
+기본177에는 새 domain/service/repository/client/observer TC가 포함된다. 앞의 working-tree207, 부분89와 observer12는 재실행·중복 범위이므로 177에 더하지 않는다. 원래 `npm test`의 build와 Node 단계를 같은 사본에서 분리해 실행했다. 빌드/단위/타입/린트는 비밀 환경값 없이 OS 외부 네트워크·홈 쓰기 제한 아래 실행했으며, 브라우저는 별도 새 프로필·합성 Node/CDP 경계다.
+
+- exact server SHA-256: `1195348d92908d49ff81df2fc9bdc9a49adf3845e67474c688d05648e74229aa`
+- exact client23파일 목록 포함 지문: `cfddc674c59622e0ff7c2c026ad1fd111bac90d227004f6c58faab5726e982b3`
+- positive: 추적22/처리24의 기존2건 공백 유지, console/page/transport/handler/observer/외부시도0.
+- lifecycle: 요청/처리36, 일반 fetch관측24완료, 계획 취소3·관련 fulfill3, 예상 외 오류0, observer0·활성 handler0.
+- 각 fixture 원본 불변, 각각 순서 PUT1, 실제 DB/Storage 접근·변경0.
+
+소스 안전 경계와 직접 단위는 독립 QA/source review도 거쳤다. 전체177과 최종 실제 브라우저 실행은 주 에이전트 결과이며 독립 QA가 그 전체를 별도로 재실행한 것처럼 표현하지 않는다. 후속 보고서-only commit은 위 검증한 코드 commit과 구분한다.
+
+GitHub CI는 별도다. `2c895696d6969261ffa241ceec3f1f2bb604b5c6`의 [run41848935250](https://github.com/rlawksml/word-html-studio/actions/runs/41848935250)은 `npm run audit:production`에서 실제 FAILURE이며 나머지 앱 검증 단계가 통과했다는 증거가 아니다. 기존 #87을 유지하며 본 수정과 의존성 업데이트를 섞지 않는다.
+
+검토 중 기존 달력의 빈 월 `Array(NaN)` 예외를 순수 계산으로 재현했다. 기준 cdf4be1에도 존재하며 실제 UI·입력 손실은 미확인이다. [#91](https://github.com/rlawksml/word-html-studio/issues/91)에 분리했고 #86 client의 잘못된 월 요청0을 전체 화면 검증으로 확대하지 않는다.
+
+## 7. 남은 검증
 
 | 단계 | 상태 | 조건 |
 |---|---|---|
 | Phase B 전용 API/RPC·component·백업 | source/mock67 PASS | 독립 QA 재확인. 실제 SQL·서명 인증·복원 검증 아님 |
-| Phase C hook/UI 연결 | local source/브라우저7 PASS | exact commit 새 build·회귀 재확인 필요, 실제 DB 검증 아님 |
+| Phase C hook/UI 연결 | exact local177/브라우저7 PASS | 실제 DB 검증 아님. 코드 commit87b2e08 고정 |
 | 실제 PostgreSQL·동시 CAS·임대 만료 | BLOCKED | 새 SQL과 명확한 신규 테스트 범위 승인 필요 |
 | 실제 staging 통합본/사진/두 작업자 | BLOCKED | 기존 자료를 사용하지 않는 신규 QA 승인 필요 |
 | 전체 회귀·운영 판정 | NO-GO | 필수 P0/의존성 #87/exact fallback·최신 백업/환경 보존 미완료 |
