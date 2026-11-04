@@ -21,6 +21,8 @@
     "migration:check": "node scripts/migration-policy.mjs",
     "backup:supabase": "node scripts/supabase-backup.mjs",
     "backup:verify": "node scripts/supabase-backup-verify.mjs",
+    "prepare:rollback": "node scripts/prepare-rollback.mjs",
+    "test:rollback-preparation": "node --test tests/rollback-readiness.test.mjs",
     "restore:staging": "node scripts/supabase-restore-staging.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "typecheck": "tsc --noEmit --incremental false",
