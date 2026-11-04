@@ -91,10 +91,20 @@ jobs:
           # calls below use this fixed argv prefix, never eval or repo commands.
           docker_argv=(/usr/bin/env -i PATH=/usr/bin:/bin /usr/bin/docker --config "$scratch/docker-config")
           absent_container() {
-            [[ "$bounded_exit" == 1 ]] || return 1
-            local message
-            message="$(< "$1")"
-            [[ "$message" == "Error: No such container: $2" || "$message" == "Error: No such object: $2" ]]
+            local selector="$2" filter
+            if [[ "$selector" == "$container_name" ]]; then
+              # A literal nonce-name substring filter is conservative: any
+              # match blocks absence. Creation still atomically reserves name.
+              filter="name=$container_name"
+            elif [[ "$selector" =~ ^[a-f0-9]{64}$ ]]; then
+              filter="id=$selector"
+            else
+              return 1
+            fi
+            # Do not infer absence from human error text or non-zero exit.
+            # Only a successful bounded, exact-scope list with no IDs proves it.
+            bounded 10 "$scratch/absence.log" "${docker_argv[@]}" container ls --all --no-trunc --filter "$filter" --format '{{.ID}}' || return 1
+            [[ "$(< "$scratch/absence.log")" == '' ]]
           }
           cleanup() {
             local original_status=$? cleanup_failed=0 selector inspect_line full_id inspected_nonce inspected_name extra
@@ -198,9 +208,8 @@ jobs:
           # limits. Query only these capability booleans, never a full info dump.
           bounded 10 "$scratch/limits.log" "${docker_argv[@]}" info --format '{{.MemoryLimit}} {{.SwapLimit}} {{.CPUCfsQuota}} {{.PidsLimit}}' || { emit_bounded "$scratch/limits.log" || true; fail SANDBOX_LIMIT_SUPPORT_UNCONFIRMED; }
           [[ "$(< "$scratch/limits.log")" == 'true true true true' ]] || fail SANDBOX_LIMIT_SUPPORT_UNAVAILABLE
-          if bounded 10 "$scratch/name-inspect.log" "${docker_argv[@]}" container inspect --format '{{.Id}}' "$container_name"; then
-            fail CONTAINER_NAME_ALREADY_EXISTS
-          elif ! absent_container "$scratch/name-inspect.log" "$container_name"; then
+          if ! absent_container '' "$container_name"; then
+            emit_bounded "$scratch/absence.log" || true
             fail CONTAINER_NAME_ABSENCE_UNCONFIRMED
           fi
           bounded 60 "$scratch/build.log" "${docker_argv[@]}" build --network=none --pull=false --quiet --iidfile "$iid_file" "$context" || { emit_bounded "$scratch/build.log" || true; fail SANDBOX_BUILD_FAILED_OR_OUTPUT_CAPPED; }

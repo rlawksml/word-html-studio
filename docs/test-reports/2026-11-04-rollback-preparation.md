@@ -53,6 +53,8 @@ Sites34/source28efad2의 succeeded 배포·archive 존재를 읽기 전용으로
 
 첫 수동 실행 [41810693908](https://github.com/rlawksml/word-html-studio/actions/runs/41810693908)은 event=workflow_dispatch/head1e22583, exact SHA guard PASS·verify/Supabase job SKIPPED를 확인했다. 격리 job은 **대상 테스트 실행 전** SANDBOX_LIMIT_SUPPORT_UNCONFIRMED로 실패했다. source의 Go template 필드가 잘못된 CpuCfsQuota였음을 [Moby 공식 타입](https://github.com/moby/moby/blob/master/api/types/system/info.go)의 CPUCfsQuota와 대조해 정정했다. 실패를 숨기거나 cgroup 조건을 제거하지 않았으며 실패 진단도64KiB/명령해석 차단 범위에서만 출력하도록 보완했다. 이 실행을17TC FAIL/PASS로 집계하지 않는다.
 
+두 번째 [41811126273](https://github.com/rlawksml/word-html-studio/actions/runs/41811126273)/head41eff05는 자원 지원 gate를 지나 CONTAINER_NAME_ABSENCE_UNCONFIRMED에서 테스트 전 중단됐다. Docker inspect의 사람용 오류 문구 일치에 의존하던 부재 판정을 제거하고, 우리 nonce-name 또는 fullCID로 한정된 `container ls --all --no-trunc --filter ...`의 성공+빈목록만 인정하도록 변경했다. 넓은 이름 매칭은 보수적 실패이며 삭제의 ID/label/name 대조는 유지한다. 독립 source reviewer는 경계 결함 없음으로 확인했고 실제17TC 결과는 다음 실행에서 검증해야 한다.
+
 1. 최종17TC와 필수 코드 검증을 안전한 격리 runner에서 실행한다.
 2. 정확한 fallback의 미래 데이터 호환성/환경 보존과 독립 최신 백업을 확인한다.
 3. 통합본 #86, CI 의존성 #87, 사진 조사 #88 및 남은 전체 P0를 이슈별 검증한다.
