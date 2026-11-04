@@ -1,6 +1,7 @@
 name: Isolated rollback preparation tests
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - apps/web/scripts/rollback-readiness-policy.mjs
