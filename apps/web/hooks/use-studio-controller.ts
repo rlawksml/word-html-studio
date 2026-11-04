@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type 
 import { useWorkspaceInitialization } from "@/hooks/use-workspace-initialization";
 import { useWorkspacePersistence } from "@/hooks/use-workspace-persistence";
 import { useEditingPresence } from "@/hooks/use-editing-presence";
+import { useDigestOrder } from "@/hooks/use-digest-order";
 import { digestHtml, generatedHtml } from "@/lib/html-generators";
 import {
   BOOKSTORE_COLORS,
@@ -76,7 +77,6 @@ export function useStudioController(initialMonth: string) {
   const [saveState, setSaveState] = useState("모든 내용이 저장되었습니다");
   const [draggedNewsId, setDraggedNewsId] = useState<number | null>(null);
   const [draggedImageId, setDraggedImageId] = useState<number | null>(null);
-  const [draggedDigestId, setDraggedDigestId] = useState<number | null>(null);
   const [publicDetail, setPublicDetail] = useState<{ submissionId: number; newsId: number } | null>(null);
   const [leaveTarget, setLeaveTarget] = useState<LeaveTarget | null>(null);
   const [editingEntryBlock, setEditingEntryBlock] = useState<{
@@ -190,7 +190,6 @@ export function useStudioController(initialMonth: string) {
   const selectedHtmlBookstore = bookstores.find((item) => item.id === selectedHtmlSubmission?.bookstoreId);
   const generatedCode = selectedHtmlSubmission && selectedHtmlBookstore ? generatedHtml(selectedHtmlSubmission, selectedHtmlBookstore, false) : "";
   const generatedPreview = selectedHtmlSubmission && selectedHtmlBookstore ? generatedHtml(selectedHtmlSubmission, selectedHtmlBookstore, true) : "";
-  const combinedHtml = useMemo(() => digestHtml(htmlReady, bookstores, month), [bookstores, htmlReady, month]);
 
   const monthSubmissions = submissions.filter((item) => item.month === month);
   const completedBookstoreCount = monthSubmissions.filter((item) => item.status === "completed").length;
@@ -229,6 +228,9 @@ export function useStudioController(initialMonth: string) {
     return null;
   }, [htmlView, inputView, month, role, selectedBookstoreId, selectedHtmlBookstoreId]);
   const { editingPresence, releasePresence, refreshPresence } = useEditingPresence({ enabled: hydrated, role, target: presenceTarget });
+  const digestOrder = useDigestOrder({ enabled: hydrated && role === "html" && htmlView === "digest", month, submissions, presenceOwned: editingPresence.status === "owned", refreshPresence });
+  const { digestReady, draggedDigestId, setDraggedDigestId, reorderDigest } = digestOrder;
+  const combinedHtml = useMemo(() => digestHtml(digestReady, bookstores, month), [bookstores, digestReady, month]);
 
   // 작성 중 이탈은 브라우저 종료와 앱 내부 이동을 모두 가로채 임시 저장 기회를 줍니다.
   useEffect(() => {
@@ -841,21 +843,6 @@ export function useStudioController(initialMonth: string) {
     }
   };
 
-  // 통합본 순서는 해당 월의 완료 Submission 구간 안에서만 바꿉니다.
-  const reorderDigest = (targetId: number) => {
-    if (draggedDigestId === null || targetId === draggedDigestId) return;
-    const monthIndexes = submissions.map((item, index) => item.month === month && item.status === "completed" ? index : -1).filter((index) => index >= 0);
-    const ordered = monthIndexes.map((index) => submissions[index]);
-    const from = ordered.findIndex((item) => item.id === draggedDigestId);
-    const to = ordered.findIndex((item) => item.id === targetId);
-    const [moved] = ordered.splice(from, 1);
-    ordered.splice(to, 0, moved);
-    const next = [...submissions];
-    monthIndexes.forEach((sourceIndex, index) => { next[sourceIndex] = ordered[index]; });
-    setSubmissions(next);
-    setDraggedDigestId(null);
-  };
-
   const updatePublished = (url: string) => {
     if (!selectedHtmlSubmission) return;
     setSubmissions((current) => current.map((item) => item.id === selectedHtmlSubmission.id ? { ...item, publishedAt: nowIso(), publishedUrl: url } : item));
@@ -895,6 +882,8 @@ export function useStudioController(initialMonth: string) {
     draggedNewsId, draggedImageId, draggedDigestId, publicDetail, leaveTarget, editingEntryBlock,
     openingBookstoreId, imageUploadNewsId, storageError, editingPresence, pendingAction,
     initialLoadState,
+    digestReady, digestOrderPhase: digestOrder.digestOrderPhase, digestOrderMessage: digestOrder.digestOrderMessage,
+    digestOrderCanReorder: digestOrder.digestOrderCanReorder, reloadDigestOrder: digestOrder.reloadDigestOrder,
     currentSubmission, htmlReady, selectedHtmlSubmission, selectedHtmlBookstore, generatedCode,
     generatedPreview, combinedHtml, monthSubmissions, completedBookstoreCount, completionPercent,
     publicEntries, filteredEntries, publicDetailData, calendarDays,
