@@ -51,6 +51,8 @@ Sites34/source28efad2의 succeeded 배포·archive 존재를 읽기 전용으로
 
 09:45 UTC 이후 브랜치 REST SHA는1b5ee6a인데 PR head는2be5af3/check suite0으로 남아 새 이벤트 실행이 확인되지 않았다. PR merge/reopen/base 변경으로 우회하지 않았다. 기존 CI catalog의 공식 `--ref` 실행을 사용하도록 feature의 CI에 rollback_preparation 고정 choice/expected_commit guard와 동일 commit callee를 연결했다. manual에서는 기존 npm/build verify를 제외하고 legacy Supabase job은 입력과 무관하게 고정false로 차단한다. PR/push의 audit 포함 verify는 유지한다. 이 경로도 독립 source-only 검토 후에만 적용했으며 성공해도17TC 범위의 결과다. 실행 시 실제 event/ref/head/job 목록을 대조해야 한다.
 
+첫 수동 실행 [41810693908](https://github.com/rlawksml/word-html-studio/actions/runs/41810693908)은 event=workflow_dispatch/head1e22583, exact SHA guard PASS·verify/Supabase job SKIPPED를 확인했다. 격리 job은 **대상 테스트 실행 전** SANDBOX_LIMIT_SUPPORT_UNCONFIRMED로 실패했다. source의 Go template 필드가 잘못된 CpuCfsQuota였음을 [Moby 공식 타입](https://github.com/moby/moby/blob/master/api/types/system/info.go)의 CPUCfsQuota와 대조해 정정했다. 실패를 숨기거나 cgroup 조건을 제거하지 않았으며 실패 진단도64KiB/명령해석 차단 범위에서만 출력하도록 보완했다. 이 실행을17TC FAIL/PASS로 집계하지 않는다.
+
 1. 최종17TC와 필수 코드 검증을 안전한 격리 runner에서 실행한다.
 2. 정확한 fallback의 미래 데이터 호환성/환경 보존과 독립 최신 백업을 확인한다.
 3. 통합본 #86, CI 의존성 #87, 사진 조사 #88 및 남은 전체 P0를 이슈별 검증한다.

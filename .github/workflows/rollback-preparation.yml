@@ -80,6 +80,13 @@ jobs:
             fi
             (( statuses[0] == 0 ))
           }
+          emit_bounded() {
+            local report="$1"
+            [[ -f "$report" && ! -L "$report" && "$(wc -c < "$report")" -le 65536 ]] || return 1
+            printf '::stop-commands::%s\n' "$nonce"
+            cat -- "$report"
+            printf '\n::%s::\n' "$nonce"
+          }
           # Functions cannot be invoked by timeout directly; all bounded Docker
           # calls below use this fixed argv prefix, never eval or repo commands.
           docker_argv=(/usr/bin/env -i PATH=/usr/bin:/bin /usr/bin/docker --config "$scratch/docker-config")
@@ -189,14 +196,14 @@ jobs:
 
           # No fallback when the daemon cannot enforce the requested cgroup
           # limits. Query only these capability booleans, never a full info dump.
-          bounded 10 "$scratch/limits.log" "${docker_argv[@]}" info --format '{{.MemoryLimit}} {{.SwapLimit}} {{.CpuCfsQuota}} {{.PidsLimit}}' || fail SANDBOX_LIMIT_SUPPORT_UNCONFIRMED
+          bounded 10 "$scratch/limits.log" "${docker_argv[@]}" info --format '{{.MemoryLimit}} {{.SwapLimit}} {{.CPUCfsQuota}} {{.PidsLimit}}' || { emit_bounded "$scratch/limits.log" || true; fail SANDBOX_LIMIT_SUPPORT_UNCONFIRMED; }
           [[ "$(< "$scratch/limits.log")" == 'true true true true' ]] || fail SANDBOX_LIMIT_SUPPORT_UNAVAILABLE
           if bounded 10 "$scratch/name-inspect.log" "${docker_argv[@]}" container inspect --format '{{.Id}}' "$container_name"; then
             fail CONTAINER_NAME_ALREADY_EXISTS
           elif ! absent_container "$scratch/name-inspect.log" "$container_name"; then
             fail CONTAINER_NAME_ABSENCE_UNCONFIRMED
           fi
-          bounded 60 "$scratch/build.log" "${docker_argv[@]}" build --network=none --pull=false --quiet --iidfile "$iid_file" "$context" || fail SANDBOX_BUILD_FAILED_OR_OUTPUT_CAPPED
+          bounded 60 "$scratch/build.log" "${docker_argv[@]}" build --network=none --pull=false --quiet --iidfile "$iid_file" "$context" || { emit_bounded "$scratch/build.log" || true; fail SANDBOX_BUILD_FAILED_OR_OUTPUT_CAPPED; }
           [[ -f "$iid_file" && ! -L "$iid_file" && "$(wc -c < "$iid_file")" -le 72 ]] || fail IMAGE_ID_FILE_INVALID
           image_id="$(< "$iid_file")"
           [[ "$image_id" =~ ^sha256:[a-f0-9]{64}$ ]] || fail IMAGE_ID_INVALID
@@ -210,7 +217,7 @@ jobs:
             --ulimit=nofile=128:128 --ulimit=core=0:0 \
             --tmpfs=/tmp:rw,noexec,nosuid,nodev,size=16m --log-driver=none \
             --rm --cidfile "$cid_file" --name "$container_name" \
-            --label "bookstore.rollback-qa=$nonce" "$image_id" || fail SANDBOX_TEST_FAILED_OR_OUTPUT_CAPPED
+            --label "bookstore.rollback-qa=$nonce" "$image_id" || { emit_bounded "$run_log" || true; fail SANDBOX_TEST_FAILED_OR_OUTPUT_CAPPED; }
 
           # Success means the exact 17-test suite completed without cancellations
           # or skips; exit zero by itself is insufficient.
@@ -220,9 +227,7 @@ jobs:
           if grep -Eq '^not ok([[:space:]]|$)' "$run_log"; then fail TAP_FAILURE_PRESENT; fi
           # Only this bounded report is emitted. Disable workflow-command parsing
           # around untrusted TAP; the nonce is never passed into the container.
-          printf '::stop-commands::%s\n' "$nonce"
-          cat -- "$run_log"
-          printf '\n::%s::\n' "$nonce"
+          emit_bounded "$run_log"
           printf 'Rollback preparation: 17/17 declared-policy tests passed in isolation.\n'
           # No image/global cleanup and no broad temp deletion. The ephemeral
           # runner owns scratch/image disposal; trap removes only our container.
