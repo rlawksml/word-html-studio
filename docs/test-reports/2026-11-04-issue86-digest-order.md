@@ -4,7 +4,7 @@
 
 **P1 재현 / 수정 진행 중 / 운영 NO-GO.** 실제 DB에 없는 합성 자료로만 검증했다. 운영/staging의 기존 업무·보관 QA 자료, 사진, 편집 임대는 조회·변경하지 않았다. 새 QA 책방2곳은 아직 승인되지 않았으므로 생성하지 않았다. SQL 적용·merge·배포도 하지 않는다.
 
-기준: `codex/m1-digest-order-persistence`, 분기 기준 `cdf4be1`(롤백 문서-only 후속). 순서 결함의 제품 코드는 수정 전이며 아래 Phase A는 아직 앱에 연결되지 않은 순수 정책 모듈이다.
+기준: `codex/m1-digest-order-persistence`, 분기 기준 `cdf4be1`(롤백 문서-only 후속). Phase A는 `b4678f0`에 보존했다. 아래 최초 브라우저 결과는 수정 전 산출물의 재현이며, API 소스 추가 이후의 화면 수정 성공을 의미하지 않는다.
 
 ## 1. 브라우저 재현
 
@@ -74,12 +74,39 @@ env -i PATH=/usr/bin:/bin /path/to/node26 --test tests/digest-order.test.mjs
 
 독립 QA도 원문/fixture를 검토하고18/18을 재확인했다. 추가 탐색 조합은 등록 TC 숫자와 합산하지 않는다. 새 모듈 한정 strict TypeScript 검사는 작성자 PASS 보고이며 전체 앱 typecheck/build 결과는 아직 아니다. API/RPC/실제 PostgreSQL/화면 연결의 완료 근거로 삼지 않는다.
 
-## 4. 남은 검증
+## 4. Phase B — 전용 API·저장소와 SQL 준비
+
+작성자·주 에이전트·독립 QA가 아래 5개 파일의 등록 **67/67 PASS**, 실패/취소/제외0을 확인했다. Phase A18 + API18 + repository15 + backup5 + SQL 소스 계약4 + 기존 compatibility7이다. 전체 프로젝트 TypeScript와 migration 정책은 작성자와 주 에이전트가 PASS를 확인했다. 독립 QA는 tsc를 중복 실행하지 않았으며 실제 SQL·서명 인증·복원 성공과 구분했다.
+
+```sh
+env -i PATH=/usr/bin:/bin /path/to/node26 --test \
+  tests/digest-order.test.mjs tests/digest-order-service.test.mjs \
+  tests/digest-order-repository.test.mjs tests/digest-order-backup.test.mjs \
+  tests/schema-compatibility.test.mjs
+env -i PATH=/usr/bin:/bin /path/to/node26 node_modules/typescript/bin/tsc --noEmit --incremental false
+env -i PATH=/usr/bin:/bin /path/to/node26 scripts/migration-policy.mjs
+```
+
+- thin route → 기존 서명 세션 확인 → HTML 역할 → 전용 repository/RPC port로 분리했다. 미인증401/다른 역할403은 본문·fingerprint·DB 생성 전에 종료한다.
+- 요청은 query 월/JSON 필드·중복 ID·64KiB 실제 본문 상한을 검증한다. 성공 응답도 요청 IDs 완전 일치와 revision 정확+1을 확인하고, 증가 불가능한 MAX_SAFE 요청은 쓰기 전에400으로 거부한다.
+- RPC 성공이 불명확하거나 저장소가 실패하면 고정503을 반환한다. 내부 SQL·원문 provider 오류·세션 hash를 노출하거나 RPC를 무조건 재시도하지 않는다. 충돌409는 검증된 같은 월 최신 값만 전달하고, lease423·미설치·설치 불일치를 구분한다.
+- SQL은 별도 `digest_order` component·table만 추가한다. digest lease의 row lock/HTML role/hash/유효기간과 revision CAS를 묶고 기존 submissions/bookstores/사진을 수정하지 않는다.
+- 독립 QA가 잠금 이후 ID 존재 검사의 경쟁 가능성을 소스에서 지적했다. `GET DIAGNOSTICS ... ROW_COUNT`가 전체 요청 수와 같은지 월 검사·CAS 전에 확인하도록 보완했다. 실제 PostgreSQL로 race를 재현한 증거는 아니다.
+- 신규 SQL SHA-256: `7df2e4514ee83539866cb43ddb3485f3c11d194b6d512e9ea98e30bc0442b7b2`. 기존 migration hash는 변경하지 않았다.
+- 백업은 독립 component 설치가 확인된 경우에만 새 table을 포함하고, 기존 boolean 호출과 구 manifest의 table 목록은 유지한다. 정확한 marker 부재만 미설치로 처리하고 권한/네트워크 오류를 숨기지 않는다.
+
+**한계:** HTTP factory는 메모리 port, repository는 fake SDK, SQL은 정적 계약 검사다. 실제 Next/Worker 인증·서명 cookie·Postgres 권한/lock/CAS·DB/Storage·백업 실행/복원·화면 연결을 검증한 것은 아니다. 신규 SQL은 작성만 했고 실행하지 않았다.
+
+### 실제 복원은 별도 BLOCKED
+
+`planTableRestore`는 비어 있지 않은 대상에 기본 거부하고 `--resume`도 전체 행/hash 일치를 요구한다. 사전 migration의 `app_schema_versions.applied_at` 차이 또는 추가 marker 때문에 복원이 거부될 수 있다. backup 목록 선택 테스트를 복원 성공으로 보고하지 않는다. 원본 백업을 변형하지 않는 marker reconciliation과 승인된 별도 격리 대상의 실제 복원 검증이 필요하다. 현재 staging 초기화로 우회하지 않는다. [#47 기록](https://github.com/rlawksml/word-html-studio/issues/47#issuecomment-6633286072).
+
+## 5. 남은 검증
 
 | 단계 | 상태 | 조건 |
 |---|---|---|
-| Phase B 전용 API/RPC·component·백업 | 진행 중 | source/mock/기존 백업 호환/권한·CAS·미설치 오류 검증, SQL 실적용 금지 |
-| Phase C hook/UI 연결 | BLOCKED | B 검증 뒤 연결, 새 build의 DIGEST01~03 재실행 |
+| Phase B 전용 API/RPC·component·백업 | source/mock67 PASS | 독립 QA 재확인. 실제 SQL·서명 인증·복원 검증 아님 |
+| Phase C hook/UI 연결 | 진행 중 | B 검증 뒤 연결, 새 build의 DIGEST01~03 재실행 필요 |
 | 실제 PostgreSQL·동시 CAS·임대 만료 | BLOCKED | 새 SQL과 명확한 신규 테스트 범위 승인 필요 |
 | 실제 staging 통합본/사진/두 작업자 | BLOCKED | 기존 자료를 사용하지 않는 신규 QA 승인 필요 |
 | 전체 회귀·운영 판정 | NO-GO | 필수 P0/의존성 #87/exact fallback·최신 백업/환경 보존 미완료 |
