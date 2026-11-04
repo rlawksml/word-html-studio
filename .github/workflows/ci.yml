@@ -5,12 +5,26 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      validation_mode:
+        description: No-key isolated rollback policy tests only
+        type: choice
+        options: [rollback_preparation]
+        default: rollback_preparation
+        required: true
+      expected_commit:
+        description: Exact reviewed feature commit, never a Production target
+        type: string
+        required: true
 
 permissions:
   contents: read
 
 jobs:
   verify:
+    # Manual dispatch must not install app dependencies or activate legacy DB tests.
+    # Pull requests and main pushes keep the complete existing audit/verify gate.
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -43,7 +57,9 @@ jobs:
         run: npm run test:staging-worker
 
   supabase-integration:
-    if: github.event_name == 'workflow_dispatch'
+    # Hard-disabled until an owned, non-destructive integration adapter is approved.
+    # Inputs cannot reactivate the legacy creation/cleanup suite.
+    if: ${{ false }}
     environment: staging
     runs-on: ubuntu-latest
     defaults:
@@ -76,3 +92,24 @@ jobs:
           test -n "$BLOCKED_SUPABASE_PROJECT_REFS"
       - run: npm run build
       - run: npm run test:integration
+
+  rollback-dispatch-guard:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require reviewed exact commit and isolated mode
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_commit }}
+          VALIDATION_MODE: ${{ inputs.validation_mode }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]] || [[ "$GITHUB_SHA" != "$EXPECTED_SHA" ]] || [[ "$VALIDATION_MODE" != rollback_preparation ]]; then
+            echo '::error::ROLLBACK_DISPATCH_BLOCKED_COMMIT_OR_MODE_MISMATCH'
+            exit 1
+          fi
+
+  isolated-rollback-policy:
+    needs: rollback-dispatch-guard
+    if: github.event_name == 'workflow_dispatch' && needs.rollback-dispatch-guard.result == 'success'
+    uses: ./.github/workflows/rollback-preparation.yml
