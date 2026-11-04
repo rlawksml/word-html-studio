@@ -1,70 +1,11 @@
 // Run from apps/web with an existing build. Synthetic UI/server only, no DB/RPC.
 import assert from "node:assert/strict";
 import { createBuiltSsrFixture, runIsolatedFixture } from "./helpers/built-ssr-fixture.mjs";
+import { installDigestResponseObserver } from "./helpers/digest-response-observer.mjs";
 
 const SITE = "https://digest.fixture.invalid";
 const PASSWORD = "synthetic-digest-fixture-only";
 
-// Separate contract from the HTML-copy observer: PUT is allowed only here.
-// Preserve the original fetch Promise and Response; observe a bounded clone.
-export function installDigestResponseObserver({ origin }, target = globalThis) {
-  if (origin !== "https://digest.fixture.invalid") throw new Error("Only digest fixture origin is allowed");
-  const expected = new Map([
-    ["GET /api/workspace", 200], ["GET /api/session", 200], ["POST /api/session", 200],
-    ["DELETE /api/session", 204], ["POST /api/presence", 200], ["DELETE /api/presence", 204],
-    ["PUT /api/submissions", 200],
-  ]);
-  const nativeFetch = target.fetch, records = [], occurrences = new Map();
-  let errors = 0;
-  Object.defineProperty(target, "__digestFetchDiagnostics", { get: () => records.map((item) => ({ ...item })) });
-  Object.defineProperty(target, "__digestObserverErrors", { get: () => errors });
-  target.fetch = function (...args) {
-    let record, status;
-    try {
-      const input = args[0], isRequest = target.Request && input instanceof target.Request;
-      const url = new URL(isRequest ? input.url : String(input), target.location.href);
-      const method = String(args[1]?.method || (isRequest ? input.method : "GET")).toUpperCase();
-      const key = `${method} ${url.pathname}`;
-      if (url.origin === origin && expected.has(key)) {
-        status = expected.get(key);
-        const occurrence = (occurrences.get(key) || 0) + 1;
-        occurrences.set(key, occurrence);
-        record = { key: `${key} #${occurrence}`, method, pathname: url.pathname, state: "pending", observerState: "pending" };
-        records.push(record);
-      }
-    } catch { /* Leave native unsupported-input behavior untouched. */ }
-    const fail = (reason) => { errors++; Object.assign(record, { observerState: "failed", reason }); };
-    try {
-      const promise = Reflect.apply(nativeFetch, this, args);
-      if (record) promise.then(async (response) => {
-        Object.assign(record, { state: "resolved", status: response.status, byteLength: 0 });
-        if (!response.ok || response.status !== status) return fail("unexpected-status");
-        try {
-          const clone = response.clone();
-          if (clone.body) {
-            const reader = clone.body.getReader();
-            try {
-              while (true) {
-                const chunk = await reader.read();
-                if (chunk.done) break;
-                record.byteLength += chunk.value.byteLength;
-                if (record.byteLength > 1024 * 1024 || (status === 204 && record.byteLength)) {
-                  void reader.cancel().catch(() => undefined);
-                  return fail("invalid-body-size");
-                }
-              }
-            } finally { reader.releaseLock(); }
-          }
-          record.observerState = "completed";
-        } catch { fail("clone-drain-failed"); }
-      }, () => { record.state = "rejected"; fail("fetch-rejected"); });
-      return promise;
-    } catch (error) {
-      if (record) { record.state = "threw"; fail("fetch-threw"); }
-      throw error;
-    }
-  };
-}
 
 function freeze(value) {
   if (value && typeof value === "object") { Object.values(value).forEach(freeze); Object.freeze(value); }
@@ -91,6 +32,8 @@ await runIsolatedFixture(import.meta.url, async () => {
       : [news(95003 + index, index === 1 ? titles[2] : `숨겨진 제목 ${index}`)] })));
   // Server-owned frozen records; never serialize a UI array or accept its order.
   const store = new Map(seeds.map((item) => [item.id, item]));
+  // Separate server-owned table: ordering must not depend on Workspace array order.
+  const monthlyOrders = new Map(), orderReads = [], orderWrites = [];
   const unchanged = JSON.stringify(seeds.slice(2));
   let saveSequence = 0, session = null;
   const leases = new Set(), writes = [], results = [], observations = [];
@@ -99,7 +42,7 @@ await runIsolatedFixture(import.meta.url, async () => {
   const protectedUnchanged = () => assert.equal(JSON.stringify([store.get(94003), store.get(94004)]), unchanged,
     "draft and other-month server records must stay byte-for-byte unchanged");
   const fixture = await createBuiltSsrFixture({ origin: SITE, observer: installDigestResponseObserver,
-    api: async ({ pathname, method, body, headers }) => {
+    api: async ({ pathname, method, body, headers, queryMonth }) => {
       const supplied = Object.entries(headers).find(([key]) => key.toLowerCase() === "x-workspace-session-id")?.[1];
       if (pathname === "/api/session" && method === "POST") {
         assert.ok(!session && body.role === "html" && body.code === PASSWORD, "only synthetic HTML login is accepted");
@@ -129,6 +72,30 @@ await runIsolatedFixture(import.meta.url, async () => {
         }
         leases.add(key);
         return { status: 200, body: { owned: true, activeRole: "html", expiresAt: "2099-01-01T00:00:00.000Z" } };
+      }
+      if (pathname === "/api/digest-order") {
+        assert.equal(queryMonth, month, "digest API must target only this synthetic month");
+        const existing = monthlyOrders.get(month) ?? freeze({ month, submissionIds: [], revision: 0, updatedAt: "" });
+        if (method === "GET") {
+          orderReads.push(structuredClone(existing));
+          return { status: 200, body: { available: true, order: structuredClone(existing) } };
+        }
+        assert.equal(method, "PUT", "digest API only accepts GET and PUT");
+        assert.ok(leases.has(`digest::${month}`), "digest PUT requires owned HTML digest lease");
+        assert.deepEqual(Object.keys(body).sort(), ["month", "revision", "submissionIds"], "digest payload must be exact DTO");
+        assert.equal(body.month, month);
+        assert.ok(Number.isSafeInteger(body.revision) && body.revision >= 0 && body.revision < Number.MAX_SAFE_INTEGER);
+        assert.equal(body.revision, existing.revision, "digest PUT must respect revision CAS");
+        assert.ok(Array.isArray(body.submissionIds) && body.submissionIds.length <= 500);
+        assert.equal(new Set(body.submissionIds).size, body.submissionIds.length, "digest IDs must be unique");
+        for (const id of body.submissionIds) {
+          assert.ok(Number.isSafeInteger(id) && id > 0 && store.get(id)?.month === month, "digest IDs must exist in current month");
+        }
+        const saved = freeze({ month, submissionIds: [...body.submissionIds], revision: existing.revision + 1,
+          updatedAt: `2091-01-01T00:00:${String(existing.revision + 1).padStart(2, "0")}.000Z` });
+        monthlyOrders.set(month, saved);
+        orderWrites.push(structuredClone(body));
+        return { status: 200, body: { available: true, order: structuredClone(saved) } };
       }
       assert.ok(pathname === "/api/submissions" && method === "PUT", "unexpected API is forbidden");
       const requested = body.submission, existing = store.get(requested?.id);
@@ -160,6 +127,8 @@ await runIsolatedFixture(import.meta.url, async () => {
     await page.getByRole("button", { name: "통합본 만들기", exact: true }).click();
     await cards.first().waitFor();
     await preview.locator("section").first().waitFor();
+    await page.getByText(/^(기본|저장된) 순서입니다\. 손잡이로 순서를 변경하면 자동 저장됩니다\.$/).waitFor();
+    await page.waitForFunction(() => [...document.querySelectorAll(".digest-order-handle")].every((handle) => !handle.disabled));
   };
   const collect = async () => { const value = await fixture.diagnostics(); observations.push(value); return value; };
   const reloadDigest = async () => {
@@ -182,6 +151,8 @@ await runIsolatedFixture(import.meta.url, async () => {
       assert.equal(await preview.locator("script,img,iframe,style,b").count(), 0, "heading/title HTML input must not create markup");
       assert.ok(!(await preview.locator("body").innerText()).includes("MUST_NOT_APPEAR"), "digest must not include description or monthly notice");
       assert.equal(writes.length, 0, "reading digest must not save source data");
+      assert.equal(orderWrites.length, 0, "reading digest must not persist a new order");
+      assert.deepEqual(orderReads, [{ month, submissionIds: [], revision: 0, updatedAt: "" }], "initial order GET must expose explicit empty revision0");
       protectedUnchanged();
     });
     await tc("DIGEST-02", async () => {
@@ -200,22 +171,36 @@ await runIsolatedFixture(import.meta.url, async () => {
       const before = await cards.locator("header strong").allTextContents();
       const expected = before.map((text) => text.replace(/^\d+\. /, "")).reverse();
       const previousWrites = writes.length;
-      // Actual HTML5 drag events go through the component's onDragStart/onDrop.
-      await cards.first().dragTo(cards.last());
+      const previousOrderWrites = orderWrites.length;
+      const sourceBefore = JSON.stringify([...store.values()]);
+      const savedResponse = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/digest-order"
+        && response.request().method() === "PUT" && response.status() === 200);
+      // Only the handle starts HTML5 drag; article text/checkboxes are not draggable.
+      assert.equal(await cards.first().getAttribute("draggable"), null);
+      await cards.first().locator(".digest-order-handle").dragTo(cards.last());
+      await savedResponse;
+      await page.getByText("통합본 순서를 저장했습니다.", { exact: true }).waitFor();
       assert.deepEqual((await cards.locator("header strong").allTextContents()).map((text) => text.replace(/^\d+\. /, "")), expected,
-        "drag must immediately reverse the two-book UI order");
-      await page.waitForTimeout(1_800); // Longer than actual 1,200ms auto-save debounce.
-      const saved = writes.length > previousWrites;
+        "successful dedicated order save must reverse the two-book UI order");
+      assert.equal(orderWrites.length - previousOrderWrites, 1, "one drag must issue exactly one order PUT");
+      assert.deepEqual(orderWrites.at(-1), { month, submissionIds: [94002, 94001], revision: 0 }, "order PUT must carry exact month, IDs and expected revision");
+      assert.equal(writes.length, previousWrites, "order save must not issue Submission PUT");
+      assert.equal(JSON.stringify([...store.values()]), sourceBefore, "order save must preserve every source Submission byte-for-byte");
       await reloadDigest();
       const reloaded = (await cards.locator("header strong").allTextContents()).map((text) => text.replace(/^\d+\. /, ""));
       protectedUnchanged();
       assert.deepEqual(reloaded, expected, "bookstore drag order must survive server-owned GET/reload");
-      assert.ok(saved, "bookstore reorder must persist through successful PUT rather than UI array only");
+      assert.deepEqual(orderReads.at(-1), { month, submissionIds: [94002, 94001], revision: 1, updatedAt: "2091-01-01T00:00:01.000Z" },
+        "reloaded order GET must return persisted month, IDs and advanced revision");
+      assert.deepEqual(await preview.locator("section h2").allTextContents(), [bookstores[1], bookstores[0]].map((item) => `${item.name} (${item.region})`),
+        "reloaded combined HTML must use the same persisted order as cards");
+      assert.equal(JSON.stringify([...store.values()]), sourceBefore, "reloading order must not mutate source records");
     });
     await collect();
     const diagnostics = observations.at(-1);
     console.log(JSON.stringify({ results, diagnostics: { ...diagnostics, fetches: observations.flatMap((value) => value.fetches) },
-      syntheticWrites: writes.length, protectedRecordsUnchanged: JSON.stringify([store.get(94003), store.get(94004)]) === unchanged,
+      syntheticWrites: writes.length, syntheticOrderWrites: orderWrites.length, syntheticOrderReads: orderReads.length,
+      protectedRecordsUnchanged: JSON.stringify([store.get(94003), store.get(94004)]) === unchanged,
       realDatabaseChanges: 0 }));
     assert.ok(Object.values(diagnostics.counts).every((count) => count === 0), "unexpected console/API/network/handler failures must be zero");
     assert.ok(observations.every((value) => value.observerErrors === 0

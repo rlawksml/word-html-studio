@@ -101,12 +101,46 @@ env -i PATH=/usr/bin:/bin /path/to/node26 scripts/migration-policy.mjs
 
 `planTableRestore`는 비어 있지 않은 대상에 기본 거부하고 `--resume`도 전체 행/hash 일치를 요구한다. 사전 migration의 `app_schema_versions.applied_at` 차이 또는 추가 marker 때문에 복원이 거부될 수 있다. backup 목록 선택 테스트를 복원 성공으로 보고하지 않는다. 원본 백업을 변형하지 않는 marker reconciliation과 승인된 별도 격리 대상의 실제 복원 검증이 필요하다. 현재 staging 초기화로 우회하지 않는다. [#47 기록](https://github.com/rlawksml/word-html-studio/issues/47#issuecomment-6633286072).
 
-## 5. 남은 검증
+## 5. Phase C — 화면 연결과 로컬 검증 (11월 5일 후속 포함)
+
+순서 client/hook과 전용 molecule로 연결했다. 일반 persistence/개별 HTML/소식 JSON은 바꾸지 않고 `digestReady`를 통합본 목록과 HTML 생성기에 함께 전달한다. 저장 전 실제 lease를 갱신하고 single-flight/operation identity/context epoch/abort cleanup으로 화면 전환을 처리한다. 미설치/로딩/저장 중/미소유 때 손잡이는 비활성화한다. revision0은 저장행이 없는 기본 순서로 안내한다.
+
+- 신규 client155/hook136/molecule44줄, 기존 HtmlWorkspace23/CSS57줄이다. 기존 controller는914→903줄로 줄였으며, 이번 범위에서는 전용 hook 위임만 연결하고 무관한 전체 리팩터링을 하지 않는 예외로 남긴다.
+- 작성자·주 에이전트·독립 QA는 C client18 + B67 + async4 = **89/89 PASS**를 확인했다. 이는 source/fake API 검증이며 89개를 다음 전체 회귀 숫자에 다시 합산하지 않는다.
+- 주 에이전트의 dirty working-tree 확대 회귀는 기본 목록+새5파일 총207PASS였다. 202개는 비밀 환경파일을 뺀 임시 소스·새 build에서 OS의 외부 네트워크/홈 쓰기 제한 아래 실행했고, 저장소 최상위 workflow 경로를 읽는 deployment5개는 원본에서 별도로 실행했다. 다른 미커밋 안전장치 테스트도 포함하므로 **PR의 exact commit 전체 회귀로 대체하지 않는다.**
+- 프로젝트 tsc와 전체 소스 lint PASS. 신규 SQL은 실행하지 않았다.
+- 임시 소스의 vinext/Vite 새 build PASS. 첫 시도는 symlink된 node_modules의 Vite 임시 캐시 쓰기가 원본 보호 정책에 차단돼 TC 전 BLOCKED였다. 의존성별 읽기 링크와 임시 캐시 경계로 분리해 재실행했다. 드라이버 문자열 인용 오류로 테스트 시작 전 실패한 한 번은 고쳐 재실행했다. 제품 결함 또는 테스트 PASS로 합산하지 않는다.
+- build는 비밀 dotenv/dev-vars·사용자 설정을 제외하고, 환경값 제거·OS network 제한(로컬 루프백만 허용)·원본 홈 쓰기 거부로 실행했다. browser는 별도 새 프로필과 Node/CDP 합성 경계이며 **OS 전면 egress 차단을 적용한 것으로 표현하지 않는다.**
+- 빌드 경고: Node26 module.register deprecation, Vite native config 확장자 경고,500kB chunk 경고, vinext 정적 route 분류 한계. 설치·의존성 업그레이드·배포는 하지 않았다.
+
+새 build server SHA-256 `abcb46c91fbff1dae4023ee1d4898d2e0690ddb1014587d2df69728d29bbc8be`, client23파일 목록 포함 지문 `0fb15122133a8e064f9780bc0533c2ec4284f95a3ed6080d30384b340923a60b`. C 제품6파일은 작업 소스와 테스트 사본의 해시가 같음을 확인했다. 이는 아직 commit 전에 만든 사본의 증거다.
+
+### 새 build 긍정 흐름
+
+**DIGEST01~03 / 3PASS / exit0.** 표시/포함 선택 기존 기대값을 유지하고, 손잡이 드래그 → 전용 PUT1회 성공 → 새로고침 → 저장 revision1·목록/HTML 순서 유지와 원본 전체 불변을 확인했다. 일반 submission PUT1회는 포함 체크 변경뿐이다. 순서 GET3회/PUT1회, console/page/transport/observer/handler/외부 연결 시도0이다.
+
+page/fetch22건 완료와 CDP/mock24건의 DELETE presence2건 차이는 최초 재현의 관측 공백과 별도로 유지한다. 전체24건 완료를 주장하지 않는다. Console warning/unhandled rejection 전용 채널, 실제 서버 로그, 메모리/장기 자원은 미검증이다.
+
+### 예외 흐름 진단과 관측 보완 — 최종 4PASS
+
+별도 lifecycle의 DIGEST04 미설치,05 월/모드 전환,06 중복 drop·저장 중 전환,07 직전 lease 미소유 및 명시적 회복은 각각 화면 assertion을 통과했다. 그러나 최종 요청 종료 검증은 FAIL했다. 원시 transport12건 중 계획 digest 취소3건과 미소비 DELETE presence204의 추가 실패9건을 관찰했고, POST session200 한 건도 pending이었다. handler3건은 계획 취소 이후 CDP fulfill 실패3건과 일치했다.
+
+최초 두 실행은 화면4PASS만으로 전체 PASS를 선언하지 않고 runner 전체 FAIL로 남겼다. 이후 일반 합성 응답의 bounded clone 완료 관찰만 보완했으며 제품 코드·응답 status·고정 기대값·원시 오류 수를 바꾸지 않았다. actual Worker 장애를 재현한 것으로 해석하지 않는다.
+
+관찰자는 독립 helper로 추출하고 기본값은 기존 positive3과 동일하다. lifecycle에서는 digest 요청을 clone 관찰에서만 제외하고 사전 계획한 취소를 raw CDP 채널로 계속 확인한다. 일반 API 실패가 숨겨지지 않는지 포함한 신규12TC는 작성자·주 에이전트·독립 QA가 각각12PASS를 확인했다. 작성자의 기존 HTML-copy11 포함23PASS와 독립 QA의12PASS는 실행 범위를 구분한다.
+
+최종 재실행은 긍정3/예외4 각각 exit0이다. lifecycle의 raw transport3/handler3은 각각 정확한 사전 취소3/취소된 요청 CDP fulfill3과 같고, 예상 밖 오류0이다. 일반 응답24개 resolved/completed·observerErrors0, request/history36개·active handler0·원본 불변·순서쓰기1을 확인했다. 이는 **의도된 취소3 외 추가 실패0**이지 네트워크 원시 오류 전체0이 아니다. 기본 positive3의 오류0 조건도 재실행 PASS했다.
+
+취소 계획은 사전 method/path/month/occurrence와 관측된 net::ERR_ABORTED가 정확히 일치해야 한다. broad AbortError 허용이나 원시 실패 수치 삭제를 하지 않는다. 이 시나리오는 transport가 실제 취소된 이후 처리이며, 취소를 무시한 성공 응답의 늦은 적용을 동적으로 증명하는 것은 아니다. 409/응답 유실 UI는 source/client 단위와 구분해 미검증으로 남긴다.
+
+clone 관찰은 stream tee/수명/타이밍과 rejection 관측에 영향을 줄 수 있다. 무계측 제품의 장기 메모리·원격 연결 상태를 증명한 것은 아니다. 이 관찰자 분리와 API·React 안전 경계는 독립 source review를 거쳤다.
+
+## 6. 남은 검증
 
 | 단계 | 상태 | 조건 |
 |---|---|---|
 | Phase B 전용 API/RPC·component·백업 | source/mock67 PASS | 독립 QA 재확인. 실제 SQL·서명 인증·복원 검증 아님 |
-| Phase C hook/UI 연결 | 진행 중 | B 검증 뒤 연결, 새 build의 DIGEST01~03 재실행 필요 |
+| Phase C hook/UI 연결 | local source/브라우저7 PASS | exact commit 새 build·회귀 재확인 필요, 실제 DB 검증 아님 |
 | 실제 PostgreSQL·동시 CAS·임대 만료 | BLOCKED | 새 SQL과 명확한 신규 테스트 범위 승인 필요 |
 | 실제 staging 통합본/사진/두 작업자 | BLOCKED | 기존 자료를 사용하지 않는 신규 QA 승인 필요 |
 | 전체 회귀·운영 판정 | NO-GO | 필수 P0/의존성 #87/exact fallback·최신 백업/환경 보존 미완료 |
