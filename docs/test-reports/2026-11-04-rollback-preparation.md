@@ -2,7 +2,8 @@
 
 ## 대상과 결론
 
-- 소스 commit: `2b19ceea6880c2f7a77c3c79d5db07cc2542fa23`, PR #89 (Draft)
+- 도구 소스 최초 commit: `2b19ceea6880c2f7a77c3c79d5db07cc2542fa23`, PR #89 (Draft)
+- 최종 격리 검증 commit: `26ac766d0832d24ec6e0bbac8bb762251615f5ed`, [run41811618356](https://github.com/rlawksml/word-html-studio/actions/runs/41811618356), 정책 단위17/17 PASS
 - 범위: `prepare-rollback.mjs`, `rollback-readiness-policy.mjs`, 단위 TC, manifest 템플릿/Runbook
 - **Production/실제 롤백 NO-GO.** 준비 도구의 선언 검사는 실제 증거 확인·배포 허가·플랫폼 자동 차단을 대신하지 않는다.
 - 운영/staging DB·사진·환경·배포 변경 없음. 이전 미커밋 gate/cleanup/HTML-copy 변경과 보관 QA 자료를 유지했다.
@@ -15,13 +16,14 @@
 | ROLLBACK-PREP-02 | 누락·옛 v1·잘못된 대상·DB복원/실행 옵션 선언 | blocker/violation, 실행 불가 | PASS — 초기14개 포함 |
 | ROLLBACK-PREP-03 | 다른 baseline/candidate/artifact/schema/오래된 증거 | 정확한 식별자 결합·기한 위반 차단 | PASS — 초기14개 포함 |
 | ROLLBACK-PREP-04 | 메모리 file adapter로 symlink·oversize·short read·JSON오류 | 읽기 한도·close·입력 비노출 | PASS — 초기14개 포함 |
-| ROLLBACK-PREP-05 | 보강한 main DI에 완전 선언·잘못된경로·secret/예외 전달 | 0/1 반환·고정 출력·승인false | BLOCKED — 후속3개 미실행 |
-| ROLLBACK-PREP-06 | 최종17개 전체·lint/typecheck/build 재실행 | 동일 후보 검증 | BLOCKED — 미실행 |
+| ROLLBACK-PREP-05 | 보강한 main DI에 완전 선언·잘못된경로·secret/예외 전달 | 0/1 반환·고정 출력·승인false | PASS — 격리CI 최종3개 포함 |
+| ROLLBACK-PREP-06 | 최종 정책17개 전체 재실행 | 동일 commit/17PASS/fail·skip0 | PASS — run41811618356 |
 | ROLLBACK-PREP-07 | 독립 source review, 초기/후속 main 경계 | 실행·SDK·비밀 출력 경로 없음 | PASS — source-only 승인, 동적 검증 대체 아님 |
+| ROLLBACK-PREP-08 | 최종 앱 lint/typecheck/build/P0 회귀 | 새 후보 전체 검증 | BLOCKED — 미실행, scoped17CI에서 제외 |
 | ROLLBACK-REAL-01 | 정확한 운영 fallback으로 후보 JSON/기간/사진 왕복 | 미래 필드·사진 참조·기간 보존 | BLOCKED — 미실행 |
 | ROLLBACK-REAL-02 | 최신 독립 백업·artifact hash·현재 환경 보존 증거 | 실제 운영 전 조건 확보 | BLOCKED — 미확인 |
 
-초기 실행은14/14 PASS이며 이후 main DI/3TC를 추가했다. **최종17/17 PASS가 아니다.** 표의 PASS 행은14개 테스트를 묶은 증거이며 행 수를 실제 테스트 수에 더하지 않는다. 전체 릴리스 P0도 이 표만으로 PASS 처리하지 않는다.
+초기 실행14/14 후 main DI/3TC를 추가했고, 아래 초기 BLOCKED 기록을 보존한 상태로 최종 Linux 격리 실행17/17을 확인했다. 표는 테스트 그룹과 실제 운영 게이트를 묶은 것으로 행 수를 실제17개에 더하지 않는다. 전체 앱/릴리스 P0는 여전히 이 결과로 PASS 처리하지 않는다.
 
 ## 실행한 초기14개 명령/제약
 
@@ -45,7 +47,7 @@ Sites34/source28efad2의 succeeded 배포·archive 존재를 읽기 전용으로
 
 ## 후속
 
-추가 준비: Mac 제약을 우회 실행하는 대신, 고정 `FROM scratch`/검토된 hash Dockerfile과 표준 GitHub Linux 전용 workflow를 작성했다. host의 기존 Node/env·라이브러리와 정확한3source만 복사하고 외부 image/의존성을 받지 않는다. 비root·read-only·network none·memory256MiB/no swap·CPU1/30초·PID32·file8MiB/FD128·tmpfs16MiB·wall45초·출력64KiB·daemon log none을 적용한다. nonce/name/label/CID 검증으로 자기 컨테이너만 정리하며17TC/fail0/cancelled0/skipped0/todo0을 요구한다. Docker 지원/도구가 없으면 실패한다. 독립 source review는 차단 결함 없음/source-only GO를 반환했으며 실행 결과는 아직 미검증이다.
+추가 준비 당시: Mac 제약을 우회 실행하는 대신, 고정 `FROM scratch`/검토된 hash Dockerfile과 표준 GitHub Linux 전용 workflow를 작성했다. host의 기존 Node/env·라이브러리와 정확한3source만 복사하고 외부 image/의존성을 받지 않는다. 비root·read-only·network none·memory256MiB/no swap·CPU1/30초·PID32·file8MiB/FD128·tmpfs16MiB·wall45초·출력64KiB·daemon log none을 적용한다. nonce/name/label/CID 검증으로 자기 컨테이너만 정리하며17TC/fail0/cancelled0/skipped0/todo0을 요구한다. Docker 지원/도구가 없으면 실패한다. 독립 source review의 당시 판정은 차단 결함 없음/source-only GO였고, 이후 실제 실행 결과는 아래에 별도로 기록했다.
 
 저장소는 읽기 조회로 PUBLIC을 확인했으며 표준 public runner의 [공식 무료 사용 기준](https://docs.github.com/en/actions/concepts/billing-and-usage)을 확인했다. larger runner·유료 플랫폼 전환·artifact 업로드는 사용하지 않는다. 요금/결제 설정과 운영 서비스는 변경하지 않는다.
 
@@ -55,7 +57,15 @@ Sites34/source28efad2의 succeeded 배포·archive 존재를 읽기 전용으로
 
 두 번째 [41811126273](https://github.com/rlawksml/word-html-studio/actions/runs/41811126273)/head41eff05는 자원 지원 gate를 지나 CONTAINER_NAME_ABSENCE_UNCONFIRMED에서 테스트 전 중단됐다. Docker inspect의 사람용 오류 문구 일치에 의존하던 부재 판정을 제거하고, 우리 nonce-name 또는 fullCID로 한정된 `container ls --all --no-trunc --filter ...`의 성공+빈목록만 인정하도록 변경했다. 넓은 이름 매칭은 보수적 실패이며 삭제의 ID/label/name 대조는 유지한다. 독립 source reviewer는 경계 결함 없음으로 확인했고 실제17TC 결과는 다음 실행에서 검증해야 한다.
 
-1. 최종17TC와 필수 코드 검증을 안전한 격리 runner에서 실행한다.
+### 최종 실행 결과 (2026-11-04 19:03 KST / 10:03 UTC)
+
+[run41811618356](https://github.com/rlawksml/word-html-studio/actions/runs/41811618356)은 event=workflow_dispatch, head26ac766을 확인했다. exact commit guard와 isolated-rollback-policy/rollback-preparation job은SUCCESS, 앱 npm/build verify와 legacy supabase-integration은SKIPPED로 실제 DB job이 실행되지 않았다. 원문 TAP에서 `tests17/pass17/fail0/cancelled0/skipped0/todo0`, 마지막 main3TC, 컨테이너 종료/정리 후 step 성공을 주 에이전트가 대조했다. 실행의 source·workflow·Dockerfile hash/자원/출력/대상 스코프는 위 검토본과 일치한다.
+
+이 성공은 선언 검증 단위 테스트만의 성공이다. 플랫폼 실제 롤백 실행, 독립 백업 검증, old fallback 미래 필드 왕복, 전체 앱 build/P0/HEIC/동시 작업을 검증한 것이 아니다. PR/push의 별도 전체 CI audit 실패(#87)를 수동17TC의 초록 표시로 덮지 않는다.
+
+독립 QA는 같은 run의 event/head/job 목록과 원격 TAP 요약을 별도로 조회해17/17·fail/cancelled/skipped/todo0을 확인했다. 주 에이전트는 정책/CLI/테스트3파일의 원격 blob을 로컬 exact26ac766 Git 객체와 대조해 모두 일치함을 확인했다. 재개 시에도 run 성공과 PR head26ac766·draft/open 상태를 읽기 전용으로 재확인했으며, 테스트를 다시 실행한 결과로 표현하지 않는다.
+
+1. 최종17TC 격리 검증은 완료. 필수 앱 코드/전체 회귀 검증은 별도로 실행한다.
 2. 정확한 fallback의 미래 데이터 호환성/환경 보존과 독립 최신 백업을 확인한다.
 3. 통합본 #86, CI 의존성 #87, 사진 조사 #88 및 남은 전체 P0를 이슈별 검증한다.
 4. 모든 증거가 확보된 뒤 운영 반영 승인을 요청한다. 현재 merge/배포하지 않는다.
