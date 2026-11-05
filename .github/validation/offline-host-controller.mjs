@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { chmodSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { EXPECTED_TESTS, LOCK_SHA256, PACKAGE_SHA256 } from "./offline-baseline.mjs";
+import { EXPECTED_TESTS, EXPECTED_WORKER_TESTS, LOCK_SHA256, PACKAGE_SHA256, TESTS, WORKER_TESTS } from "./offline-baseline.mjs";
 import { OwnedDocker } from "./offline-host-docker.mjs";
 import { copyRuntime } from "./offline-host-runtime.mjs";
 import { copyReviewedSources } from "./offline-host-source.mjs";
@@ -77,7 +77,7 @@ function validateSummary(value, expectedStage) {
 // reach the Actions log. No raw app/npm/TAP output or env/config is published.
 function publishSummary(value) {
   const allowedReasons = new Set([null, "TIMEOUT", "OUTPUT_CAP", "ABORTED", "NATIVE_SHARED_LIBRARY_UNAVAILABLE", "INSTALL_SCRIPT_OUTPUT_UNAVAILABLE", "SHELL_OR_NATIVE_EXECUTABLE_UNAVAILABLE", "DUPLICATE_NPM_CONFIG_PATH"]);
-  assert.ok(["npm_ci_ignore_scripts", "typecheck", "lint", "build", "unit"].includes(value.stage));
+  assert.ok(["npm_ci_ignore_scripts", "typecheck", "lint", "build", "unit", "staging_worker"].includes(value.stage));
   assert.ok(value.exit === null || (Number.isInteger(value.exit) && value.exit >= 0 && value.exit <= 255));
   assert.ok(value.signal === null || /^SIG[A-Z0-9]+$/.test(value.signal));
   assert.equal(typeof value.limited, "boolean");
@@ -216,7 +216,7 @@ async function main() {
     assert.equal(result.protocol, "offline-app-v1");
     assert.equal(result.nonce, nonce);
     if (result.ok === false) {
-      assert.ok(["START", "PREFLIGHT", "READINESS", "SOURCE_CLONE", "TOOLCHAIN_LINK", "TYPECHECK", "LINT", "BUILD", "UNIT", "POST_STAGE"].includes(result.controlPhase));
+      assert.ok(["START", "PREFLIGHT", "READINESS", "SOURCE_CLONE", "TOOLCHAIN_LINK", "TYPECHECK", "LINT", "BUILD", "UNIT", "STAGING_WORKER", "POST_STAGE"].includes(result.controlPhase));
       assert.ok([...ERROR_CLASSES, "OTHER"].includes(result.category));
       assert.ok(["UNEXPECTED_PROCESS_REMAINS", "STAGE_FAILED_OR_LIMITED", "OTHER"].includes(result.failureKind));
       console.log(`OFFLINE_APP_CONTROL phase=${result.controlPhase} category=${result.category} kind=${result.failureKind}`);
@@ -230,30 +230,32 @@ async function main() {
         console.log(`OFFLINE_PROCESS_SUMMARY ${JSON.stringify(Object.fromEntries(keys.map((key) => [key, counts[key]])))}`);
       }
     }
-    assert.ok(Array.isArray(result.stages) && result.stages.length <= 4);
+    assert.ok(Array.isArray(result.stages) && result.stages.length <= 5);
     for (const summary of result.stages) {
       publishSummary(summary);
       publishTypeDiagnostics(summary, source.sourcePaths);
-      if (summary.stage === "unit" && summary.unitDiagnostics !== undefined) {
+      const testFiles = summary.stage === "unit" ? TESTS : summary.stage === "staging_worker" ? WORKER_TESTS : null;
+      const logPrefix = summary.stage === "unit" ? "OFFLINE_UNIT" : "OFFLINE_WORKER";
+      if (testFiles && summary.unitDiagnostics !== undefined) {
         assert.ok(Array.isArray(summary.unitDiagnostics) && summary.unitDiagnostics.length <= 20);
         for (const entry of summary.unitDiagnostics) {
           assert.deepEqual(Object.keys(entry).sort(), ["column", "file", "line"]);
-          assert.ok(source.sourcePaths.includes(`apps/web/${entry.file}`) && /^tests\/[A-Za-z0-9._-]+\.mjs$/.test(entry.file));
+          assert.ok(testFiles.includes(entry.file) && source.sourcePaths.includes(`apps/web/${entry.file}`) && /^tests\/[A-Za-z0-9._-]+\.mjs$/.test(entry.file));
           for (const number of [entry.line, entry.column]) assert.ok(Number.isInteger(number) && number > 0 && number <= 9999999);
         }
-        console.log(`OFFLINE_UNIT_FAILURE_LOCATIONS ${JSON.stringify(summary.unitDiagnostics)}`);
+        console.log(`${logPrefix}_FAILURE_LOCATIONS ${JSON.stringify(summary.unitDiagnostics)}`);
       }
-      if (summary.stage === "unit" && summary.unitRuntimeErrors !== undefined) {
+      if (testFiles && summary.unitRuntimeErrors !== undefined) {
         const knownCodes = ["ERR_MODULE_NOT_FOUND", "ERR_UNKNOWN_BUILTIN_MODULE", "ERR_UNKNOWN_FILE_EXTENSION", "ERR_UNSUPPORTED_ESM_URL_SCHEME", "ERR_REQUIRE_ESM", "ERR_INVALID_ARG_TYPE", "ERR_ASSERTION", "ENOENT"];
         assert.ok(Array.isArray(summary.unitRuntimeErrors) && summary.unitRuntimeErrors.length <= knownCodes.length);
         assert.deepEqual(summary.unitRuntimeErrors, knownCodes.filter((code) => summary.unitRuntimeErrors.includes(code)));
-        console.log(`OFFLINE_UNIT_RUNTIME_ERRORS ${JSON.stringify(summary.unitRuntimeErrors)}`);
+        console.log(`${logPrefix}_RUNTIME_ERRORS ${JSON.stringify(summary.unitRuntimeErrors)}`);
       }
-      if (summary.stage === "unit" && summary.tap !== undefined) {
+      if (testFiles && summary.tap !== undefined) {
         const keys = ["tests", "pass", "fail", "cancelled", "skipped", "todo"];
         assert.deepEqual(Object.keys(summary.tap).sort(), [...keys].sort());
         for (const key of keys) assert.ok(Number.isInteger(summary.tap[key]) && summary.tap[key] >= 0 && summary.tap[key] <= 100000);
-        console.log(`OFFLINE_UNIT_COUNTERS ${JSON.stringify(Object.fromEntries(keys.map((key) => [key, summary.tap[key]])))}`);
+        console.log(`${logPrefix}_COUNTERS ${JSON.stringify(Object.fromEntries(keys.map((key) => [key, summary.tap[key]])))}`);
       }
     }
   } catch { throw fixedError("OFFLINE_TRUSTED_SUMMARY_UNCONFIRMED"); }
@@ -262,14 +264,15 @@ async function main() {
   assert.equal(result.ok, true);
   assert.equal(result.commit, commit);
   assert.equal(result.sourceDigest, source.digest);
-  assert.equal(result.stages.length, 4);
-  ["typecheck", "lint", "build", "unit"].forEach((name, index) => validateSummary(result.stages[index], name));
+  assert.equal(result.stages.length, 5);
+  ["typecheck", "lint", "build", "unit", "staging_worker"].forEach((name, index) => validateSummary(result.stages[index], name));
   assert.deepEqual(result.stages[3].tap, { tests: EXPECTED_TESTS, pass: EXPECTED_TESTS, fail: 0, cancelled: 0, skipped: 0, todo: 0 });
+  assert.deepEqual(result.stages[4].tap, { tests: EXPECTED_WORKER_TESTS, pass: EXPECTED_WORKER_TESTS, fail: 0, cancelled: 0, skipped: 0, todo: 0 });
   controlStage("FINAL_CHECK");
   const final = await docker.inspect("app");
   assert.ok(final.State.Running && !final.State.OOMKilled);
   checkpoint();
-  completion = `OFFLINE_APP_COMPLETE commit=${commit} source_sha256=${source.digest} package_sha256=${PACKAGE_SHA256} lock_sha256=${LOCK_SHA256} tests=${EXPECTED_TESTS}`;
+  completion = `OFFLINE_APP_COMPLETE commit=${commit} source_sha256=${source.digest} package_sha256=${PACKAGE_SHA256} lock_sha256=${LOCK_SHA256} tests=${EXPECTED_TESTS} worker_tests=${EXPECTED_WORKER_TESTS}`;
 }
 try { await main(); }
 catch (error) {

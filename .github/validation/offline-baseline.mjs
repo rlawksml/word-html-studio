@@ -34,6 +34,17 @@ export const TESTS = Object.freeze([
 // that these tests have run. Any counter mismatch, skip/cancellation/todo fails.
 export const EXPECTED_TESTS = 277;
 
+// Existing test:staging-worker files, unchanged. Node's spec footer counts
+// 28 top-level tests plus the eight existing STAGE-RUNTIME subtests.
+export const WORKER_TESTS = Object.freeze([
+  "tests/cloudflare-staging-config.test.mjs",
+  "tests/staging-gate.test.mjs",
+  "tests/staging-assets.test.mjs",
+  "tests/staging-worker-runtime.test.mjs",
+  "tests/staging-upload-layout.test.mjs",
+]);
+export const EXPECTED_WORKER_TESTS = 36;
+
 export const BASE_ENV = Object.freeze({
   PATH: "/usr/bin:/bin", HOME: "/scratch", TMPDIR: "/scratch",
   XDG_CACHE_HOME: "/scratch/cache", TZ: "UTC", UV_THREADPOOL_SIZE: "2",

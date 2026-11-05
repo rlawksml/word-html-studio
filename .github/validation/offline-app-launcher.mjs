@@ -4,13 +4,13 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { APP_ENV, EXPECTED_TESTS, LOCK_SHA256, PACKAGE_SHA256, TESTS } from "./offline-baseline.mjs";
+import { APP_ENV, EXPECTED_TESTS, EXPECTED_WORKER_TESTS, LOCK_SHA256, PACKAGE_SHA256, TESTS, WORKER_TESTS } from "./offline-baseline.mjs";
 import { bounded, fixedError, readRegular, sha256 } from "./offline-host-support.mjs";
 import { delay, emit, jsonFile, noOtherProcesses, preflight, summarize, validNonce } from "./offline-sandbox-common.mjs";
 
 const summaries = [];
 const readiness = "/scratch/consumer-ready.json";
-const PHASES = new Set(["START", "PREFLIGHT", "READINESS", "SOURCE_CLONE", "TOOLCHAIN_LINK", "TYPECHECK", "LINT", "BUILD", "UNIT", "POST_STAGE"]);
+const PHASES = new Set(["START", "PREFLIGHT", "READINESS", "SOURCE_CLONE", "TOOLCHAIN_LINK", "TYPECHECK", "LINT", "BUILD", "UNIT", "STAGING_WORKER", "POST_STAGE"]);
 const ERROR_CLASSES = new Set(["ERR_ASSERTION", "ENOENT", "EACCES", "EPERM", "ENOSPC", "EMFILE"]);
 let phase = "START", executionNonce = null;
 let processSnapshot = null;
@@ -103,7 +103,7 @@ function linkPackages() {
   // Vite's .vite-temp may be created here, while packages stay readonly.
   assert.ok(lstatSync(target).isDirectory() && !lstatSync(target).isSymbolicLink());
 }
-function verifySpec(bytes, observe) {
+function verifySpec(bytes, expectedTests, observe) {
   const text = bytes.toString("utf8");
   const counters = {};
   for (const name of ["tests", "pass", "fail", "cancelled", "skipped", "todo"]) {
@@ -115,18 +115,27 @@ function verifySpec(bytes, observe) {
     assert.ok(Number.isSafeInteger(counters[name]) && counters[name] >= 0 && counters[name] <= 100000);
   }
   observe({ ...counters }); // counters only; completion still requires all checks
-  assert.equal(counters.tests, EXPECTED_TESTS);
-  assert.equal(counters.pass, EXPECTED_TESTS);
+  assert.equal(counters.tests, expectedTests);
+  assert.equal(counters.pass, expectedTests);
   for (const name of ["fail", "cancelled", "skipped", "todo"]) assert.equal(counters[name], 0);
   assert.ok(!/^✖ /m.test(text));
   return counters;
 }
-function unitFailureLocations(bytes) {
+function unitFailureLocations(bytes, testFiles) {
   const locations = [];
-  for (const match of bytes.toString("utf8").matchAll(/^test at (tests\/[A-Za-z0-9._-]+\.mjs):(\d{1,7}):(\d{1,7})$/gm)) {
-    if (!TESTS.includes(match[1]) || locations.length >= 20) continue;
+  const seen = new Set();
+  for (const outputLine of bytes.toString("utf8").split("\n")) {
+    // Keep the test declaration location and exact sandbox-owned TestContext
+    // assertion frames only; never emit the surrounding message or raw stack.
+    const match = /^test at (tests\/[A-Za-z0-9._-]+\.mjs):(\d{1,7}):(\d{1,7})$/.exec(outputLine)
+      || /^\s+at (?:async )?TestContext(?:\.[A-Za-z0-9_$<>.]+)? \((?:file:\/\/)?\/scratch\/repo\/apps\/web\/(tests\/[A-Za-z0-9._-]+\.mjs):(\d{1,7}):(\d{1,7})\)$/.exec(outputLine);
+    if (!match || !testFiles.includes(match[1]) || locations.length >= 20) continue;
     const line = Number(match[2]), column = Number(match[3]);
-    if (line > 0 && column > 0) locations.push({ file: match[1], line, column });
+    const key = `${match[1]}:${line}:${column}`;
+    if (line > 0 && column > 0 && !seen.has(key)) {
+      locations.push({ file: match[1], line, column });
+      seen.add(key);
+    }
   }
   return locations; // owned public source locations only, never error text
 }
@@ -168,9 +177,10 @@ async function runStages() {
     ["lint", ["/toolchain/node_modules/eslint/bin/eslint.js", ".", "--ignore-pattern", "dist", "--ignore-pattern", ".next"]],
     ["build", ["/toolchain/node_modules/vinext/dist/cli.js", "build"]],
     ["unit", ["--test", "--test-reporter=spec", "--test-concurrency=1", ...TESTS]],
+    ["staging_worker", ["--test", "--test-reporter=spec", "--test-concurrency=1", ...WORKER_TESTS]],
   ];
   for (const [stage, args] of stages) {
-    phase = ({ typecheck: "TYPECHECK", lint: "LINT", build: "BUILD", unit: "UNIT" })[stage];
+    phase = ({ typecheck: "TYPECHECK", lint: "LINT", build: "BUILD", unit: "UNIT", staging_worker: "STAGING_WORKER" })[stage];
     noOtherProcesses();
     preflight("app");
     const result = await bounded("/usr/bin/node", ["--max-old-space-size=1536", ...args], {
@@ -179,13 +189,15 @@ async function runStages() {
     const summary = summarize(stage, result);
     if (stage === "typecheck" && result.code !== 0) summary.typeDiagnostics = typecheckDiagnostics(result.stdout);
     summaries.push(summary);
-    if (stage === "unit" && !result.limited && !result.signal && !result.error) {
-      summary.unitDiagnostics = unitFailureLocations(result.stdout);
+    const testFiles = stage === "unit" ? TESTS : stage === "staging_worker" ? WORKER_TESTS : null;
+    if (testFiles && !result.limited && !result.signal && !result.error) {
+      summary.unitDiagnostics = unitFailureLocations(result.stdout, testFiles);
       const knownCodes = ["ERR_MODULE_NOT_FOUND", "ERR_UNKNOWN_BUILTIN_MODULE", "ERR_UNKNOWN_FILE_EXTENSION", "ERR_UNSUPPORTED_ESM_URL_SCHEME", "ERR_REQUIRE_ESM", "ERR_INVALID_ARG_TYPE", "ERR_ASSERTION", "ENOENT"];
       const output = result.stdout.toString("utf8");
       summary.unitRuntimeErrors = knownCodes.filter((code) => new RegExp(`\\b${code}\\b`).test(output));
       // Observe the footer even on exit1; a failed assertion below still blocks.
-      summary.tap = verifySpec(result.stdout, (counters) => { summary.tap = counters; });
+      const expectedTests = stage === "unit" ? EXPECTED_TESTS : EXPECTED_WORKER_TESTS;
+      summary.tap = verifySpec(result.stdout, expectedTests, (counters) => { summary.tap = counters; });
     }
     if (result.code !== 0 || result.signal || result.error || result.limited) throw fixedError("OFFLINE_STAGE_FAILED_OR_LIMITED");
     // `tap` is the existing protocol field name, not the output formatter.
