@@ -218,12 +218,28 @@ async function main() {
     if (result.ok === false) {
       assert.ok(["START", "PREFLIGHT", "READINESS", "SOURCE_CLONE", "TOOLCHAIN_LINK", "TYPECHECK", "LINT", "BUILD", "UNIT", "POST_STAGE"].includes(result.controlPhase));
       assert.ok([...ERROR_CLASSES, "OTHER"].includes(result.category));
-      console.log(`OFFLINE_APP_CONTROL phase=${result.controlPhase} category=${result.category}`);
+      assert.ok(["UNEXPECTED_PROCESS_REMAINS", "STAGE_FAILED_OR_LIMITED", "OTHER"].includes(result.failureKind));
+      console.log(`OFFLINE_APP_CONTROL phase=${result.controlPhase} category=${result.category} kind=${result.failureKind}`);
+      if (result.processSnapshot !== null) {
+        const keys = ["live", "zombie", "gone", "parent1", "node", "esbuild", "workerd", "other"];
+        assert.deepEqual(Object.keys(result.processSnapshot).sort(), [...keys].sort());
+        for (const key of keys) assert.ok(Number.isInteger(result.processSnapshot[key]) && result.processSnapshot[key] >= 0 && result.processSnapshot[key] <= 128);
+        const counts = result.processSnapshot;
+        assert.ok(counts.live + counts.zombie + counts.gone <= 128 && counts.parent1 <= counts.live + counts.zombie);
+        assert.equal(counts.node + counts.esbuild + counts.workerd + counts.other, counts.live + counts.zombie);
+        console.log(`OFFLINE_PROCESS_SUMMARY ${JSON.stringify(Object.fromEntries(keys.map((key) => [key, counts[key]])))}`);
+      }
     }
     assert.ok(Array.isArray(result.stages) && result.stages.length <= 4);
     for (const summary of result.stages) {
       publishSummary(summary);
       publishTypeDiagnostics(summary, source.sourcePaths);
+      if (summary.stage === "unit" && summary.tap !== undefined) {
+        const keys = ["tests", "pass", "fail", "cancelled", "skipped", "todo"];
+        assert.deepEqual(Object.keys(summary.tap).sort(), [...keys].sort());
+        for (const key of keys) assert.ok(Number.isInteger(summary.tap[key]) && summary.tap[key] >= 0 && summary.tap[key] <= 100000);
+        console.log(`OFFLINE_UNIT_COUNTERS ${JSON.stringify(Object.fromEntries(keys.map((key) => [key, summary.tap[key]])))}`);
+      }
     }
   } catch { throw fixedError("OFFLINE_TRUSTED_SUMMARY_UNCONFIRMED"); }
   requireSuccess(execution, "OFFLINE_APP_FAILED_OR_LIMITED");

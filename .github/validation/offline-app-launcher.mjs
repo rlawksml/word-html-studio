@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { APP_ENV, EXPECTED_TESTS, LOCK_SHA256, PACKAGE_SHA256, TESTS } from "./offline-baseline.mjs";
-import { bounded, fixedError, sha256 } from "./offline-host-support.mjs";
+import { bounded, fixedError, readRegular, sha256 } from "./offline-host-support.mjs";
 import { delay, emit, jsonFile, noOtherProcesses, preflight, summarize, validNonce } from "./offline-sandbox-common.mjs";
 
 const summaries = [];
@@ -13,6 +13,7 @@ const readiness = "/scratch/consumer-ready.json";
 const PHASES = new Set(["START", "PREFLIGHT", "READINESS", "SOURCE_CLONE", "TOOLCHAIN_LINK", "TYPECHECK", "LINT", "BUILD", "UNIT", "POST_STAGE"]);
 const ERROR_CLASSES = new Set(["ERR_ASSERTION", "ENOENT", "EACCES", "EPERM", "ENOSPC", "EMFILE"]);
 let phase = "START", executionNonce = null;
+let processSnapshot = null;
 const ownedAppSources = new Set();
 function typecheckDiagnostics(bytes) {
   const selected = [];
@@ -102,24 +103,48 @@ function linkPackages() {
   // Vite's .vite-temp may be created here, while packages stay readonly.
   assert.ok(lstatSync(target).isDirectory() && !lstatSync(target).isSymbolicLink());
 }
-function verifyTap(bytes) {
+function verifyTap(bytes, observe) {
   const text = bytes.toString("utf8");
   const counters = {};
   for (const name of ["tests", "pass", "fail", "cancelled", "skipped", "todo"]) {
     const matches = [...text.matchAll(new RegExp(`^# ${name} (\\d+)$`, "gm"))];
     assert.equal(matches.length, 1);
     counters[name] = Number(matches[0][1]);
+    assert.ok(Number.isSafeInteger(counters[name]) && counters[name] >= 0 && counters[name] <= 100000);
   }
+  observe({ ...counters }); // counters only; completion still requires all checks
   assert.equal(counters.tests, EXPECTED_TESTS);
   assert.equal(counters.pass, EXPECTED_TESTS);
   for (const name of ["fail", "cancelled", "skipped", "todo"]) assert.equal(counters[name], 0);
   assert.ok(!/^not ok(?:\s|$)/m.test(text) && !/^Bail out!/mi.test(text));
   return counters;
 }
+function summarizeRemainingProcesses() {
+  const pids = readdirSync("/proc").filter((name) => /^\d+$/.test(name)).filter((name) => ![1, process.pid].includes(Number(name)));
+  assert.ok(pids.length <= 128);
+  const result = { live: 0, zombie: 0, gone: 0, parent1: 0, node: 0, esbuild: 0, workerd: 0, other: 0 };
+  for (const pid of pids) {
+    let status;
+    try { status = readRegular(`/proc/${pid}/status`, 16384).toString("utf8"); }
+    catch (error) {
+      if (!["ENOENT", "ESRCH"].includes(error.code)) throw error;
+      result.gone++;
+      continue;
+    }
+    const state = /^State:\s+([A-Za-z])/m.exec(status)?.[1];
+    assert.ok(state);
+    result[state === "Z" ? "zombie" : "live"]++;
+    if (/^PPid:\s+1\s*$/m.test(status)) result.parent1++;
+    const name = /^Name:\s+([^\n]+)$/m.exec(status)?.[1];
+    result[["node", "esbuild", "workerd"].includes(name) ? name : "other"]++;
+  }
+  return result; // no PID, raw Name, command line, path or status text
+}
 async function quiescent() {
   for (let attempt = 0; attempt < 20; attempt++) {
     try { noOtherProcesses(); return; } catch { await delay(50); }
   }
+  processSnapshot = summarizeRemainingProcesses();
   throw fixedError("OFFLINE_UNEXPECTED_PROCESS_REMAINS");
 }
 async function runStages() {
@@ -144,10 +169,10 @@ async function runStages() {
     if (stage === "typecheck" && result.code !== 0) summary.typeDiagnostics = typecheckDiagnostics(result.stdout);
     summaries.push(summary);
     if (result.code !== 0 || result.signal || result.error || result.limited) throw fixedError("OFFLINE_STAGE_FAILED_OR_LIMITED");
+    if (stage === "unit") summary.tap = verifyTap(result.stdout, (counters) => { summary.tap = counters; });
     phase = "POST_STAGE";
     await quiescent();
     preflight("app"); // also rejects actual cgroup OOM, not just exit codes
-    if (stage === "unit") summary.tap = verifyTap(result.stdout);
   }
   return metadata;
 }
@@ -186,6 +211,8 @@ catch (error) {
   // Expose fixed trusted control metadata only, never raw exception details.
   const controlPhase = PHASES.has(phase) ? phase : "START";
   const category = ERROR_CLASSES.has(error?.code) ? error.code : "OTHER";
-  emit({ protocol: "offline-app-v1", nonce: executionNonce, ok: false, controlPhase, category, stages: summaries });
+  const failureKind = error?.safeCode === "OFFLINE_UNEXPECTED_PROCESS_REMAINS" ? "UNEXPECTED_PROCESS_REMAINS"
+    : error?.safeCode === "OFFLINE_STAGE_FAILED_OR_LIMITED" ? "STAGE_FAILED_OR_LIMITED" : "OTHER";
+  emit({ protocol: "offline-app-v1", nonce: executionNonce, ok: false, controlPhase, category, failureKind, processSnapshot, stages: summaries });
   process.exitCode = 1;
 }
