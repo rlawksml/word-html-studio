@@ -94,33 +94,21 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    // 소식에서 사진을 제거하면 원본과 미리보기 파일을 함께 정리합니다.
+    // 구버전 클라이언트의 정리 요청도 실제 원본·미리보기 파일은 보존합니다.
     if (await readWorkerSession(request) !== "input") return NextResponse.json({ error: "사진 삭제 권한을 다시 확인해 주세요." }, { status: 403 });
     const body = await request.json() as { images?: Array<{ originalPath?: unknown; previewPath?: unknown }> };
     if (!Array.isArray(body.images) || body.images.length === 0 || body.images.length > 500) return NextResponse.json({ error: "삭제할 사진 정보가 올바르지 않습니다." }, { status: 400 });
-    const originals: string[] = [];
-    const previews: string[] = [];
     for (const image of body.images) {
       if (image.originalPath) {
         if (!validStoragePath(image.originalPath, "originals/")) return NextResponse.json({ error: "원본 사진 경로가 올바르지 않습니다." }, { status: 400 });
-        originals.push(image.originalPath);
       }
       if (image.previewPath) {
         if (!validStoragePath(image.previewPath, "previews/")) return NextResponse.json({ error: "미리보기 경로가 올바르지 않습니다." }, { status: 400 });
-        previews.push(image.previewPath);
       }
     }
-    const [originalResult, previewResult] = await Promise.all([
-      originals.length
-        ? retryFutureJwt(() => getSupabaseAdmin().storage.from(ORIGINAL_IMAGE_BUCKET).remove(originals))
-        : Promise.resolve({ error: null }),
-      previews.length
-        ? retryFutureJwt(() => getSupabaseAdmin().storage.from(PREVIEW_IMAGE_BUCKET).remove(previews))
-        : Promise.resolve({ error: null }),
-    ]);
-    if (originalResult.error) throw originalResult.error;
-    if (previewResult.error) throw previewResult.error;
-    return new NextResponse(null, { status: 204 });
+    // 200 is compatible with the old client's response.ok contract. This is
+    // deliberate retention, not proof that a file exists or remains referenced.
+    return NextResponse.json({ retained: true, deleted: false, code: "IMAGE_CLEANUP_DEFERRED" }, { status: 200 });
   } catch (error) {
     if (error instanceof SupabaseConfigurationError) return configurationResponse();
     console.error("image delete failed", error);

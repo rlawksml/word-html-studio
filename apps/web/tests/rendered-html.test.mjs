@@ -56,7 +56,10 @@ async function render(path = "/") {
   );
 }
 
-test("renders the public bookstore news calendar", async () => {
+test("renders the public bookstore news calendar", async (t) => {
+  // Preserve this historical July fixture without changing the product clock
+  // or loosening its calendar assertion. Node restores Date after this test.
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-07-15T03:00:00.000Z") });
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);

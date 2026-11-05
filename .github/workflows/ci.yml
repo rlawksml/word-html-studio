@@ -6,6 +6,12 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
+      validation_mode:
+        description: Reviewed fallback source or isolated app validation only
+        required: true
+        type: choice
+        default: fallback_compatibility
+        options: [fallback_compatibility, offline_app]
       expected_commit:
         description: Exact reviewed fallback feature commit; never deployment
         required: true
@@ -65,13 +71,22 @@ jobs:
         env:
           EXPECTED_SHA: ${{ inputs.expected_commit }}
           REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+          VALIDATION_MODE: ${{ inputs.validation_mode }}
         run: |
           set -euo pipefail
-          [[ "$REPOSITORY_PRIVATE" == false && "$GITHUB_REF" == refs/heads/codex/m1-compatible-fallback && "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ && "$GITHUB_SHA" == "$EXPECTED_SHA" ]] || { echo '::error::FALLBACK_DISPATCH_BLOCKED'; exit 1; }
+          [[ "$REPOSITORY_PRIVATE" == false && "$GITHUB_REF" == refs/heads/codex/m1-fallback-runtime && "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ && "$GITHUB_SHA" == "$EXPECTED_SHA" ]] || { echo '::error::FALLBACK_DISPATCH_BLOCKED'; exit 1; }
+          [[ "$VALIDATION_MODE" == fallback_compatibility || "$VALIDATION_MODE" == offline_app ]] || { echo '::error::FALLBACK_MODE_BLOCKED'; exit 1; }
 
   isolated-fallback-policy:
     needs: fallback-dispatch-guard
-    if: github.event_name == 'workflow_dispatch' && needs.fallback-dispatch-guard.result == 'success'
+    if: github.event_name == 'workflow_dispatch' && inputs.validation_mode == 'fallback_compatibility' && needs.fallback-dispatch-guard.result == 'success'
     uses: ./.github/workflows/source-policy-validation.yml
     with:
       suite: fallback_compatibility
+
+  isolated-fallback-app:
+    needs: fallback-dispatch-guard
+    if: github.event_name == 'workflow_dispatch' && inputs.validation_mode == 'offline_app' && needs.fallback-dispatch-guard.result == 'success'
+    uses: ./.github/workflows/offline-app-validation.yml
+    with:
+      expected_commit: ${{ inputs.expected_commit }}
