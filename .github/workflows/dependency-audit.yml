@@ -72,8 +72,8 @@ jobs:
           9292eff6336b448e995722a7791479deac421ac816e057a2d85a5ba5bcbd6ec3 audit-sandbox-preflight.mjs
           578f457e86297df01c3025e3b834333202f8bd2e6105eeb5da76d7a1fad051da audit-policy.mjs
           251ced3998bdb9a30f3e86fa6af5670ab377c790bb4d9815de56d2479ba0966b audit-file-io.mjs
-          89f9db20736d4f14c271ecd10bdf31d4363cdfef5af9c77f5d61ab281a293174 audit-prep-launcher.mjs
-          c607ed122676b2a94e70b12f92582a4ec828bd295df68dccc769be9c362ff338 offline-baseline.mjs
+          c0eb39d53f9d480fe509105072be49c2b8f04b8b9c43138d21ab54940e4f8109 audit-prep-launcher.mjs
+          2e0cd2a3ca80bce800069995db7783c0607b8ac9db190f604080dc86d64a65ce offline-baseline.mjs
           abe01b3a84116e30cea9d85ae71f292f23d7611c1b3ac3dcce42e8c2ea013c51 offline-host-support.mjs
           f7e596086f32463a9a98421acf3d3c963fc1844d56cd0762d224a87e71fc67b1 offline-host-source.mjs
           9fc295a1ea304d7cfb4075168f169bad4b484dea787426a8d05e5199eced9023 offline-host-runtime.mjs
@@ -82,7 +82,8 @@ jobs:
           499ed0e6a76ded0ba21350c381107651eb6cb0cf73e5160102050236f7315cd5 offline-app.Dockerfile
           REVIEWED_CLOSURE
           # The registry may receive the complete public lock dependency graph
-          # plus Node/npm version, platform and architecture despite omit=dev.
+          # plus Node/npm version, platform and architecture, as already approved.
+          # This run includes dev dependencies in the inspection; no omit flag.
           # No server key, checkout app code, npmrc or GitHub token is provided.
           # No artifact/cache upload, install/fix, app command or deployment.
           /usr/bin/env -i PATH=/usr/bin:/bin TZ=UTC \

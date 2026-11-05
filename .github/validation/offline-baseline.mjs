@@ -1,6 +1,6 @@
 // Fixed existing package/lock baseline. No upgrades or npm script evaluation.
-export const PACKAGE_SHA256 = "4b79c8d63413e685bbe8d04b199ff976c99c24b8257e9e66d5861f58e2eaf5e8";
-export const LOCK_SHA256 = "68297e0d957b93e270b6d70473b990b680a23afb45f5fd1ad8d9559f8e19cada";
+export const PACKAGE_SHA256 = "01017394e1c2e1604dfb82fca531fda6a4aa96d5cf3e8fee8b3ca25ab3c8f484";
+export const LOCK_SHA256 = "2e16cace634e4091992673b4cd1dd9a04327a09d73be4774e1c399ac2794f34b";
 export const TESTS = Object.freeze([
   "tests/html-line-breaks.test.mjs",
   "tests/rendered-html.test.mjs",

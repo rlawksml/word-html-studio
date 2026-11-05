@@ -1,6 +1,6 @@
 // Only trusted npm audit runs here. No install/fix, lifecycle or app command.
-// npm may transmit the WHOLE public lock graph plus Node/npm/platform/arch
-// metadata, even with --omit=dev. Bridge is NOT a registry-only firewall.
+// Inspect dev dependencies too, using the same approved public lock graph and
+// Node/npm/platform/arch transfer scope. Bridge is NOT a registry-only firewall.
 import assert from "node:assert/strict";
 import { lstatSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { PREP_ENV, PACKAGE_SHA256, LOCK_SHA256 } from "./offline-baseline.mjs";
@@ -55,7 +55,7 @@ async function main() {
   const inventory = lockInventory(JSON.parse(before.lockBytes.toString("utf8")));
   const npm = version();
   const result = await bounded("/usr/bin/node", ["/usr/lib/npm/bin/npm-cli.js", "audit", "--package-lock-only",
-    "--ignore-scripts", "--omit=dev", "--audit-level=high", "--json",
+    "--ignore-scripts", "--audit-level=high", "--json",
     "--fetch-timeout=30000", "--fetch-retries=0", "--registry=https://registry.npmjs.org/",
     "--userconfig=/trusted/npm-user.conf", "--globalconfig=/trusted/npm-global.conf",
     "--cache=/scratch/npm-cache", "--update-notifier=false"], { cwd: "/input", env: PREP_ENV, ms: AUDIT_WALL_MS });
