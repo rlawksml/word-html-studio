@@ -39,7 +39,7 @@ export const BASE_ENV = Object.freeze({
 export const PREP_ENV = Object.freeze({
   ...BASE_ENV, SSL_CERT_FILE: "/etc/ssl/certs/ca-certificates.crt",
   NODE_EXTRA_CA_CERTS: "/etc/ssl/certs/ca-certificates.crt",
-  NPM_CONFIG_USERCONFIG: "/dev/null", NPM_CONFIG_GLOBALCONFIG: "/dev/null",
+  NPM_CONFIG_USERCONFIG: "/trusted/npm-user.conf", NPM_CONFIG_GLOBALCONFIG: "/trusted/npm-global.conf",
   NPM_CONFIG_CACHE: "/scratch/npm-cache", NPM_CONFIG_IGNORE_SCRIPTS: "true",
 });
 export const APP_ENV = Object.freeze({

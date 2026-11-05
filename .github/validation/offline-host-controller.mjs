@@ -76,7 +76,7 @@ function validateSummary(value, expectedStage) {
 // Only fixed labels, numeric counters, digests, and reviewed commit metadata
 // reach the Actions log. No raw app/npm/TAP output or env/config is published.
 function publishSummary(value) {
-  const allowedReasons = new Set([null, "TIMEOUT", "OUTPUT_CAP", "ABORTED", "NATIVE_SHARED_LIBRARY_UNAVAILABLE", "INSTALL_SCRIPT_OUTPUT_UNAVAILABLE", "SHELL_OR_NATIVE_EXECUTABLE_UNAVAILABLE"]);
+  const allowedReasons = new Set([null, "TIMEOUT", "OUTPUT_CAP", "ABORTED", "NATIVE_SHARED_LIBRARY_UNAVAILABLE", "INSTALL_SCRIPT_OUTPUT_UNAVAILABLE", "SHELL_OR_NATIVE_EXECUTABLE_UNAVAILABLE", "DUPLICATE_NPM_CONFIG_PATH"]);
   assert.ok(["npm_ci_ignore_scripts", "typecheck", "lint", "build", "unit"].includes(value.stage));
   assert.ok(value.exit === null || (Number.isInteger(value.exit) && value.exit >= 0 && value.exit <= 255));
   assert.ok(value.signal === null || /^SIG[A-Z0-9]+$/.test(value.signal));

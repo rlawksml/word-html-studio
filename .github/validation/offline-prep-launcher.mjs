@@ -1,6 +1,6 @@
 // Trusted PID1 installs dependencies as data, then IDLES to keep tmpfs mounted.
 import assert from "node:assert/strict";
-import { copyFileSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { copyFileSync, lstatSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { LOCK_SHA256, PACKAGE_SHA256, PREP_ENV } from "./offline-baseline.mjs";
 import { bounded, sha256 } from "./offline-host-support.mjs";
 import { emit, jsonFile, noOtherProcesses, preflight, summarize, validNonce } from "./offline-sandbox-common.mjs";
@@ -28,13 +28,19 @@ async function main() {
   }
   assert.equal(process.pid, 1);
   preflight("prep", { preparing: true });
+  assert.notEqual(PREP_ENV.NPM_CONFIG_USERCONFIG, PREP_ENV.NPM_CONFIG_GLOBALCONFIG);
+  for (const path of [PREP_ENV.NPM_CONFIG_USERCONFIG, PREP_ENV.NPM_CONFIG_GLOBALCONFIG]) {
+    const info = lstatSync(path);
+    assert.ok(info.isFile() && !info.isSymbolicLink() && info.size === 0 && (info.mode & 0o777) === 0o444);
+    assert.equal(readFileSync(path).length, 0);
+  }
   assert.equal(sha256(readFileSync("/input/package.json")), PACKAGE_SHA256);
   assert.equal(sha256(readFileSync("/input/package-lock.json")), LOCK_SHA256);
   copyFileSync("/input/package.json", "/toolchain/package.json");
   copyFileSync("/input/package-lock.json", "/toolchain/package-lock.json");
   const result = await bounded("/usr/bin/node", ["/usr/lib/npm/bin/npm-cli.js", "ci",
     "--ignore-scripts", "--no-audit", "--no-fund", "--fetch-retries=0",
-    "--registry=https://registry.npmjs.org/", "--userconfig=/dev/null", "--globalconfig=/dev/null",
+    "--registry=https://registry.npmjs.org/", "--userconfig=/trusted/npm-user.conf", "--globalconfig=/trusted/npm-global.conf",
     "--cache=/scratch/npm-cache", "--update-notifier=false"], {
     cwd: "/toolchain", env: PREP_ENV, ms: 180_000,
   });

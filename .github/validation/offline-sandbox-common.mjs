@@ -90,6 +90,7 @@ export function summarize(stage, result) {
   const output = Buffer.concat([result.stdout, result.stderr]).toString("utf8");
   const warningLines = output.split("\n").filter((line) => /\b(?:warn|warning|warnings)\b/i.test(line)).length;
   let blockedReason = result.reason ?? null;
+  if (!blockedReason && result.code !== 0 && /double-loading config/i.test(output)) blockedReason = "DUPLICATE_NPM_CONFIG_PATH";
   if (!blockedReason && /error while loading shared libraries|cannot open shared object file/i.test(output)) blockedReason = "NATIVE_SHARED_LIBRARY_UNAVAILABLE";
   if (!blockedReason && /(?:postinstall|install script|esbuild.*(?:not found|missing)|workerd.*(?:not found|missing))/i.test(output) && result.code !== 0) blockedReason = "INSTALL_SCRIPT_OUTPUT_UNAVAILABLE";
   if (!blockedReason && /(?:spawn.*ENOENT|\/bin\/sh.*not found|bad interpreter)/i.test(output)) blockedReason = "SHELL_OR_NATIVE_EXECUTABLE_UNAVAILABLE";

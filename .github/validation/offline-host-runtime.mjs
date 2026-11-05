@@ -117,6 +117,15 @@ export async function copyRuntime(rootfs, node, npmCli, trusted, role, step) {
     assert.equal(relative(trusted, resolve(trusted, name)), name);
     copy(join(trusted, name), join(rootfs, "trusted", name), 32768);
   }
+  if (role === "prep") {
+    // Two distinct empty, readonly configs: npm rejects loading one pathname
+    // for both user and global scopes. Never copy real host configuration.
+    for (const name of ["npm-user.conf", "npm-global.conf"]) {
+      const target = join(rootfs, "trusted", name);
+      writeFileSync(target, "", { flag: "wx", mode: 0o444 });
+      chmodSync(target, 0o444);
+    }
+  }
   for (const name of ["scratch", "toolchain", "input", "source", "tmp"]) mkdirSync(join(rootfs, name), { mode: 0o755 });
   chmodSync(join(rootfs, "scratch"), 0o1777);
   return { nodeVersion: version, npmFiles: runtimeFiles, npmBytes: runtimeBytes, totalBytes };
