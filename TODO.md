@@ -1,5 +1,19 @@
 # TODO
 
+## 2026-11-05 현재 릴리스 게이트 (아래 과거 단계 기록보다 우선)
+
+현재 **운영 NO-GO**. 과거 단계의 체크 표시는 당시 검증이며, 현재 exact 커밋 전체 회귀·배포 완료를 뜻하지 않습니다. [병렬 체크포인트와 남은 작업](docs/test-reports/2026-11-05-preprod-parallel-checkpoints.md)을 참조합니다.
+
+- [x] 원래 dirty36개 보존·분류, source 복구 사본의 hash/bundle 검증 및 로컬 `.git` 비공개 보관 (DB 백업 아님)
+- [x] #47 marker 무쓰기/대상 hash 보존·#88 무삭제 방어·기존 gate/실연결 hardblock 보존
+- [x] exact `3ccb429`에서 무키 격리 restore25/photo12/preservation30 = **67PASS**, 실패/외부 TC skip0·독립 확인
+- [ ] Stage2 retain-only mock·HTML-copy observer·과거 UAT 증거의 남은 미커밋 자료를 경계별 보존
+- [ ] #87 Next audit·#66 vinext 호환 업그레이드: 준비된 격리 의존성 환경 확보 후 별도 변경·검증 (현재 설치/lock 변경 없음)
+- [ ] #91 빈 발행 월 실제 UI 재현/수정/검증, 동일 후보의 전체 type/lint/build/browser 회귀
+- [ ] 별도 승인 후 #86 SQL·신규 QA·두 작업자/사진의 실제 Staging P0 검증
+- [ ] #47 새 빈 복구 대상의 실제 복원·최신 독립 백업, #46/#48 exact fallback/최신 데이터/환경 보존 증거
+- [ ] 사용자 최종 운영 승인 전 main merge·배포·운영 SQL/DB/Storage 변경 금지
+
 ## M0 — 자료 분석과 제품 방향 확정
 
 - [x] 실제 Word 4개의 공통 구조와 편차 분석

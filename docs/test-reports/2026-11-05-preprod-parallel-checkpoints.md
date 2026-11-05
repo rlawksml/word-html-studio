@@ -4,7 +4,7 @@
 
 **운영 NO-GO.** 이 브랜치는 source 보존·개별 테스트 체크포인트이며 운영 배포 후보가 아니다. main merge·배포·실제 SQL·DB/Storage·환경·과금 변경은 하지 않았다. 보관 QA·기존 업무 자료도 수정하지 않았다.
 
-원래 작업 폴더의 HEAD0951802와 tracked/untracked 36개를 그대로 보존했다. 로컬 임시 Git bundle·patch·untracked archive의 hash와 bundle verify를 확인했지만 이는 장기/DB 백업이 아니다. 별도 worktree에서 복원 정책·사진 보존·기존 안전 코드 보존을 분리했다. 주 에이전트만 Git/수동 CI/이슈 쓰기를 담당하고, 구현·독립 리뷰·증거 확인은 병렬로 수행했다.
+원래 작업 폴더의 HEAD0951802와 tracked/untracked 36개를 그대로 보존했다. Git bundle·patch·untracked archive를 원래 저장소의 비공개 로컬 `.git/codex-checkpoints/2026-11-05-preprod-0951802/`에도 보관해 임시 폴더 정리에 대비했다. 세 hash 재대조와 bundle verify는 PASS지만 별도 장치/DB 백업은 아니다. 별도 worktree에서 복원 정책·사진 보존·기존 안전 코드 보존을 분리했다. 주 에이전트만 Git/수동 CI/이슈 쓰기를 담당하고, 구현·독립 리뷰·증거 확인은 병렬로 수행했다.
 
 ## 개별 검증 증거
 
@@ -12,9 +12,23 @@
 |---|---|---|---|
 | #47 marker 복원 정책 | `084ee1a09ec740986d5d0b7e660e081148ba7893` | [run41967318589](https://github.com/rlawksml/word-html-studio/actions/runs/41967318589) 25PASS | 순수 정책·메모리 insert loop·소스 계약. 실제 복원 아님 |
 | #88 사진 보존 방어 | `e0219f9ab38280cf8cd0678008817abeedb6c509` | [run41968357231](https://github.com/rlawksml/word-html-studio/actions/runs/41968357231) 12PASS | client fake transport·순수·구조. React/실Storage 경합 아님 |
-| 기존 gate·실연결 테스트 차단 보존 | 이 브랜치 후속 코드 | 30TC 실행 대기 | gate14 + cleanup mock10 + loader/진입 차단6. 실제 서버/브라우저 아님 |
+| 기존 gate·실연결 테스트 차단 보존 | `3ccb429bd1cab639294657c48c24aefd63bab625` | [run41969588551](https://github.com/rlawksml/word-html-studio/actions/runs/41969588551) 30PASS | gate14 + cleanup mock10 + loader/진입 차단6. 실제 서버/브라우저 아님 |
 
-각 run은 독립 검토자가 실제 metadata와 성공 로그를 확인했다. 이전 #86의177/브라우저7, 다른 날짜의87/100/118/129 결과를 이 브랜치 전체 회귀로 재사용하지 않는다. 위 두 성공 결과도 같은 합본 커밋의 전체 검증이 아니므로 후속 exact SHA 재검증이 필요하다.
+각 run은 독립 검토자가 실제 metadata와 성공 로그를 확인했다. 이전 #86의177/브라우저7, 다른 날짜의87/100/118/129 결과를 이 브랜치 전체 회귀로 재사용하지 않는다.
+
+### 합본 exact SHA 병렬 재검증 — 67PASS
+
+검증 커밋 **`3ccb429bd1cab639294657c48c24aefd63bab625`**. 다음 세 run을 병렬 실행했고 모두 success다.
+
+| suite | 실제 실행 | 등록/성공 | fail/cancelled/skipped/todo |
+|---|---|---|---|
+| restore | [41969588641](https://github.com/rlawksml/word-html-studio/actions/runs/41969588641) | 25/25 | 모두0 |
+| photo | [41969589002](https://github.com/rlawksml/word-html-studio/actions/runs/41969589002) | 12/12 | 모두0 |
+| preservation | [41969588551](https://github.com/rlawksml/word-html-studio/actions/runs/41969588551) | 30/30 | 모두0 |
+
+각 실제 로그의 source-policy PASS·동일 SHA를 주 에이전트와 독립 검토자가 확인했다. 세 guard/source job은 성공하고 일반 verify·Supabase·rollback job은 skip했다. 67개만 합산하며 앞의 개별 run25/12는 중복이다. hardblock의 자식에서 의도적으로 skip한 legacy3건은 이67개에 포함하지 않으며 실제 통합3건을 실행한 것이 아니다. cleanup10은 메모리 검증이지 실제 ownership·원자성·TOCTOU/삭제 안전성 증거가 아니다.
+
+전체 앱 type/lint/build·브라우저/Miniflare·실제 DB·복원·fallback·자원 누수 검증은 미실행/BLOCKED다. `security-audit` guidance의 신규 의존성 설치 금지와 OS 격리 조건에 따라 없는 toolchain을 설치하거나 실행 조건을 완화하지 않았다. 소스 검증 범위 GO이며 운영은 NO-GO다. 보고서-only 후속 커밋은 위 실제 검증 SHA와 구분한다.
 
 ## 왜 기존 미커밋 안전 코드를 먼저 보존했나
 
@@ -38,7 +52,7 @@
 
 ## 다음 순서와 승인 경계
 
-1. 합본 exact SHA의 restore25/photo12/preservation30을 별도 수동 격리 run으로 재확인하고 결과를 각 이슈에 연결.
+1. 완료: 합본 exact SHA의 restore25/photo12/preservation30 병렬 재확인·독립 증거 대조. 결과를 각 이슈에 연결.
 2. 남은 Stage2/HTML-copy·과거 증거를 경계별 보존하고 문서 최신 상태와 역사 기록 분리.
 3. #87 Next와 #66 vinext는 별도 의존성 변경으로 검증. 공식 최신 후보를 기록했지만 새 package 설치·lock 변경·audit 재실행은 하지 않았다. 보안 실행 조건을 갖춘 준비된 toolchain이 필요하다.
 4. #91 빈 월의 실제 UI 재현·수정·검증, 같은 후보 커밋의 전체 type/lint/build/browser 회귀.
