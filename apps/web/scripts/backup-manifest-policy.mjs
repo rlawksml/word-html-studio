@@ -182,9 +182,17 @@ function photoReferences(submissions, storage) {
 // row fields are inspected neither for removal nor for normalization.
 export function inspectBackupContents(manifest, tables) {
   const failures = inspectSchemaInventory(manifest, tables);
-  if (!Array.isArray(tables.submissions)) return [...failures, "BACKUP_SUBMISSIONS_UNVERIFIED"];
+  const warnings = [];
+  const result = () => ({ failures: [...new Set(failures)], warnings });
+  if (!Array.isArray(tables.submissions)) {
+    failures.push("BACKUP_SUBMISSIONS_UNVERIFIED");
+    return result();
+  }
   const recomputed = photoReferences(tables.submissions, manifest.storage);
-  if (recomputed === null) return [...failures, "BACKUP_PHOTO_REFERENCES_INVALID"];
+  if (recomputed === null) {
+    failures.push("BACKUP_PHOTO_REFERENCES_INVALID");
+    return result();
+  }
   for (const key of [...REFERENCE_COUNTS, ...REFERENCE_LISTS]) {
     if (JSON.stringify(manifest.references[key]) !== JSON.stringify(recomputed[key])) {
       failures.push("BACKUP_REFERENCE_SUMMARY_MISMATCH");
@@ -193,10 +201,12 @@ export function inspectBackupContents(manifest, tables) {
   if (recomputed.missingOriginalObjects.length || recomputed.missingPreviewObjects.length) {
     failures.push("BACKUP_REFERENCED_PHOTO_MISSING");
   }
-  // #94 must explicitly decide how retained unreferenced objects are reported.
-  // Until then keep the existing blocking policy; never delete to make it pass.
-  if (recomputed.unreferencedOriginalObjects.length || recomputed.unreferencedPreviewObjects.length) {
-    failures.push("BACKUP_UNREFERENCED_PHOTOS_PRESENT");
+  // #94: retain every inventoried object. Only a fully verified backup may
+  // report retained unreferenced photos; never hide missing/tampered data or
+  // rewrite the manifest/delete a photo to make verification pass.
+  if (failures.length === 0) {
+    if (recomputed.unreferencedOriginalObjects.length) warnings.push("BACKUP_UNREFERENCED_ORIGINALS_RETAINED");
+    if (recomputed.unreferencedPreviewObjects.length) warnings.push("BACKUP_UNREFERENCED_PREVIEWS_RETAINED");
   }
-  return [...new Set(failures)];
+  return result();
 }

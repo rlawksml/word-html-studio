@@ -140,6 +140,7 @@ for (const [bucketName, plan] of Object.entries(objectPlans)) {
 if (!execute) {
   console.log(canonicalJson({
     status: resume ? "RESUME_DRY_RUN_PASS" : "DRY_RUN_PASS",
+    warnings: verification.warnings,
     targetProjectRef: target.actualProjectRef,
     targetFingerprint: target.targetFingerprint,
     sourceFingerprint: verification.manifest.sourceProjectFingerprint,
@@ -238,6 +239,7 @@ for (const [bucketName, details] of Object.entries(verification.manifest.storage
 
 console.log(canonicalJson({
   status: "RESTORE_PASS",
+  warnings: verification.warnings,
   targetProjectRef: target.actualProjectRef,
   restoredRows,
   schemaMarkerVerification,

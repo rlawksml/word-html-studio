@@ -138,12 +138,13 @@ export async function verifyBackupDirectory(backupDir) {
   const manifestPath = resolveInside(backupDir, "manifest.json");
   let manifestPayload, manifest;
   const failures = [];
+  const warnings = [];
   let verifiedFiles = 0;
   let verifiedBytes = 0;
   const result = () => ({
     status: failures.length === 0 ? "PASS" : "FAIL", manifest: manifest ?? null,
     manifestSha256: manifestPayload ? sha256(manifestPayload) : null,
-    verifiedFiles, verifiedBytes, failures: [...new Set(failures)],
+    verifiedFiles, verifiedBytes, failures: [...new Set(failures)], warnings: [...warnings],
   });
   try { manifestPayload = await readFile(manifestPath); }
   catch { failures.push("BACKUP_MANIFEST_UNREADABLE"); return result(); }
@@ -195,6 +196,10 @@ export async function verifyBackupDirectory(backupDir) {
     if (error?.code !== "ENOENT") failures.push("BACKUP_COMPLETION_STATE_UNREADABLE");
   }
   // Hash/read failures must not be upgraded to a claim about DB references.
-  if (failures.length === 0) failures.push(...inspectBackupContents(manifest, tables));
+  if (failures.length === 0) {
+    const inspected = inspectBackupContents(manifest, tables);
+    failures.push(...inspected.failures);
+    if (failures.length === 0) warnings.push(...inspected.warnings);
+  }
   return result();
 }
