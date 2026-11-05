@@ -210,6 +210,9 @@ test("publishes complete SEO metadata, discovery routes, and a social preview", 
   ]);
 
   const home = await homeResponse.text();
+  // Diagnose the exact URL independently of HTML attribute order; keep the
+  // historical assertion below until the failing contract is distinguished.
+  assert.match(home, /<link\b(?=[^>]*\srel="canonical")(?=[^>]*\shref="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/")[^>]*>/);
   assert.match(home, /rel="canonical" href="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/"/);
   assert.match(home, /property="og:title" content="지관서가 동네책방 소식"/);
   assert.match(home, /property="og:image" content="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/og-bookstore-news\.png"/);
