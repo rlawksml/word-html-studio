@@ -2,13 +2,15 @@
 
 ## 2026-11-05 현재 릴리스 게이트 (아래 과거 단계 기록보다 우선)
 
-현재 **운영 NO-GO**. 최신 source-map-js1.2.2 후보 exact83fed46의 [전체277TC·type/lint/build·엄격 정리](docs/test-reports/2026-11-05-issue87-source-map-candidate.md)는 통과했습니다. 이후 명시 승인 후 동일 pair의 exact3fdb1d1에서 [production 재audit: 취약점 0건·엄격 정리 PASS](docs/test-reports/2026-11-05-issue87-source-map-audit.md)를 확인했습니다. 이전 lock의 high1·당시 전송 승인 차단 이력과 새 실제 결과를 구분합니다. [#94의277TC](docs/test-reports/2026-11-05-issue94-retained-photo-warnings.md)·[이전 #92의276TC](docs/test-reports/2026-11-05-issue92-backup-completeness.md)·[과거 후보247](docs/test-reports/2026-11-05-preprod-candidate-offline.md)과 합산하지 않습니다. 브라우저·실DB·복원/롤백 전체 게이트와 별도 잔여 보안 범위는 남습니다. 아래 과거 체크 표시는 당시 범위이며 현재 배포 완료가 아닙니다.
+현재 **운영 NO-GO**. #93 writer-only를 수정해 최종 exactafbbf96의 [CLI14/protocol12/백업30/복원정책25/앱277·type/lint/build·정리](docs/test-reports/2026-11-05-issue93-backup-writer.md)를 각각 PASS했습니다. 아래 과거 실행과 합산하지 않으며 실제 백업·복원·Mac·운영 배포 완료가 아닙니다.
+
+이전 source-map-js1.2.2 후보 exact83fed46의 [전체277TC·type/lint/build·엄격 정리](docs/test-reports/2026-11-05-issue87-source-map-candidate.md)도 통과했습니다. 이후 명시 승인 후 동일 pair의 exact3fdb1d1에서 [production 재audit: 취약점 0건·엄격 정리 PASS](docs/test-reports/2026-11-05-issue87-source-map-audit.md)를 확인했습니다. 이전 lock의 high1·당시 전송 승인 차단 이력과 새 실제 결과를 구분합니다. [#94의277TC](docs/test-reports/2026-11-05-issue94-retained-photo-warnings.md)·[이전 #92의276TC](docs/test-reports/2026-11-05-issue92-backup-completeness.md)·[과거 후보247](docs/test-reports/2026-11-05-preprod-candidate-offline.md)과 합산하지 않습니다. 브라우저·실DB·복원/롤백 전체 게이트와 별도 잔여 보안 범위는 남습니다. 아래 과거 체크 표시는 당시 범위이며 현재 배포 완료가 아닙니다.
 
 - [x] #92 별도 분석→수정 전29TC 중19FAIL 재현→최소 수정→같은29/기존복원25/전체276 및 type/lint/build·엄격 정리 PASS, exact9497d1b·독립 검토 (실제 백업/복원 성공 아님)
-- [ ] #93 백업 목적지의 ancestor symlink/TOCTOU 방어와 격리 재현·회귀 (기존 백업을 자동 이동/수정하지 않음)
+- [x] #93 새 목적지 writer의 nofollow/보유 dirfd·EXCL·기존 백업 조상 거부·완료 ACK 검증. 고정14TC RED8FAIL→GREEN14PASS, 별도protocol12/완전성30/복원정책25/전체277·type/lint/build·엄격 정리 PASS, exactafbbf96·독립 리뷰 ([보고서](docs/test-reports/2026-11-05-issue93-backup-writer.md)). 기존 백업 이동/수정 없음·실백업/복원 아님
 - [x] #94 모든 사진 보관·미참조 경고 정책 구현: RED30중3FAIL→같은30PASS/복원정책25PASS/전체277·type/lint/build·엄격 정리 PASS, exact1f9c605 ([보고서](docs/test-reports/2026-11-05-issue94-retained-photo-warnings.md)). 실제 백업/복원·운영 반영 아님
 - [ ] #46/#48 옛 exact28efad2 parser6TC 중 미래4종 보존FAIL ([보고서](https://github.com/rlawksml/word-html-studio/blob/0fec8b719a88001b61b54b31238bb28472757628/docs/test-reports/2026-11-05-exact-fallback-preservation.md)); 호환 fallback·불변 artifact/환경/기간/사진 검증 필요. 후보PASS로 대체 금지
-- [ ] 전체 테스트 출력 요약 개선 검토: 최신277TC stdout64970bytes, 현재64KiB까지566bytes 여유(이전64972/564). 상한 완화/TC 제거/제목 축약 금지
+- [ ] 전체 테스트 출력 요약 개선 검토: 최신277TC stdout64973bytes, 현재64KiB까지563bytes 여유(직전692d34f는64979/557). 상한 완화/TC 제거/제목 축약 금지
 
 - [x] 원래 dirty36개 보존·분류, source 복구 사본의 hash/bundle 검증 및 로컬 `.git` 비공개 보관 (DB 백업 아님)
 - [x] #47 marker 무쓰기/대상 hash 보존·#88 무삭제 방어·기존 gate/실연결 hardblock 보존

@@ -4,6 +4,12 @@
 
 ## 문서 정보
 
+### 2026-11-05 #93 writer-only 경로·프로토콜
+
+[보고서](test-reports/2026-11-05-issue93-backup-writer.md): 수정 전 actual CLI14는6PASS/8FAIL(05~12), 같은 동결14가692d34f에서14PASS였다. 최종afbbf96에서 CLI14·별도protocol12·완전성30·복원정책25·앱277/type/lint/build가 각각 PASS·실패/취소/skip/todo0·엄격 정리였다. 정상 실제 CLI는 SDK만 합성하며 UTF8/바이너리와 manifest 검증기를 확인한다. protocol12는 실제 client/server/raw framing·marker identity·EOF/취소/상한·동시 PUT과 기존 백업 부모 보존을 포함한다. ACK 과대·pending 취소만 명시적 합성 peer이며 실제 writer 파일 검증과 구분한다.
+
+두 전용 suite는 full277에 합치지 않는다. user 데이터·백업·DB·Storage 접근/변경0, 자체 scratch만 정리했다. Linux 파일 기반 writer GO이며 Mac·실제 SDK/복원·브라우저 P0·운영 배포 검증으로 확대하지 않는다. 과거 실행과 TC 수를 합산하지 않으며 **운영 NO-GO**를 유지한다.
+
 ### 2026-11-05 #87 명시 승인 후 실제 재audit
 
 [실제 재audit 보고서](test-reports/2026-11-05-issue87-source-map-audit.md): 전송에 대한 사용자 명시 승인 후 exact3fdb1d1/run42032239269의 plain production audit가 PASS/reasonNONE, 모든 등급/총합0·npm11.19.1·SEAL/FINAL/엄격 정리 후 COMPLETE·artifact0이었다. 아래 이전 후보 보고서의 승인 차단은 당시 기록으로 보존한다. AUDIT-LIVE01과 종료 제어는 같은1회 실행에서 확인했으며 별도 앱 exact83fed46의277·type/lint/build와 같은4b79/6829 pair로 연결한다. 전체 TC-SEC-001의 실제 브라우저/DB·배포 후 검증은 미완료이고 #66/full dev 보안·운영 GO로 확대하지 않는다.

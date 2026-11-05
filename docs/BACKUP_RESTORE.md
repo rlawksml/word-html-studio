@@ -1,5 +1,7 @@
 # Supabase 무손실 백업·복구 Runbook
 
+2026-11-05 #93: **새 목적지 백업 writer만** 보유 dirfd·nofollow·EXCL 경계로 분리했다. 고정 CLI14의 RED8FAIL→GREEN14PASS, 최종afbbf96의 protocol12/완전성30/복원정책25/앱277·type/lint/build·엄격 정리를 확인했다. [writer 검증 보고서](test-reports/2026-11-05-issue93-backup-writer.md)는 Linux 격리·합성 자료 범위이며 실제 백업/복원·Mac·운영 승인이 아니다. verifier/restore의 path 재읽기는 이번 수정 범위 밖이며 기존 백업 자체를 자동 이동/수정하지 않는다.
+
 2026-11-05 #94 정책: 목록화된 모든 원본·미리보기 사진을 보관한다. 검증을 모두 통과한 미참조 사진은 고정 경고만 남기며, 참조 사진 누락·파일/해시·통계 오류는 계속 FAIL이다. verify 및 restore dry-run/최종 요약에 `warnings`가 전달된다. [파일 기반 검증 보고서](test-reports/2026-11-05-issue94-retained-photo-warnings.md)의30/25/277 PASS는 실복원·#93 경로 안전성·원자 snapshot·운영 승인이 아니다. 미참조 사진을 지워 통과시키거나 기존 백업 manifest를 고치지 않는다.
 
 이 문서는 동네책방 소식 스튜디오의 Database와 사진을 안전하게 백업하고, **운영·현재 보관용 Staging과 다른 새 격리 프로젝트**에서 복원 가능성을 검증하는 절차입니다.
@@ -45,6 +47,14 @@
 
 ## 1. 운영 백업 만들기
 
+### writer 실행 요건 — 실제 작업 전 별도 확인
+
+- 웹앱/Cloudflare가 아닌 수동 백업 CLI만 POSIX와 고정 `/usr/bin/python3`를 요구한다. Linux만 실증했으며 Mac은 미검증이다. 미지원 시 일반 path 쓰기로 우회하지 않는다.
+- 목적지의 부모는 이미 존재하고 조상에 symlink나 group/other 쓰기 권한이 없어야 한다. 새 root만0700, 파일0600으로 만들며 부모 자동 생성·기존 목적지·기존 백업 안 새 쓰기는 거부한다.
+- 새 writer 상한: 파일64MiB/총4GiB/파일10,000/디렉터리10,000/상대깊이16/절대조상깊이64/header8KiB/대기payload64MiB/전체15분/ACK30초. 웹서비스 사진 업로드 제한을 변경하는 것은 아니다. 실제 백업 전 자료 크기와 요건을 확인한다.
+- 상한 초과·중간 실패는 잘라 저장하거나 자동 삭제하지 않는다. 초기화 이후의 부분 자료와 INCOMPLETE를 보관한다. commit 이후 ACK 유실은 UNKNOWN으로 완료 판정을 보류하고 자료 삭제·marker 재생성을 하지 않는다.
+- 악성 동일 UID/root의 임의 reparenting까지 방어한다고 보장하지 않는다. 실제 백업은 승인된 프로젝트와 새 private 경로에서만 실행하고 순차 SELECT의 snapshot 일관성을 별도로 확인한다.
+
 운영 비밀값은 Git에 포함되지 않는 `apps/web/.env.production.local` 같은 로컬 파일에만 둡니다.
 
 ```bash
@@ -55,7 +65,7 @@ node --env-file=.env.production.local scripts/supabase-backup.mjs \
   /사용자/지정/저장소/bookstore-news-YYYYMMDD-HHMMSS
 ```
 
-백업 대상 경로는 새 디렉터리여야 하고 저장소 내부이면 도구가 거부합니다. 작업 중에는 `INCOMPLETE` 파일이 존재하며, 모든 파일과 manifest 기록이 끝나야 이 표시가 제거됩니다.
+백업 대상은 새 디렉터리여야 하고 현재 실행 저장소 내부이면 거부합니다. 다른 Git 저장소를 자동 탐색하는 도구는 아니므로 목적지는 모든 Git 저장소 밖의 전용 폴더로 확인합니다. INCOMPLETE는 이번 세션이 만든 고정 marker만 제거하며, 파일·manifest·ledger 검증과 EOF 봉인 후 helper의 완료 ACK와 정상 종료까지 확인해야 CLI가 COMPLETE를 출력합니다. COMPLETE가 없으면 원본을 고치거나 지우지 말고 별도 검증으로 확인합니다.
 
 백업 범위는 다음과 같습니다.
 
@@ -151,7 +161,7 @@ node --env-file=.env.restore-check.local scripts/supabase-restore-staging.mjs \
 - 업무 테이블별 행 수와 JSON fingerprint가 backup manifest와 같음
 - marker는 source와 component/version이 같고 preflight target 전체 행 해시 불변. 실제 DDL/legacy 호환성 검증은 별도
 - 원본·미리보기 객체 수, 바이트 수와 SHA-256이 같음
-- DB가 참조하는 사진 누락 0, 고립 사진 0
+- DB가 참조하는 사진 누락 0. 미참조 사진도 모두 보관하고 검증 통과 후 경고로 구분하며 삭제하지 않음
 - 원본 버킷은 공개 URL로 직접 열리지 않음
 - 공개 미리보기는 방문자 화면에서 표시됨
 - v1.0.x와 v1.1 후보 앱이 같은 Staging 데이터를 읽을 수 있음

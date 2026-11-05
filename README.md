@@ -6,17 +6,19 @@
 
 ## 2026-11-05 운영 반영 전 상태
 
-최신 제품 기준에 source-map-js1.2.2만 적용한 exact `83fed46`에서 **전체277TC·typecheck·lint·build·엄격 정리 PASS**를 확인했습니다. 승인된 두JSON 전달·독립 파일 검증도 완료했고 package와 다른734개 lock 레코드는 불변입니다. 이후 별도 registry 전송을 명시 승인받아 같은 manifest pair의 exact `3fdb1d1`에서 **실제 production 재audit: 취약점 0건·엄격 정리 PASS**를 확인했습니다. [앱 후보 보고서](docs/test-reports/2026-11-05-issue87-source-map-candidate.md)와 [실제 재audit 보고서](docs/test-reports/2026-11-05-issue87-source-map-audit.md)를 구분해 보세요. 전체 보안 완료나 배포 GO가 아닙니다.
+#93의 **새 백업 목적지 writer 경로 방어**를 구현했습니다. 기존 CLI14에서 8FAIL을 재현한 뒤 같은14PASS를 확인했고, 최종 exact `afbbf96`의 protocol12·백업완전성30·복원정책25·앱277 및 type/lint/build·엄격 정리도 각각 PASS입니다. 서로 겹치는 suite는 합산하지 않습니다. [RED/GREEN·최종 회귀 보고서](docs/test-reports/2026-11-05-issue93-backup-writer.md)를 보세요. 이는 Linux 격리 writer 검증이며 실제 DB/사진 백업·복원, Mac, 전체 서비스 배포 검증은 아닙니다.
+
+앞선 source-map-js1.2.2 후보 exact `83fed46`도 **전체277TC·typecheck·lint·build·엄격 정리 PASS**였습니다. 승인된 두JSON 전달·독립 파일 검증도 완료했고 package와 다른734개 lock 레코드는 불변입니다. 이후 별도 registry 전송을 명시 승인받아 같은 manifest pair의 exact `3fdb1d1`에서 **실제 production 재audit: 취약점 0건·엄격 정리 PASS**를 확인했습니다. [앱 후보 보고서](docs/test-reports/2026-11-05-issue87-source-map-candidate.md)와 [실제 재audit 보고서](docs/test-reports/2026-11-05-issue87-source-map-audit.md)를 구분해 보세요. 전체 보안 완료나 배포 GO가 아닙니다.
 
 사용자의 재개 요청에 따라 #94의 **모든 사진 보관·미참조 경고** 정책을 구현하고 exact1f9c605에서 목표30/복원정책25/전체277TC·type/lint/build와 엄격 정리를 검증했습니다. [#94 보고서](docs/test-reports/2026-11-05-issue94-retained-photo-warnings.md)를 보세요. 이전 [중단 기록](docs/test-reports/2026-11-05-pause-resume-checkpoint.md)은 당시 checkpoint이며 현재 중단 상태를 뜻하지 않습니다.
 
-이전 lock에 대한 [실제 metadata audit](https://github.com/rlawksml/word-html-studio/blob/3e8289ffd041c3fba48ec3087c226d286c10f5e7/docs/test-reports/2026-11-05-issue87-metadata-audit.md)는 source-map-js high1로 FAIL(FINDINGS)이었습니다. 이를 새 lock의 재audit 결과로 대신하지 않습니다. 보안 잔여·#93 경로·실제 백업/복원·브라우저/DB·호환 fallback 검증이 남아 **운영 NO-GO**를 유지합니다.
+이전 lock에 대한 [실제 metadata audit](https://github.com/rlawksml/word-html-studio/blob/3e8289ffd041c3fba48ec3087c226d286c10f5e7/docs/test-reports/2026-11-05-issue87-metadata-audit.md)는 source-map-js high1로 FAIL(FINDINGS)이었습니다. 이를 새 lock의 재audit 결과로 대신하지 않습니다. 보안 잔여·실제 백업/복원·브라우저/DB·호환 fallback 검증이 남아 **운영 NO-GO**를 유지합니다.
 
 이전 #87 최소 Next 후보 exact `bae02fb`도 **새 lock의 무스크립트 설치·typecheck·lint·build·276TC·엄격 정리 PASS**였습니다. [당시 보안 후보 회귀 보고서](docs/test-reports/2026-11-05-issue87-next-candidate.md)의 앱 실행에는 audit가 없었고, 이후 위 별도 실제 audit에서 high1을 확인했습니다. #87 완료나 운영 승인은 아닙니다.
 
 후속 #92의 exact `9497d1b`에서 **typecheck·lint·build·276TC와 자식 종료/임시 자원 정리**를 무료 Linux 격리 CI로 검증했습니다. 수정 전29TC 중19FAIL을 재현한 뒤 같은29개와 기존복원25개도 별도 통과했습니다. [백업 완전성 RED/GREEN 보고서](docs/test-reports/2026-11-05-issue92-backup-completeness.md)를 확인하세요. 과거 후보의 [247TC](docs/test-reports/2026-11-05-preprod-candidate-offline.md)·[native99](docs/test-reports/2026-11-05-candidate99-native-regression.md)는 다른 exact 증거이며 중복 합산하지 않습니다.
 
-**운영 NO-GO**는 유지합니다. #93 백업 경로와 #94 정책의 실제 백업/복원 검증, #66 등 잔여 보안 범위, 브라우저·실DB P0, 최신 독립 백업과 exact fallback 호환이 남습니다. 이번에는 main merge·운영/Staging 배포·SQL·기존 DB/사진·유료 설정을 변경하지 않았습니다. 실제 긴급 롤백 가능을 아직 확정하지 않으며 남은 게이트는 [TODO](TODO.md)를 따릅니다.
+**운영 NO-GO**는 유지합니다. #93 writer의 파일 기반 범위는 완료했지만 #94 보관 정책까지 포함한 실제 백업/복원, #66 등 잔여 보안 범위, 브라우저·실DB P0, 최신 독립 백업과 exact fallback 호환이 남습니다. 이번에는 main merge·운영/Staging 배포·SQL·기존 DB/사진·유료 설정을 변경하지 않았습니다. 실제 긴급 롤백 가능을 아직 확정하지 않으며 남은 게이트는 [TODO](TODO.md)를 따릅니다.
 
 ## 현재 구현된 프로토타입
 
