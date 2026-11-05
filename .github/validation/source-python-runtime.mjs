@@ -123,6 +123,11 @@ try {
       for (const name of names) {
         assert.ok(name && name !== "." && name !== ".." && !/[\x00-\x1f\x7f\\]/.test(name));
         if (SKIP.has(name) || name.endsWith(".pyc") || name.startsWith("_test")) continue;
+        // This -I/-S runtime does not build Python extensions or import site
+        // customization. Do not copy build metadata or host customization.
+        if (name.startsWith(`config-3.${minor}-`)
+          || /^_sysconfigdata.*\.py$/.test(name) || /^_sysconfig_vars.*\.json$/.test(name)
+          || name === "sitecustomize.py" || name === "usercustomize.py") continue;
         visit(join(canonical, name), `${destination}/${name}`, new Set([...ancestors, canonical]));
       }
     } else {
