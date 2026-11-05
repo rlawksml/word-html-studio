@@ -103,11 +103,13 @@ function linkPackages() {
   // Vite's .vite-temp may be created here, while packages stay readonly.
   assert.ok(lstatSync(target).isDirectory() && !lstatSync(target).isSymbolicLink());
 }
-function verifyTap(bytes, observe) {
+function verifySpec(bytes, observe) {
   const text = bytes.toString("utf8");
   const counters = {};
   for (const name of ["tests", "pass", "fail", "cancelled", "skipped", "todo"]) {
-    const matches = [...text.matchAll(new RegExp(`^# ${name} (\\d+)$`, "gm"))];
+    // Node's built-in spec reporter keeps the same six root counters while
+    // avoiding TAP's per-test YAML timing blocks. No TC/title/cap is removed.
+    const matches = [...text.matchAll(new RegExp(`^ℹ ${name} (\\d+)$`, "gm"))];
     assert.equal(matches.length, 1);
     counters[name] = Number(matches[0][1]);
     assert.ok(Number.isSafeInteger(counters[name]) && counters[name] >= 0 && counters[name] <= 100000);
@@ -116,7 +118,7 @@ function verifyTap(bytes, observe) {
   assert.equal(counters.tests, EXPECTED_TESTS);
   assert.equal(counters.pass, EXPECTED_TESTS);
   for (const name of ["fail", "cancelled", "skipped", "todo"]) assert.equal(counters[name], 0);
-  assert.ok(!/^not ok(?:\s|$)/m.test(text) && !/^Bail out!/mi.test(text));
+  assert.ok(!/^✖ /m.test(text));
   return counters;
 }
 function summarizeRemainingProcesses() {
@@ -156,7 +158,7 @@ async function runStages() {
     ["typecheck", ["/toolchain/node_modules/typescript/bin/tsc", "--noEmit", "--incremental", "false"]],
     ["lint", ["/toolchain/node_modules/eslint/bin/eslint.js", ".", "--ignore-pattern", "dist", "--ignore-pattern", ".next"]],
     ["build", ["/toolchain/node_modules/vinext/dist/cli.js", "build"]],
-    ["unit", ["--test", "--test-reporter=tap", "--test-concurrency=1", ...TESTS]],
+    ["unit", ["--test", "--test-reporter=spec", "--test-concurrency=1", ...TESTS]],
   ];
   for (const [stage, args] of stages) {
     phase = ({ typecheck: "TYPECHECK", lint: "LINT", build: "BUILD", unit: "UNIT" })[stage];
@@ -169,7 +171,8 @@ async function runStages() {
     if (stage === "typecheck" && result.code !== 0) summary.typeDiagnostics = typecheckDiagnostics(result.stdout);
     summaries.push(summary);
     if (result.code !== 0 || result.signal || result.error || result.limited) throw fixedError("OFFLINE_STAGE_FAILED_OR_LIMITED");
-    if (stage === "unit") summary.tap = verifyTap(result.stdout, (counters) => { summary.tap = counters; });
+    // `tap` is the existing protocol field name, not the output formatter.
+    if (stage === "unit") summary.tap = verifySpec(result.stdout, (counters) => { summary.tap = counters; });
     phase = "POST_STAGE";
     await quiescent();
     preflight("app"); // also rejects actual cgroup OOM, not just exit codes

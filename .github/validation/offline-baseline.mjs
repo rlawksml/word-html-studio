@@ -31,7 +31,7 @@ export const TESTS = Object.freeze([
   "tests/digest-response-observer.test.mjs",
 ]);
 // Static top-level test declarations in the exact 27 files above, not a claim
-// that these tests have run. Any TAP mismatch, skip/cancellation/todo fails.
+// that these tests have run. Any counter mismatch, skip/cancellation/todo fails.
 export const EXPECTED_TESTS = 277;
 
 export const BASE_ENV = Object.freeze({
@@ -46,6 +46,7 @@ export const PREP_ENV = Object.freeze({
 });
 export const APP_ENV = Object.freeze({
   ...BASE_ENV, CI: "1", NEXT_TELEMETRY_DISABLED: "1",
+  NO_COLOR: "1",
   WRANGLER_SEND_METRICS: "false", WRANGLER_LOG_PATH: "/scratch/wrangler.log",
   XDG_CONFIG_HOME: "/scratch/config", XDG_DATA_HOME: "/scratch/data",
 });
