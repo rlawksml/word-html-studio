@@ -70,7 +70,11 @@ export class OwnedDocker {
     assert.equal(value.Config.Labels?.[LABEL], this.nonce);
     assert.equal(value.Config.User, "65534:65534");
     assert.deepEqual(value.Config.Entrypoint, ["/usr/bin/env"]);
-    assert.ok(!value.Config.Volumes && (!value.Config.Env || value.Config.Env.length === 0));
+    assert.ok(!value.Config.Volumes);
+    // Observed Docker build injects exactly its fixed default PATH. Accept no
+    // other image env. Entrypoint env -i still erases this before PID1/exec;
+    // each launcher separately enforces the exact effective allowlist.
+    assert.ok(imageFlags.envAbsent || imageFlags.dockerDefaultPath);
     return output;
   }
   async absentContainer(selector) {
