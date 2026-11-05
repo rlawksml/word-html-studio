@@ -4,7 +4,7 @@ import { lstatSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { LOCK_SHA256, PACKAGE_SHA256, PREP_ENV } from "./offline-baseline.mjs";
 import { bounded, sha256 } from "./offline-host-support.mjs";
 import { emit, jsonFile, noOtherProcesses, preflight, summarize, validNonce } from "./offline-sandbox-common.mjs";
-import { nextManifest, parseMetadata, validateCandidate } from "./metadata-policy.mjs";
+import { toolchainManifest, parseMetadata, validateCandidate } from "./metadata-policy.mjs";
 import { readManifestFile } from "./metadata-packet.mjs";
 
 const statePath = "/scratch/metadata-prepared.json";
@@ -37,7 +37,7 @@ async function main() {
   const originalPackage = readManifestFile("/input", "package"), originalLock = readManifestFile("/input", "lock");
   assert.equal(sha256(originalPackage), PACKAGE_SHA256);
   assert.equal(sha256(originalLock), LOCK_SHA256);
-  const manifest = nextManifest(parseMetadata(originalPackage, "package"));
+  const manifest = toolchainManifest(parseMetadata(originalPackage, "package"));
   writeFileSync("/toolchain/package.json", `${JSON.stringify(manifest, null, 2)}\n`, { flag: "wx", mode: 0o600 });
   writeFileSync("/toolchain/package-lock.json", originalLock, { flag: "wx", mode: 0o600 });
   const result = await bounded("/usr/bin/node", ["/usr/lib/npm/bin/npm-cli.js", "install", "--package-lock-only",

@@ -1,9 +1,15 @@
-// Data-only contract for a narrowly scoped Next metadata candidate. This is
-// separate from (and does not weaken) the fixed offline276 baseline validator.
+// Data-only contract for exactly five fixed toolchain version changes. This
+// does not approve transitive changes or weaken the offline app validator.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 
-export const TARGET_VERSION = "16.4.5";
+const TOOLCHAIN_UPDATES = Object.freeze({
+  vinext: Object.freeze(["0.0.50", "1.2.0"]),
+  "@vitejs/plugin-rsc": Object.freeze(["0.5.26", "0.5.37"]),
+  "@cloudflare/vite-plugin": Object.freeze(["1.54.5", "1.63.1"]),
+  wrangler: Object.freeze(["4.129.1", "4.149.0"]),
+  "@cloudflare/workers-types": Object.freeze(["5.20260921.1", "5.20261006.1"]),
+});
 export const METADATA_LIMITS = Object.freeze({ package: 65536, lock: 2 * 1024 * 1024 });
 export const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"];
@@ -86,28 +92,28 @@ function validateGraph(manifest, lock) {
   }
   assert.deepEqual([...seen].sort(), Object.keys(BUNDLED_VERSIONS).sort());
 }
-export function nextManifest(original) {
+export function toolchainManifest(original) {
   assert.ok(record(original) && record(original.dependencies) && record(original.devDependencies));
-  assert.equal(original.dependencies.next, "16.3.4");
-  assert.equal(original.devDependencies["eslint-config-next"], "16.3.4");
   const candidate = structuredClone(original);
-  candidate.dependencies.next = TARGET_VERSION;
-  candidate.devDependencies["eslint-config-next"] = TARGET_VERSION;
+  for (const [name, [from, to]] of Object.entries(TOOLCHAIN_UPDATES)) {
+    assert.equal(original.devDependencies[name], from);
+    candidate.devDependencies[name] = to;
+  }
   return candidate;
 }
 export function validateCandidate(originalPackageBytes, originalLockBytes, packageBytes, lockBytes) {
   const original = parseMetadata(originalPackageBytes, "package"), originalLock = parseMetadata(originalLockBytes, "lock");
   const manifest = parseMetadata(packageBytes, "package"), lock = parseMetadata(lockBytes, "lock");
   assert.ok(packageBytes.length + lockBytes.length <= METADATA_LIMITS.package + METADATA_LIMITS.lock);
-  assert.deepEqual(manifest, nextManifest(original));
+  assert.deepEqual(manifest, toolchainManifest(original));
   assert.deepEqual({ ...lock, packages: null }, { ...originalLock, packages: null });
   const root = structuredClone(originalLock.packages[""]);
-  root.dependencies.next = TARGET_VERSION;
-  root.devDependencies["eslint-config-next"] = TARGET_VERSION;
+  for (const [name, [, to]] of Object.entries(TOOLCHAIN_UPDATES)) root.devDependencies[name] = to;
   assert.deepEqual(lock.packages[""], root);
   validateGraph(manifest, lock);
-  assert.equal(lock.packages["node_modules/next"]?.version, TARGET_VERSION);
-  assert.equal(lock.packages["node_modules/eslint-config-next"]?.version, TARGET_VERSION);
+  for (const [name, [, to]] of Object.entries(TOOLCHAIN_UPDATES)) {
+    assert.equal(lock.packages[`node_modules/${name}`]?.version, to);
+  }
   const keys = new Set([...Object.keys(originalLock.packages), ...Object.keys(lock.packages)]);
   const graph = { added: 0, removed: 0, changed: 0, unchanged: 0 };
   for (const key of keys) {

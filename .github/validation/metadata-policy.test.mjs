@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, linkSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { nextManifest, parseMetadata, sha256, validateCandidate } from "./metadata-policy.mjs";
+import { toolchainManifest, parseMetadata, sha256, validateCandidate } from "./metadata-policy.mjs";
 import { decodePacket, encodePacket, EXPORT_PACKET_LIMIT, kindForAction } from "./metadata-packet.mjs";
 import { readStableFile } from "./metadata-file-io.mjs";
 import { requireTransferApproval } from "./metadata-approval.mjs";
@@ -12,10 +12,15 @@ import { promotePair, verifyRetained } from "./metadata-retained-check.mjs";
 
 const bytes = (value) => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
 const NONCE = "a".repeat(32), COMMIT = "b".repeat(40);
+const FROM = Object.freeze({ vinext: "0.0.50", "@vitejs/plugin-rsc": "0.5.26", "@cloudflare/vite-plugin": "1.54.5",
+  wrangler: "4.129.1", "@cloudflare/workers-types": "5.20260921.1" });
+const TO = Object.freeze({ vinext: "1.2.0", "@vitejs/plugin-rsc": "0.5.37", "@cloudflare/vite-plugin": "1.63.1",
+  wrangler: "4.149.0", "@cloudflare/workers-types": "5.20261006.1" });
 function synthetic() {
   const manifest = { name: "synthetic-metadata-only", version: "1.1.0-rc.1", private: true,
     engines: { node: ">=22.13.0" }, scripts: { test: "never evaluated" },
-    dependencies: { next: "16.3.4", react: "19.2.8" }, devDependencies: { "eslint-config-next": "16.3.4" } };
+    dependencies: { next: "16.4.5", react: "19.2.9", "react-dom": "19.2.9" },
+    devDependencies: { ...FROM, "eslint-config-next": "16.4.5", "react-server-dom-webpack": "19.2.9", vite: "8.2.2" } };
   const pkg = (name, version) => ({ version, resolved: `https://registry.npmjs.org/${name}/-/${name.split("/").at(-1)}-${version}.tgz`,
     integrity: `sha512-${Buffer.alloc(64).toString("base64")}` });
   const bundled = { "@emnapi/core": "1.8.1", "@emnapi/runtime": "1.8.1", "@emnapi/wasi-threads": "1.1.0",
@@ -24,15 +29,16 @@ function synthetic() {
   const lock = { name: manifest.name, version: manifest.version, lockfileVersion: 3, requires: true,
     packages: { "": { name: manifest.name, version: manifest.version, dependencies: { ...manifest.dependencies },
       devDependencies: { ...manifest.devDependencies }, engines: { ...manifest.engines } },
-    "node_modules/next": pkg("next", "16.3.4"), "node_modules/react": pkg("react", "19.2.8"),
-    "node_modules/eslint-config-next": pkg("eslint-config-next", "16.3.4"),
     [parent]: { ...pkg("@tailwindcss/oxide-wasm32-wasi", "4.2.1"), dependencies: bundled, bundleDependencies: Object.keys(bundled) } } };
+  for (const [name, version] of Object.entries({ ...manifest.dependencies, ...manifest.devDependencies })) {
+    lock.packages[`node_modules/${name}`] = pkg(name, version);
+  }
   for (const [name, version] of Object.entries(bundled)) lock.packages[`${parent}/node_modules/${name}`] = { version, inBundle: true };
-  const candidatePackage = nextManifest(manifest), candidateLock = structuredClone(lock);
-  candidateLock.packages[""].dependencies.next = "16.4.5";
-  candidateLock.packages[""].devDependencies["eslint-config-next"] = "16.4.5";
-  candidateLock.packages["node_modules/next"] = pkg("next", "16.4.5");
-  candidateLock.packages["node_modules/eslint-config-next"] = pkg("eslint-config-next", "16.4.5");
+  const candidatePackage = toolchainManifest(manifest), candidateLock = structuredClone(lock);
+  for (const [name, version] of Object.entries(TO)) {
+    candidateLock.packages[""].devDependencies[name] = version;
+    candidateLock.packages[`node_modules/${name}`] = pkg(name, version);
+  }
   return { manifest, lock, candidatePackage, candidateLock };
 }
 function validate(value) { return validateCandidate(bytes(value.manifest), bytes(value.lock), bytes(value.candidatePackage), bytes(value.candidateLock)); }
@@ -47,28 +53,45 @@ function withScratch(run) {
 }
 const evidence = () => ({ cleaned: true, commit: COMMIT, nonce: NONCE });
 
-test("META-01 candidate changes only the exact two direct version fields", () => {
+test("META-01 candidate changes only the exact five toolchain version fields", () => {
   const value = synthetic(), before = JSON.stringify(value.manifest);
-  assert.equal(value.candidatePackage.dependencies.next, "16.4.5");
-  assert.equal(value.candidatePackage.devDependencies["eslint-config-next"], "16.4.5");
+  assert.deepEqual(value.candidatePackage, { ...value.manifest, devDependencies: { ...value.manifest.devDependencies, ...TO } });
   assert.equal(JSON.stringify(value.manifest), before);
-  assert.throws(() => nextManifest(value.candidatePackage));
+  assert.throws(() => toolchainManifest(value.candidatePackage));
+  for (const name of Object.keys(FROM)) {
+    for (const wrong of [undefined, "0.0.0"]) {
+      const original = structuredClone(value.manifest);
+      if (wrong === undefined) delete original.devDependencies[name];
+      else original.devDependencies[name] = wrong;
+      assert.throws(() => toolchainManifest(original));
+    }
+    const partial = synthetic(); partial.candidatePackage.devDependencies[name] = FROM[name];
+    assert.throws(() => validate(partial));
+  }
 });
 test("META-02 a complete synthetic graph is accepted as shape, not actual registry trust", () => {
   const value = synthetic(), before = JSON.stringify(value);
   const summary = validate(value);
   assert.equal(summary.packageSha256, sha256(bytes(value.candidatePackage)));
   assert.equal(summary.lockSha256, sha256(bytes(value.candidateLock)));
-  assert.equal(summary.graph.changed, 3);
+  assert.equal(summary.graph.changed, 6); // one root plus the five synthetic records
   assert.equal(JSON.stringify(value), before);
+  for (const name of Object.keys(TO)) {
+    const wrong = synthetic(); wrong.candidateLock.packages[`node_modules/${name}`].version = FROM[name];
+    assert.throws(() => validate(wrong));
+  }
 });
 test("META-03 scripts changes cannot be smuggled into a version update", () => {
   const value = synthetic(); value.candidatePackage.scripts.test = "different";
   assert.throws(() => validate(value));
 });
 test("META-04 other direct dependencies remain fixed", () => {
-  const value = synthetic(); value.candidatePackage.dependencies.react = "19.3.1";
-  assert.throws(() => validate(value));
+  for (const [field, name, version] of [["dependencies", "react", "19.3.1"], ["dependencies", "next", "16.4.6"],
+    ["dependencies", "react-dom", "19.2.8"], ["devDependencies", "react-server-dom-webpack", "19.2.8"],
+    ["devDependencies", "eslint-config-next", "16.4.6"], ["devDependencies", "vite", "8.2.3"]]) {
+    const value = synthetic(); value.candidatePackage[field][name] = version;
+    assert.throws(() => validate(value));
+  }
 });
 test("META-05 private engines peer optional and overrides cannot change", () => {
   for (const patch of [{ private: false }, { engines: { node: "*" } }, { workspaces: [] }, { overrides: {} },
@@ -76,7 +99,7 @@ test("META-05 private engines peer optional and overrides cannot change", () => 
     const value = synthetic(); Object.assign(value.candidatePackage, patch); assert.throws(() => validate(value));
   }
 });
-test("META-06 lock root metadata outside the two declarations stays fixed", () => {
+test("META-06 lock root metadata outside the five declarations stays fixed", () => {
   const value = synthetic(); value.candidateLock.packages[""].engines.node = "*";
   assert.throws(() => validate(value));
 });
