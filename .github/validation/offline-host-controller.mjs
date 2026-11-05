@@ -234,6 +234,15 @@ async function main() {
     for (const summary of result.stages) {
       publishSummary(summary);
       publishTypeDiagnostics(summary, source.sourcePaths);
+      if (summary.stage === "unit" && summary.unitDiagnostics !== undefined) {
+        assert.ok(Array.isArray(summary.unitDiagnostics) && summary.unitDiagnostics.length <= 20);
+        for (const entry of summary.unitDiagnostics) {
+          assert.deepEqual(Object.keys(entry).sort(), ["column", "file", "line"]);
+          assert.ok(source.sourcePaths.includes(`apps/web/${entry.file}`) && /^tests\/[A-Za-z0-9._-]+\.mjs$/.test(entry.file));
+          for (const number of [entry.line, entry.column]) assert.ok(Number.isInteger(number) && number > 0 && number <= 9999999);
+        }
+        console.log(`OFFLINE_UNIT_FAILURE_LOCATIONS ${JSON.stringify(summary.unitDiagnostics)}`);
+      }
       if (summary.stage === "unit" && summary.tap !== undefined) {
         const keys = ["tests", "pass", "fail", "cancelled", "skipped", "todo"];
         assert.deepEqual(Object.keys(summary.tap).sort(), [...keys].sort());
