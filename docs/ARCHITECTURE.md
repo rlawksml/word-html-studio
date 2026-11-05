@@ -51,6 +51,8 @@ Atomic Design은 파일 수를 늘리는 목표가 아닙니다. 독립적으로
 
 `lib/workspace-client.ts`는 순간적인 5xx·429와 네트워크 단절을 최대 3회 짧게 재시도합니다. 첫 저장의 응답만 유실되어 재시도가 `409`가 된 경우 서버의 최신 내용이 요청 내용과 같은지 비교해 최신 버전을 이어받습니다. 사진 PUT은 45초 전송 제한 안에서 기존 서명으로 먼저 재시도하고, 연결이 끊기거나 서명이 무효하면 controller가 새 경로와 서명을 발급받아 다시 전송합니다. 업로드 중에는 다른 저장·이동을 막아 Storage 파일과 DB의 사진 메타데이터가 분리되지 않게 합니다. HEIC/HEIF 변환기는 일반 방문자 번들에 넣지 않고 해당 사진을 선택했을 때만 불러옵니다.
 
+`lib/image-retention-policy.mjs`는 #88의 보수적 물리 삭제 보류 경계입니다. `deleteStoredImages`는 네트워크를 호출하지 않고 명시적 보존 결과만 반환합니다. 서버 DELETE도 기존 입력자 인증·경로·500개 제한 검증 후 같은 보존 결과를 200으로 반환하며 DB/Storage에 접근하지 않습니다. controller는 사진 제거 시 소식의 참조만 변경하고 삭제 queue를 만들지 않습니다. 업로드 연결은 직렬 저장 transform 안에서 책방·월·소식의 존재를 다시 확인합니다. 업로드 실패나 저장 응답 유실 때 파일을 보존하지만 존재·DB 연결 성공까지 보증하지는 않습니다. 단순 GET 참조 검사 후 DELETE는 TOCTOU를 없애지 못하므로 넣지 않았으며, 원자적 참조 안전 GC는 별도 설계·승인 대상입니다.
+
 `lib/supabase-server.ts`는 Cloudflare Worker와 Supabase의 순간적인 시계 오차에서만 발생하는 `PGRST303 / JWT issued at future`를 구분합니다. 이 오류는 Database·Storage 인증 전에 요청이 거부된 경우이므로 서버에서 최대 3회 재시도합니다. 일반 5xx나 쓰기 타임아웃은 중복 실행 여부가 불명확하므로 서버 재시도 대상에 넣지 않습니다.
 
 `hooks/use-editing-presence.ts`는 입력자가 같은 책방·월을 열거나 HTML 편집자가 같은 개별 소식·통합본을 열었을 때 1분마다 짧은 편집 임대를 갱신합니다. 입력자는 편집 화면 진입 전에 임대를 확보하며, 다른 사용자가 보유 중이면 목록에 머뭅니다. 임대는 3분 뒤 자동 만료되고 DB에는 원본 세션 ID가 아닌 해시만 저장됩니다. 실제 저장에도 기존 `updated_at` 충돌 검사를 함께 적용합니다.
@@ -82,7 +84,7 @@ Next.js API
   → app/api/workspace/route      # Database 전체 읽기 전용
   → app/api/bookstores/route     # 책방 하나 저장 + 낙관적 충돌 검사
   → app/api/submissions/route    # 월별 소식 하나 저장 + 역할별 필드 제한
-  → app/api/images/route         # Storage 업로드·삭제·다운로드 경계
+  → app/api/images/route         # Storage 업로드·다운로드, 기존 DELETE의 보존 응답 경계
   → app/api/presence/route       # 책방·월·통합본 편집 임대 갱신과 해제
   → app/api/improvements/route   # 공개 버그·개선 접수·목록, HTML 편집자 상태 변경
   → app/api/version/route        # 제품·DB 스키마 버전 읽기 전용 확인

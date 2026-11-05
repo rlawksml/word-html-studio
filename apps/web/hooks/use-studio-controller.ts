@@ -20,7 +20,6 @@ import {
 } from "@/lib/workspace-formatters";
 import {
   createImagePreview,
-  deleteStoredImages,
   heartbeatEditingPresence,
   loadWorkspace,
   MAX_ORIGINAL_IMAGE_BYTES,
@@ -40,6 +39,7 @@ import { findInvalidSubmissionUrl, normalizeSubmissionUrls } from "@/lib/submiss
 import type { Bookstore, EditingPresenceTarget, NewsImage, NewsItem, Submission, Workspace } from "@/lib/workspace-types";
 import { newsOccursOnDate, newsVisibleInMonth } from "@/lib/news-schedule";
 import { createPendingActionLock } from "@/lib/pending-action-lock.mjs";
+import { attachUploadedImages } from "@/lib/image-retention-policy.mjs";
 
 export type PendingAction =
   | "login-authenticating"
@@ -92,7 +92,6 @@ export function useStudioController(initialMonth: string) {
   const pendingActionRef = useRef<PendingAction>(null);
   const [pendingActionLock] = useState(() => createPendingActionLock<Exclude<PendingAction, null>>(() => undefined));
   const openingBookstoreRef = useRef<number | null>(null);
-  const pendingImageDeletesRef = useRef(new Map<number, NewsImage[]>());
   const imageUploadInProgressRef = useRef(false);
   const textCompositionActiveRef = useRef(false);
   // 저장 버튼이나 뒤로가기가 같은 프레임에서 실행되어도 가장 최근 입력값을 즉시 읽을 수 있는 setter입니다.
@@ -143,19 +142,9 @@ export function useStudioController(initialMonth: string) {
   }, [setSubmissions]);
   const { initialLoadState, hydrated, retryInitialLoad } = useWorkspaceInitialization(applyInitialWorkspace);
 
-  const handleSubmissionSaved = useCallback(async (submission: Submission) => {
+  const handleSubmissionSaved = useCallback((submission: Submission) => {
     // 서버가 돌려준 updatedAt으로 복구본도 갱신해 자동 저장 직후 새로고침되는 짧은 틈을 보호합니다.
     if (role === "input") rememberSubmissionDraft(submission);
-    const pending = pendingImageDeletesRef.current.get(submission.id);
-    if (!pending?.length) return;
-    try {
-      await deleteStoredImages(pending);
-      pendingImageDeletesRef.current.delete(submission.id);
-    } catch (error) {
-      // DB에서 참조를 먼저 제거했으므로 실패해도 깨진 이미지는 생기지 않고 Storage 정리만 다시 시도하면 됩니다.
-      const message = error instanceof Error ? error.message : "사용하지 않는 사진 파일을 정리하지 못했습니다.";
-      setStorageError(message);
-    }
   }, [role]);
   const {
     replaceWorkspace,
@@ -475,7 +464,6 @@ export function useStudioController(initialMonth: string) {
       if (snapshot) {
         await discardSubmissionChanges(snapshot.id);
         forgetSubmissionDraft(snapshot);
-        pendingImageDeletesRef.current.delete(snapshot.id);
       }
       setStorageError("");
       if (target === "visitor") returnToVisitor();
@@ -539,19 +527,13 @@ export function useStudioController(initialMonth: string) {
     }
   };
 
-  // 모든 소식 수정은 이 함수를 통과합니다. 완료본을 수정하면 draft로 돌리고 제거된 사진도 정리합니다.
+  // 소식에서 사진 참조만 제거합니다. 이전 저장의 응답은 최신 DB 참조 제거의 증거가 아니므로 파일은 보관합니다.
   const updateCurrent = (change: (submission: Submission) => Submission) => {
     if (!currentSubmission) return;
     if (pendingActionRef.current === "complete-submission") return;
     setSubmissions((current) => current.map((item) => {
       if (item.id !== currentSubmission.id) return item;
       const changed = change(item);
-      const retainedImageIds = new Set(changed.news.flatMap((news) => news.images.map((image) => image.id)));
-      const removed = item.news.flatMap((news) => news.images).filter((image) => !retainedImageIds.has(image.id));
-      if (removed.length) {
-        const pending = pendingImageDeletesRef.current.get(item.id) || [];
-        pendingImageDeletesRef.current.set(item.id, [...pending, ...removed.filter((image) => !pending.some((entry) => entry.id === image.id))]);
-      }
       const next = { ...changed, status: item.status === "completed" ? "draft" as const : item.status };
       rememberSubmissionDraft(next);
       return next;
@@ -584,7 +566,6 @@ export function useStudioController(initialMonth: string) {
     imageUploadInProgressRef.current = true;
     setImageUploadNewsId(newsId);
     const uploaded: NewsImage[] = [];
-    const reserved: NewsImage[] = [];
     try {
       setSaveState(`사진 ${images.length}장 업로드 중...`);
       for (let index = 0; index < images.length; index += 1) {
@@ -595,7 +576,6 @@ export function useStudioController(initialMonth: string) {
         let uploadedImage: NewsImage | null = null;
         for (let attempt = 1; attempt <= 3; attempt += 1) {
           const reservation = await reserveImageUpload(file, preview, month, selectedBookstoreId, newsId);
-          reserved.push(reservation.image);
           try {
             await uploadFileToSignedUrl(reservation.uploads.originalUrl, file, "300");
             await uploadFileToSignedUrl(reservation.uploads.previewUrl, preview, "300");
@@ -613,29 +593,18 @@ export function useStudioController(initialMonth: string) {
       }
       const target = submissionsRef.current.find((submission) => submission.bookstoreId === selectedBookstoreId && submission.month === month);
       if (!target) throw new Error("사진을 연결할 소식을 찾지 못했습니다.");
-      await saveSubmissionChange(target.id, (submission) => ({ ...submission, news: submission.news.map((news) => news.id === newsId ? { ...news, images: [...news.images, ...uploaded] } : news) }));
-      const uploadedIds = new Set(uploaded.map((image) => image.id));
-      const abandoned = reserved.filter((image) => !uploadedIds.has(image.id));
-      if (abandoned.length) {
-        try {
-          await deleteStoredImages(abandoned);
-        } catch {
-          // DB에는 연결되지 않은 임시 경로이므로 사용자 작업은 성공으로 유지하고 다음 정리 대상으로 남깁니다.
-        }
-      }
+      await saveSubmissionChange(target.id, (submission) => attachUploadedImages(submission, {
+        submissionId: target.id, bookstoreId: selectedBookstoreId, month, newsId,
+      }, uploaded));
       setStorageError("");
       setSaveState("사진 업로드와 내용 저장 완료");
       notify(`사진 ${uploaded.length}장을 저장했습니다.`);
     } catch (error) {
-      try {
-        await deleteStoredImages(reserved);
-      } catch (cleanupError) {
-        const cleanupMessage = cleanupError instanceof Error ? cleanupError.message : "업로드에 실패한 사진을 정리하지 못했습니다.";
-        setStorageError(cleanupMessage);
-      }
+      // 서버 저장이 성공한 뒤 응답만 유실될 수 있으므로 실패·부분 업로드 경로도 삭제하지 않습니다.
+      // 보존 안내는 원래 저장 오류와 구분하며 정리 실패로 오류 원인을 덮어쓰지 않습니다.
       const message = error instanceof Error ? error.message : "사진을 저장하지 못했습니다.";
       setStorageError(message);
-      setSaveState("사진 업로드 실패");
+      setSaveState("사진 저장 확인 필요 · 전송된 파일은 보관됩니다");
       notify(message);
     } finally {
       imageUploadInProgressRef.current = false;

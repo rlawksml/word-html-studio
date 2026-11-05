@@ -282,8 +282,9 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
       assert.ok(upload.ok, `signed upload failed: ${upload.status}`);
     }
     const remove = await appFetch("/api/images", { method: "DELETE", headers: workerHeaders, body: JSON.stringify({ images: [uploadedImage] }) });
-    await assertStatus(remove, 204);
-    uploadedImage = null;
+    await assertStatus(remove, 200);
+    assert.deepEqual(await remove.json(), { retained: true, deleted: false, code: "IMAGE_CLEANUP_DEFERRED" });
+    // 보존 응답은 물리 삭제 완료가 아닙니다. 아래 기존 exact-fixture 정리 대상은 그대로 둡니다.
   } finally {
     const storageCleanup = uploadedImage ? [
       {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, ORIGINAL_IMAGE_BUCKET, PREVIEW_IMAGE_BUCKET, retryFutureJwt, SupabaseConfigurationError } from "@/lib/supabase-server";
 import { readWorkerSession } from "@/lib/workspace-session";
+import { respondToDeferredImageCleanup } from "@/lib/image-retention-policy.mjs";
 import type { NewsImage } from "@/lib/workspace-types";
 
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
@@ -94,37 +95,11 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    // 소식에서 사진을 제거하면 원본과 미리보기 파일을 함께 정리합니다.
-    if (await readWorkerSession(request) !== "input") return NextResponse.json({ error: "사진 삭제 권한을 다시 확인해 주세요." }, { status: 403 });
-    const body = await request.json() as { images?: Array<{ originalPath?: unknown; previewPath?: unknown }> };
-    if (!Array.isArray(body.images) || body.images.length === 0 || body.images.length > 500) return NextResponse.json({ error: "삭제할 사진 정보가 올바르지 않습니다." }, { status: 400 });
-    const originals: string[] = [];
-    const previews: string[] = [];
-    for (const image of body.images) {
-      if (image.originalPath) {
-        if (!validStoragePath(image.originalPath, "originals/")) return NextResponse.json({ error: "원본 사진 경로가 올바르지 않습니다." }, { status: 400 });
-        originals.push(image.originalPath);
-      }
-      if (image.previewPath) {
-        if (!validStoragePath(image.previewPath, "previews/")) return NextResponse.json({ error: "미리보기 경로가 올바르지 않습니다." }, { status: 400 });
-        previews.push(image.previewPath);
-      }
-    }
-    const [originalResult, previewResult] = await Promise.all([
-      originals.length
-        ? retryFutureJwt(() => getSupabaseAdmin().storage.from(ORIGINAL_IMAGE_BUCKET).remove(originals))
-        : Promise.resolve({ error: null }),
-      previews.length
-        ? retryFutureJwt(() => getSupabaseAdmin().storage.from(PREVIEW_IMAGE_BUCKET).remove(previews))
-        : Promise.resolve({ error: null }),
-    ]);
-    if (originalResult.error) throw originalResult.error;
-    if (previewResult.error) throw previewResult.error;
-    return new NextResponse(null, { status: 204 });
+    // 기존 클라이언트의 정리 요청에도 DB/Storage 호출 없이 보존 여부를 명확히 응답합니다.
+    return await respondToDeferredImageCleanup(request, readWorkerSession, (body, status) => NextResponse.json(body, { status }));
   } catch (error) {
-    if (error instanceof SupabaseConfigurationError) return configurationResponse();
-    console.error("image delete failed", error);
-    return NextResponse.json({ error: "사진을 삭제하지 못했습니다." }, { status: 500 });
+    console.error("image cleanup request failed", error);
+    return NextResponse.json({ error: "사진 정리 요청을 확인하지 못했습니다. 파일은 삭제하지 않았습니다." }, { status: 500 });
   }
 }
 
