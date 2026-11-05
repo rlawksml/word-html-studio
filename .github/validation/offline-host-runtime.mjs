@@ -45,7 +45,10 @@ export async function copyRuntime(rootfs, node, npmCli, trusted, role, step) {
   const prefix = env.startsWith("/usr/") ? "USR" : "OTHER";
   console.log(`OFFLINE_TRUSTED_ENV bytes=${envInfo.size} prefix=${prefix} regular=${envInfo.isFile() ? 1 : 0}`);
   assert.ok(env.startsWith("/usr/"));
-  copy(env, join(rootfs, "usr/bin/env"), 1024 * 1024, 0o555);
+  // The observed runner-owned env is 11,807,104 bytes, exceeding the old cap.
+  // Bound this trusted tool at 16MiB; the aggregate 440MiB runtime budget and
+  // all container memory/disk/process/network limits remain unchanged.
+  copy(env, join(rootfs, "usr/bin/env"), 16 * 1024 * 1024, 0o555);
   let runtimeBytes = 0, runtimeFiles = 0;
   const copyNpm = (source, destination, ancestors = new Set()) => {
     const canonical = realpathSync(source);
