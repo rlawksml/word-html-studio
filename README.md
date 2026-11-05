@@ -4,7 +4,13 @@
 
 제품 방향은 **Word 변환기**가 아니라 **소식 입력·공개·HTML 발행 서비스**입니다. Word를 작성할 줄 아는 사람이 HTML/CSS를 몰라도 한 화면에서 한 책방씩 작성할 수 있도록 설계했습니다.
 
-## 2026-11-05 운영 반영 전 상태
+## 2026-11-06 운영 반영 전 상태
+
+React/RSC19.2.9 최소 패치 exact7e52fc08에서 **type/lint/build·전체277TC·엄격 정리 PASS**를 확인했습니다. 별도 이전 버전 호환 fallback exact82f79b6도 고정 데이터 보존10TC·정리 PASS입니다. [통합 결과와 남은5묶음](docs/test-reports/2026-11-06-react-rsc-fallback.md)을 보세요. 실제 배포물/DB 검증 완료를 뜻하지 않으며 운영 NO-GO입니다.
+
+사용자가 무료 Staging 최신 후보 배포·#86 SQL1건·새 QA2책방/미사용 월/사진/두 세션 검증을 승인했습니다. 기존 자료는 보존하고 새 성공 QA도 남깁니다. 운영 반영은 별도 승인 전까지 금지하며, 아래11월5일 기록은 이전 단계 이력입니다.
+
+### 2026-11-05 이전 단계
 
 #93의 **새 백업 목적지 writer 경로 방어**를 구현했습니다. 기존 CLI14에서 8FAIL을 재현한 뒤 같은14PASS를 확인했고, 최종 exact `afbbf96`의 protocol12·백업완전성30·복원정책25·앱277 및 type/lint/build·엄격 정리도 각각 PASS입니다. 서로 겹치는 suite는 합산하지 않습니다. [RED/GREEN·최종 회귀 보고서](docs/test-reports/2026-11-05-issue93-backup-writer.md)를 보세요. 이는 Linux 격리 writer 검증이며 실제 DB/사진 백업·복원, Mac, 전체 서비스 배포 검증은 아닙니다.
 
