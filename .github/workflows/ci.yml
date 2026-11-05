@@ -7,15 +7,21 @@ on:
   workflow_dispatch:
     inputs:
       validation_mode:
-        description: No-key isolated rollback policy tests only
+        description: No-key isolated policy tests only, never app install or deployment
         type: choice
-        options: [rollback_preparation]
+        options: [rollback_preparation, source_policy]
         default: rollback_preparation
         required: true
       expected_commit:
         description: Exact reviewed feature commit, never a Production target
         type: string
         required: true
+      source_suite:
+        description: Reviewed source-policy suite, ignored by rollback mode
+        type: choice
+        options: [restore]
+        default: restore
+        required: false
 
 permissions:
   contents: read
@@ -102,14 +108,29 @@ jobs:
         env:
           EXPECTED_SHA: ${{ inputs.expected_commit }}
           VALIDATION_MODE: ${{ inputs.validation_mode }}
+          SOURCE_SUITE: ${{ inputs.source_suite }}
         run: |
           set -euo pipefail
-          if [[ ! "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]] || [[ "$GITHUB_SHA" != "$EXPECTED_SHA" ]] || [[ "$VALIDATION_MODE" != rollback_preparation ]]; then
+          if [[ ! "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]] || [[ "$GITHUB_SHA" != "$EXPECTED_SHA" ]]; then
             echo '::error::ROLLBACK_DISPATCH_BLOCKED_COMMIT_OR_MODE_MISMATCH'
             exit 1
           fi
+          case "$VALIDATION_MODE" in
+            rollback_preparation) ;;
+            source_policy)
+              [[ "$GITHUB_REF" == refs/heads/codex/* && "$SOURCE_SUITE" == restore ]] || { echo '::error::SOURCE_POLICY_DISPATCH_BLOCKED'; exit 1; }
+              ;;
+            *) echo '::error::ISOLATED_MODE_NOT_ALLOWLISTED'; exit 1 ;;
+          esac
 
   isolated-rollback-policy:
     needs: rollback-dispatch-guard
-    if: github.event_name == 'workflow_dispatch' && needs.rollback-dispatch-guard.result == 'success'
+    if: github.event_name == 'workflow_dispatch' && inputs.validation_mode == 'rollback_preparation' && needs.rollback-dispatch-guard.result == 'success'
     uses: ./.github/workflows/rollback-preparation.yml
+
+  isolated-source-policy:
+    needs: rollback-dispatch-guard
+    if: github.event_name == 'workflow_dispatch' && inputs.validation_mode == 'source_policy' && needs.rollback-dispatch-guard.result == 'success'
+    uses: ./.github/workflows/source-policy-validation.yml
+    with:
+      suite: ${{ inputs.source_suite }}
