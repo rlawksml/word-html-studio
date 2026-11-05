@@ -249,6 +249,7 @@ jobs:
             metadata)
               expected_tests=29
               source_files=(
+                apps/web/package.json
                 .github/validation/metadata-policy.test.mjs
                 .github/validation/metadata-policy.mjs
                 .github/validation/metadata-packet.mjs

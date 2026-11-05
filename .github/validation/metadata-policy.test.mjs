@@ -240,4 +240,14 @@ test("META-29 metadata input pins reject synthetic stale or altered originals", 
   const stale = structuredClone(value.lock); stale.packages[TARGET_PATH].version = "1.2.0";
   assert.throws(() => validateCandidate(bytes(value.manifest), bytes(stale), bytes(value.candidatePackage), bytes(value.candidateLock)));
   assert.throws(() => validateOriginalPair(Buffer.from("{}\n"), bytes(value.lock)));
+  // This read-only public fixture passes the first pin so the following
+  // assertions establish that the separate lock-hash gate is also reached.
+  const pinnedPackage = readFileSync("/work/package.json");
+  assert.equal(sha256(pinnedPackage), INPUT_PACKAGE_SHA256);
+  for (const lockBytes of [bytes(value.lock), bytes(stale)]) {
+    assert.notEqual(sha256(lockBytes), INPUT_LOCK_SHA256);
+    assert.throws(() => validateOriginalPair(pinnedPackage, lockBytes), {
+      code: "ERR_ASSERTION", actual: sha256(lockBytes), expected: INPUT_LOCK_SHA256,
+    });
+  }
 });
