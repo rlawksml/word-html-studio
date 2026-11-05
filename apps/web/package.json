@@ -39,8 +39,8 @@
     "heic2any": "^0.0.4",
     "jszip": "^3.10.1",
     "next": "16.4.5",
-    "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react": "19.2.9",
+    "react-dom": "19.2.9"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.54.5",
@@ -54,7 +54,7 @@
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "16.4.5",
-    "react-server-dom-webpack": "19.2.8",
+    "react-server-dom-webpack": "19.2.9",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
     "vinext": "0.0.50",

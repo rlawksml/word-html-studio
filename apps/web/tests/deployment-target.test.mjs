@@ -59,6 +59,25 @@ test("blocks high-severity production dependency advisories in CI", async () => 
 
   assert.equal(packageJson.scripts["audit:production"], "npm audit --omit=dev --audit-level=high");
   assert.match(workflow, /- run: npm run audit:production/);
+  // RSC는 dev로 분류돼 production audit에서 빠질 수 있으므로 세 패키지의
+  // 공식 보안 patch 버전과 lock/SRI를 별도로 고정한다. 앱 악용 재현은 아니다.
+  const lock = JSON.parse(await readFile(new URL("../package-lock.json", import.meta.url), "utf8"));
+  const integrity = {
+    react: "sha512-RuLdAokXv3sRmZa2/N8QH0KmTBIgDKC+buRUikGqow31+mGSGidLCX2o4XFq8OV+xBFWfhM9DVgTq1PPHADH4w==",
+    "react-dom": "sha512-YceU74W21fXEHszKBLj16MY0CmvpFKOs60iVrIyW/cCgOPsZJNaB6GVJEtIUqt6AG6EjzKLui5lPRrxAeS328Q==",
+    "react-server-dom-webpack": "sha512-7vhLc+COcttZsIsZa5qbT4Qn3Flp2fCadhuGRKpwE3ahmbu21hOnPFKwziNHZj8Fqtfcbs7pTJV69QA5GcUpbw==",
+  };
+  for (const [name, expectedIntegrity] of Object.entries(integrity)) {
+    const field = name === "react-server-dom-webpack" ? "devDependencies" : "dependencies";
+    assert.equal(packageJson[field][name], "19.2.9");
+    assert.equal(lock.packages[""][field][name], "19.2.9");
+    const item = lock.packages[`node_modules/${name}`];
+    assert.equal(item.version, "19.2.9");
+    assert.equal(item.resolved, `https://registry.npmjs.org/${name}/-/${name}-19.2.9.tgz`);
+    assert.equal(item.integrity, expectedIntegrity);
+    if (name !== "react") assert.equal(item.peerDependencies.react, "^19.2.9");
+    if (name === "react-server-dom-webpack") assert.equal(item.peerDependencies["react-dom"], "^19.2.9");
+  }
 });
 
 test("pins Cloudflare build tooling beyond the audited vulnerable ranges", async () => {
