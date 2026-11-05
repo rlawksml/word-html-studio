@@ -2,7 +2,13 @@
 
 ## 2026-11-05 현재 릴리스 게이트 (아래 과거 단계 기록보다 우선)
 
-현재 **운영 NO-GO**. [후보247 오프라인 검증](docs/test-reports/2026-11-05-preprod-candidate-offline.md)은 완료했지만 브라우저·실DB·audit·복원/롤백 전체 게이트는 별도입니다. 아래 과거 체크 표시는 당시 범위이며 현재 배포 완료가 아닙니다.
+현재 **운영 NO-GO**. [후속 #92의276TC](docs/test-reports/2026-11-05-issue92-backup-completeness.md)와 [과거 후보247](docs/test-reports/2026-11-05-preprod-candidate-offline.md)은 각각 검증했지만 브라우저·실DB·audit·복원/롤백 전체 게이트는 별도입니다. 아래 과거 체크 표시는 당시 범위이며 현재 배포 완료가 아닙니다.
+
+- [x] #92 별도 분석→수정 전29TC 중19FAIL 재현→최소 수정→같은29/기존복원25/전체276 및 type/lint/build·엄격 정리 PASS, exact9497d1b·독립 검토 (실제 백업/복원 성공 아님)
+- [ ] #93 백업 목적지의 ancestor symlink/TOCTOU 방어와 격리 재현·회귀 (기존 백업을 자동 이동/수정하지 않음)
+- [ ] #94 미참조 사진 보존과 백업 차단 정책 정합화 (참조된 사진 누락은 계속 차단, 삭제로 통과시키지 않음)
+- [ ] #46/#48 정확한 운영 fallback parser/원문·미래 필드 보존 요구와 실제 artifact 호환 검증; 현재 후보의 PASS로 과거 배포를 승인하지 않음
+- [ ] 전체 테스트 출력 요약 개선 검토: 276TC stdout64690bytes, 현재64KiB까지846bytes 여유. 상한 완화/TC 제거 금지
 
 - [x] 원래 dirty36개 보존·분류, source 복구 사본의 hash/bundle 검증 및 로컬 `.git` 비공개 보관 (DB 백업 아님)
 - [x] #47 marker 무쓰기/대상 hash 보존·#88 무삭제 방어·기존 gate/실연결 hardblock 보존
