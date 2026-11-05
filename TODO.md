@@ -18,7 +18,9 @@
 - [x] 승인된 무스크립트·무키 Linux prep→오프라인 검증 경로·독립 리뷰·실제 실행. 기준9485c79의232와 후보fb75c62의247 각각 type/lint/build/TAP·엄격 자식 종료·소유 자원 정리 PASS
 - [x] #91 유효 월 보존/invalid calendar 방어와 순수15TC·같은 후보247 회귀. 실제 UI 완료로 판단하지 않음
 - [x] HTML fixture의 소유 esbuild 실제 close 대기·자동 HTML-LINES-07 한 개 추가. 수동 외부편집기06과 구분
-- [ ] #87 Next 보안 업데이트·새 lock/audit, #66 vinext/React 별도 호환 검증 (기존 lock 설치만 완료, 버전/lock 업데이트와 audit는 아직 미실행)
+- [x] #87 최소 Next/eslint-config-next16.4.5 후보 새 lock 앱276/type/lint/build 및 별도 audit 도구27TC 검증
+- [ ] #87 실제 audit에서 source-map-js1.2.1 high1 발견.1.2.2 최소 lock 변경·graph검토·재audit/회귀 필요 ([보고서](docs/test-reports/2026-11-05-issue87-metadata-audit.md)); 추가2JSON전달 승인대기
+- [ ] #66 vinext/React·개발 Miniflare/sharp 별도 호환·보안 검증 (omit=dev PASS/FAIL로 완료 처리하지 않음)
 - [ ] #91 실제 DOM 부분 월 편집/IME 및 로그인·사진·통합본 브라우저/Network·자원 P0
 - [ ] npm/build 각각 관측 warning2의 분류·필요한 조치 (경고 부재나 안전성으로 일반화하지 않음)
 - [ ] 별도 승인 후 #86 SQL·신규 QA·두 작업자/사진의 실제 Staging P0 검증

@@ -6,6 +6,8 @@
 
 ## 2026-11-05 운영 반영 전 상태
 
+재개 후 exactc69a010의 **audit 정책·실제 FD/프로세스27TC는 PASS**, 같은 공개 lock의 실제 npm audit는 **source-map-js high1로 FAIL(FINDINGS)**입니다. 제어 실패·운영 장애와 구분하며 자동 수정/설치하지 않았습니다. [실제 audit 보고서](docs/test-reports/2026-11-05-issue87-metadata-audit.md)를 확인하세요. 앱276 PASS가 이 보안 게이트 실패를 대체하지 않습니다.
+
 후속 #92의 exact `9497d1b`에서 **typecheck·lint·build·276TC와 자식 종료/임시 자원 정리**를 무료 Linux 격리 CI로 검증했습니다. 수정 전29TC 중19FAIL을 재현한 뒤 같은29개와 기존복원25개도 별도 통과했습니다. [백업 완전성 RED/GREEN 보고서](docs/test-reports/2026-11-05-issue92-backup-completeness.md)를 확인하세요. 과거 후보의 [247TC](docs/test-reports/2026-11-05-preprod-candidate-offline.md)·[native99](docs/test-reports/2026-11-05-candidate99-native-regression.md)는 다른 exact 증거이며 중복 합산하지 않습니다.
 
 **운영 NO-GO**는 유지합니다. #93 백업 경로와 #94 미참조 사진 정책, 보안 업데이트/audit, 브라우저·실DB P0, 최신 독립 백업과 exact fallback 호환은 별도입니다. 이번에는 main merge·운영/Staging 배포·SQL·기존 DB/사진·유료 설정을 변경하지 않았습니다. 실제 긴급 롤백 가능을 아직 확정하지 않으며 남은 게이트는 [TODO](TODO.md)를 따릅니다.

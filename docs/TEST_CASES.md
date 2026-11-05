@@ -4,6 +4,10 @@
 
 ## 문서 정보
 
+### 2026-11-05 #87 실제 audit 후속
+
+exactc69a010의 [보고서](test-reports/2026-11-05-issue87-metadata-audit.md): audit 정책19+실제 FD/프로세스8=27PASS/정리확인. 별도 실제 production audit는 source-map-js1.2.1 high1로 FAIL(FINDINGS)이며 인프라 BLOCKED와 구분한다. 같은19TC RED18PASS1FAIL→GREEN19PASS와27은 합산하지 않는다. 앱276·브라우저/DB·운영 GO 증거와도 구분한다.
+
 ### 2026-11-05 #92 백업 완전성 후속
 
 exact9497d1b의 [RED/GREEN 보고서](test-reports/2026-11-05-issue92-backup-completeness.md): 새 BACKUP-COMPLETE01~29는 수정 전19FAIL/10PASS→수정 후29PASS, 기존복원25PASS, 전체27파일276TC/type/lint/build/엄격 종료·정리 PASS. 세 실행은 중복 합산하지 않는다. #93 경로·#94 미참조 보관 정책·실제 백업/복원·브라우저·audit는 미완료이며 운영 NO-GO다.
