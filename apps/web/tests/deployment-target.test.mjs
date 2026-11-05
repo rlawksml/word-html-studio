@@ -84,7 +84,22 @@ test("pins Cloudflare build tooling beyond the audited vulnerable ranges", async
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
   // 세 도구는 함께 호환되는 버전으로 고정해야 Vite plugin과 Wrangler가 서로 다른 Miniflare를 끌어오지 않습니다.
-  assert.equal(packageJson.devDependencies["@cloudflare/vite-plugin"], "1.54.5");
+  assert.equal(packageJson.devDependencies["@cloudflare/vite-plugin"], "1.63.1");
   assert.equal(packageJson.devDependencies.vite, "8.2.2");
-  assert.equal(packageJson.devDependencies.wrangler, "4.129.1");
+  assert.equal(packageJson.devDependencies.wrangler, "4.149.0");
+  const lock = JSON.parse(await readFile(new URL("../package-lock.json", import.meta.url), "utf8"));
+  const versions = {
+    vinext: "1.2.0", "@vitejs/plugin-rsc": "0.5.37",
+    "@cloudflare/workers-types": "5.20261006.1",
+    miniflare: "5.20261006.1-alpha", workerd: "1.20261006.1", sharp: "0.35.5",
+  };
+  for (const [name, version] of Object.entries(versions)) {
+    assert.equal(lock.packages[`node_modules/${name}`].version, version);
+    if (Object.hasOwn(packageJson.devDependencies, name)) assert.equal(packageJson.devDependencies[name], version);
+  }
+  // lock에서 빠진 image-size를 vinext 내부 bundle의 수정 증거로 삼지 않는다.
+  for (const [path, item] of Object.entries(lock.packages)) {
+    if (/(?:^|\/)node_modules\/sharp$/.test(path)) assert.equal(item.version, "0.35.5");
+    if (/(?:^|\/)node_modules\/miniflare$/.test(path)) assert.equal(item.version, "5.20261006.1-alpha");
+  }
 });
