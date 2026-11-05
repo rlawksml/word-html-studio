@@ -137,4 +137,10 @@ try {
   assert.ok(extensions.length <= 256);
   for (const extension of [...new Set(extensions)]) libraries(extension);
   console.log(`SOURCE_PYTHON_RUNTIME_COPIED files=${files} bytes=${bytes} major=3 minor=${minor}`);
-} catch { console.error("SOURCE_PYTHON_RUNTIME_BLOCKED"); process.exitCode = 1; }
+} catch (error) {
+  // Only a line number in this reviewed parent helper, never source paths,
+  // Python/ldd output or exception text, is permitted for setup diagnostics.
+  const line = /source-python-runtime\.mjs:(\d+):\d+/.exec(error?.stack ?? "")?.[1] ?? "0";
+  console.error(`SOURCE_PYTHON_RUNTIME_BLOCKED line=${line}`);
+  process.exitCode = 1;
+}

@@ -306,8 +306,11 @@ jobs:
             [[ -f "$python_assembler" && ! -L "$python_assembler" && "$(/usr/bin/realpath -e -- "$python_assembler")" == "$python_assembler" ]] || fail PYTHON_ASSEMBLER_NOT_REGULAR
             [[ "$(wc -c < "$python_assembler")" -le 32768 ]] || fail PYTHON_ASSEMBLER_SIZE_EXCEEDED
             python_sha="$(/usr/bin/sha256sum -- "$python_assembler")"
-            [[ "${python_sha%% *}" == '5a4ae9041c0e46e9ce07811a705a1e14de92d03fdd64585fd521915304919749' ]] || fail PYTHON_ASSEMBLER_NOT_REVIEWED
-            bounded 30 "$scratch/python-assembly.log" /usr/bin/env -i PATH=/usr/bin:/bin TZ=UTC "$node_real" --no-addons "$python_assembler" "$rootfs" || fail PYTHON_RUNTIME_ASSEMBLY_FAILED
+            [[ "${python_sha%% *}" == 'd0bb9bfea5be064a9f1085e959198ffde4f981d6d873aad91188139aafb5bae8' ]] || fail PYTHON_ASSEMBLER_NOT_REVIEWED
+            bounded 30 "$scratch/python-assembly.log" /usr/bin/env -i PATH=/usr/bin:/bin TZ=UTC "$node_real" --no-addons "$python_assembler" "$rootfs" || {
+              grep -E '^SOURCE_PYTHON_RUNTIME_BLOCKED line=[0-9]{1,4}$' "$scratch/python-assembly.log" || true
+              fail PYTHON_RUNTIME_ASSEMBLY_FAILED
+            }
             [[ "$(grep -Ec '^SOURCE_PYTHON_RUNTIME_COPIED files=[0-9]+ bytes=[0-9]+ major=3 minor=[0-9]+$' "$scratch/python-assembly.log")" == 1 ]] || fail PYTHON_RUNTIME_SUMMARY_UNCONFIRMED
             # Only a validated fixed metadata line, never raw interpreter output.
             grep -E '^SOURCE_PYTHON_RUNTIME_COPIED files=[0-9]+ bytes=[0-9]+ major=3 minor=[0-9]+$' "$scratch/python-assembly.log"
