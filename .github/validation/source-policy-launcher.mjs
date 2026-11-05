@@ -1,6 +1,6 @@
 // Parent-reviewed sandbox preflight. No checkout module is imported here.
 import assert from "node:assert/strict";
-import { readFileSync, statfsSync, writeFileSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, statfsSync, writeFileSync } from "node:fs";
 import { networkInterfaces } from "node:os";
 import { spawnSync } from "node:child_process";
 
@@ -11,8 +11,10 @@ const reviewedSuites = [
   ["tests/test-owned-ledger.test.mjs", "tests/fixture-response-observer.test.mjs"],
   ["tests/publication-month.test.mjs"],
   ["tests/backup-completeness.test.mjs"],
+  ["tests/backup-writer-paths.test.mjs"],
 ];
 const allowedTests = process.argv.slice(2);
+const backupPaths = JSON.stringify(allowedTests) === JSON.stringify(["tests/backup-writer-paths.test.mjs"]);
 const allowedEnvironment = ["HOME", "PATH", "TMPDIR", "TZ", "UV_THREADPOOL_SIZE", "XDG_CACHE_HOME"];
 function fail(code) { console.error(code); process.exit(1); }
 try {
@@ -44,6 +46,15 @@ try {
   const interfaces = networkInterfaces();
   assert.ok(Object.keys(interfaces).every((name) => name === "lo"));
   assert.ok(Object.values(interfaces).flat().every((entry) => entry?.internal === true));
+  if (backupPaths) {
+    const info = lstatSync("/scratch");
+    assert.ok(info.uid === 65534 && info.gid === 65534 && (info.mode & 0o777) === 0o700);
+    const status = readFileSync("/proc/self/status", "utf8");
+    assert.match(status, /^CapEff:\s+0+$/m);
+    assert.match(status, /^NoNewPrivs:\s+1$/m);
+    assert.match(status, /^Seccomp:\s+2$/m);
+    assert.match(readLimit("memory.events"), /^oom_kill 0$/m);
+  }
 
   // Probe only this disposable container. Never write a host/source worktree.
   const probe = `.source-policy-probe-${process.pid}`;
@@ -63,6 +74,12 @@ const result = spawnSync(process.execPath, ["--max-old-space-size=128", "--test"
   cwd: "/work", encoding: "utf8", timeout: 30_000, killSignal: "SIGKILL", maxBuffer: 64 * 1024,
 });
 if (result.error || result.signal) fail("SOURCE_TEST_PROCESS_FAILED_OR_LIMITED");
+if (backupPaths) {
+  // No helper or fixture process may remain before any PASS is accepted.
+  const pids = readdirSync("/proc").filter((name) => /^\d+$/.test(name));
+  if (pids.some((pid) => Number(pid) !== process.pid)) fail("SOURCE_HELPER_PROCESS_REMAINS");
+  if (!/^oom_kill 0$/m.test(readFileSync("/sys/fs/cgroup/memory.events", "utf8"))) fail("SOURCE_OOM_OBSERVED");
+}
 // Raw TAP is only a bounded pipe to the parent; it is not published as an artifact.
 process.stdout.write(result.stdout || "");
 if (result.stderr) console.error("SOURCE_TEST_STDERR_PRESENT");

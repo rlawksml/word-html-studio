@@ -28,8 +28,9 @@ jobs:
           umask 077
           fail() { printf '::error::%s\n' "$1"; exit 1; }
 
-          # No checked-out shell/JS is executed by the host. This fixed inline
-          # controller copies only the allowlisted reviewed sources into FROM scratch.
+          # Target test/app code never runs on the host. This fixed inline
+          # controller copies only allowlisted sources into FROM scratch. The
+          # backup-only native OS-runtime assembler below is separately hash-gated.
           for tool in /usr/bin/env /usr/bin/docker /usr/bin/timeout /usr/bin/ldd /usr/bin/realpath; do
             [[ -x "$tool" ]] || fail TRUSTED_HOST_TOOL_MISSING
           done
@@ -166,7 +167,7 @@ jobs:
           [[ -f "$launcher_source" && ! -L "$launcher_source" && "$(/usr/bin/realpath -e -- "$launcher_source")" == "$launcher_source" ]] || fail LAUNCHER_NOT_REGULAR
           [[ "$(wc -c < "$launcher_source")" -le 16384 ]] || fail LAUNCHER_SIZE_EXCEEDED
           launcher_sha256="$(sha256sum -- "$launcher_source")"
-          [[ "${launcher_sha256%% *}" == 'b9017e5d2db1ecfbec16c2a869aa7e050bbc5b740443b6f6d682f7ce8fb8851b' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
+          [[ "${launcher_sha256%% *}" == 'c1bfca1f05e2a5c4d023ce759132c43023e1a4445faa6c742d1c116f423af065' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
           cp -- "$launcher_source" "$rootfs/usr/bin/source-policy-launcher.mjs"
 
           # Suite names never become paths/commands. No npm, SDK, key or app build.
@@ -248,6 +249,18 @@ jobs:
               )
               test_argv=(tests/backup-completeness.test.mjs)
               ;;
+            backup_paths)
+              expected_tests=14
+              source_files=(
+                apps/web/scripts/supabase-backup.mjs
+                apps/web/scripts/backup-utils.mjs
+                apps/web/scripts/backup-manifest-policy.mjs
+                apps/web/scripts/supabase-schema.mjs
+                apps/web/tests/backup-writer-paths.test.mjs
+                apps/web/tests/helpers/backup-writer-fixture.mjs
+              )
+              test_argv=(tests/backup-writer-paths.test.mjs)
+              ;;
             *) fail SOURCE_SUITE_NOT_ALLOWLISTED ;;
           esac
           [[ "$expected_tests" =~ ^[1-9][0-9]{0,3}$ ]] || fail SOURCE_SUITE_COUNT_NOT_REVIEWED
@@ -286,6 +299,19 @@ jobs:
               cp -L --parents -- "$library" "$rootfs"
             done < "$scratch/libraries.list"
           done
+          scratch_options='rw,noexec,nosuid,nodev,size=16m,mode=1777'
+          if [[ "$SOURCE_SUITE" == backup_paths ]]; then
+            scratch_options='rw,noexec,nosuid,nodev,size=16m,uid=65534,gid=65534,mode=0700'
+            python_assembler="$workspace/.github/validation/source-python-runtime.mjs"
+            [[ -f "$python_assembler" && ! -L "$python_assembler" && "$(/usr/bin/realpath -e -- "$python_assembler")" == "$python_assembler" ]] || fail PYTHON_ASSEMBLER_NOT_REGULAR
+            [[ "$(wc -c < "$python_assembler")" -le 32768 ]] || fail PYTHON_ASSEMBLER_SIZE_EXCEEDED
+            python_sha="$(/usr/bin/sha256sum -- "$python_assembler")"
+            [[ "${python_sha%% *}" == '5a4ae9041c0e46e9ce07811a705a1e14de92d03fdd64585fd521915304919749' ]] || fail PYTHON_ASSEMBLER_NOT_REVIEWED
+            bounded 30 "$scratch/python-assembly.log" /usr/bin/env -i PATH=/usr/bin:/bin TZ=UTC "$node_real" --no-addons "$python_assembler" "$rootfs" || fail PYTHON_RUNTIME_ASSEMBLY_FAILED
+            [[ "$(grep -Ec '^SOURCE_PYTHON_RUNTIME_COPIED files=[0-9]+ bytes=[0-9]+ major=3 minor=[0-9]+$' "$scratch/python-assembly.log")" == 1 ]] || fail PYTHON_RUNTIME_SUMMARY_UNCONFIRMED
+            # Only a validated fixed metadata line, never raw interpreter output.
+            grep -E '^SOURCE_PYTHON_RUNTIME_COPIED files=[0-9]+ bytes=[0-9]+ major=3 minor=[0-9]+$' "$scratch/python-assembly.log"
+          fi
           find "$rootfs" -type d -exec chmod 0755 {} +
           # umask077 is intentional for parent scratch, but the non-root image
           # user must be able to read libraries and execute the trusted runtime.
@@ -317,7 +343,7 @@ jobs:
             --memory=256m --memory-swap=256m --cpus=1 --pids-limit=32 \
             --ulimit=cpu=30:30 --ulimit=fsize=8388608:8388608 \
             --ulimit=nofile=128:128 --ulimit=core=0:0 \
-            --tmpfs=/scratch:rw,noexec,nosuid,nodev,size=16m,mode=1777 \
+            --tmpfs="/scratch:$scratch_options" \
             --tmpfs=/dev/shm:ro,noexec,nosuid,nodev,size=4096,mode=000 --log-driver=none \
             --tmpfs=/dev/pts:ro,noexec,nosuid,nodev,size=4096,mode=000 \
             --tmpfs=/dev/mqueue:ro,noexec,nosuid,nodev,size=4096,mode=000 \

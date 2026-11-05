@@ -19,7 +19,7 @@ on:
       source_suite:
         description: Reviewed source-policy suite, ignored by rollback mode
         type: choice
-        options: [restore, photo, preservation, evidence, publication, backup_completeness]
+        options: [restore, photo, preservation, evidence, publication, backup_completeness, backup_paths]
         default: restore
         required: false
 
@@ -118,7 +118,7 @@ jobs:
           case "$VALIDATION_MODE" in
             rollback_preparation) ;;
             source_policy)
-              [[ "$GITHUB_REF" == refs/heads/codex/* && ( "$SOURCE_SUITE" == restore || "$SOURCE_SUITE" == photo || "$SOURCE_SUITE" == preservation || "$SOURCE_SUITE" == evidence || "$SOURCE_SUITE" == publication || "$SOURCE_SUITE" == backup_completeness ) ]] || { echo '::error::SOURCE_POLICY_DISPATCH_BLOCKED'; exit 1; }
+              [[ "$GITHUB_REF" == refs/heads/codex/* && ( "$SOURCE_SUITE" == restore || "$SOURCE_SUITE" == photo || "$SOURCE_SUITE" == preservation || "$SOURCE_SUITE" == evidence || "$SOURCE_SUITE" == publication || "$SOURCE_SUITE" == backup_completeness || "$SOURCE_SUITE" == backup_paths ) ]] || { echo '::error::SOURCE_POLICY_DISPATCH_BLOCKED'; exit 1; }
               ;;
             offline_app)
               [[ "$GITHUB_REF" == refs/heads/codex/* ]] || { echo '::error::OFFLINE_APP_DISPATCH_BLOCKED'; exit 1; }
