@@ -40,7 +40,7 @@ const TRUSTED_FAILURES = new Set([
 const ERROR_CLASSES = new Set(["ERR_ASSERTION", "ENOENT", "EACCES", "EPERM", "ENOSPC", "EMFILE"]);
 const RUNTIME_STEPS = new Set([
   "PATHS", "NPM_METADATA", "NODE_VERSION", "NODE_COPY", "ENV_COPY",
-  "NPM_COPY", "LDD", "CA", "HELPERS",
+  "NPM_COPY", "LDD", "OS_COMPAT_LIBRARY", "CA", "HELPERS",
 ]);
 let phase = "START";
 function controlStage(value) {

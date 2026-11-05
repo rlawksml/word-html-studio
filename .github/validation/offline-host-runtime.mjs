@@ -75,9 +75,23 @@ export async function copyRuntime(rootfs, node, npmCli, trusted, role, step) {
   step("NPM_COPY");
   if (role === "prep") copyNpm(npmRoot, join(rootfs, "usr/lib/npm"));
   step("LDD");
-  // ldd is NEVER applied to a checkout or downloaded package binary.
+  // Observed loader failure needs this one existing runner OS compatibility
+  // library. No host install, search, checkout or downloaded binary is used.
+  step("OS_COMPAT_LIBRARY");
+  assert.equal(process.arch, "x64");
+  const compatibilityTarget = "/usr/lib/x86_64-linux-gnu/librt.so.1";
+  const compatibilitySource = realpathSync(compatibilityTarget);
+  assert.ok(compatibilitySource.startsWith("/usr/lib/x86_64-linux-gnu/"));
+  const compatibilityInfo = lstatSync(compatibilitySource);
+  assert.ok(compatibilityInfo.isFile() && compatibilityInfo.uid === 0 && (compatibilityInfo.mode & 0o022) === 0);
+  assert.ok(readRegular(compatibilitySource, 16 * 1024 * 1024).subarray(0, 4).equals(Buffer.from([0x7f, 0x45, 0x4c, 0x46])));
   const copiedLibraries = new Map();
-  for (const binary of [node, env]) {
+  const compatibilityBytes = copy(compatibilitySource, join(rootfs, compatibilityTarget.slice(1)), 16 * 1024 * 1024, 0o444);
+  copiedLibraries.set(compatibilityTarget, { canonical: compatibilitySource, mode: 0o444 });
+  console.log(`OFFLINE_TRUSTED_COMPAT librt=1 bytes=${compatibilityBytes}`);
+  // ldd is applied ONLY to canonical runner Node/env and this exact trusted OS
+  // library, NEVER to a checkout or downloaded package binary.
+  for (const [binary, executable] of [[node, true], [env, true], [compatibilitySource, false]]) {
     const text = requireSuccess(await bounded("/usr/bin/ldd", [binary], { env: { PATH: "/usr/bin:/bin" }, ms: 5000 }), "TRUSTED_RUNTIME_LDD_FAILED");
     let libraries = 0, interpreters = 0;
     for (const line of text.trim().split("\n")) {
@@ -97,6 +111,7 @@ export async function copyRuntime(rootfs, node, npmCli, trusted, role, step) {
       const previous = copiedLibraries.get(library);
       if (previous) {
         assert.equal(previous.canonical, canonical);
+        assert.ok(readRegular(canonical, 64 * 1024 * 1024).equals(readRegular(destination, 64 * 1024 * 1024)));
         if (mode > previous.mode) {
           chmodSync(destination, mode);
           previous.mode = mode;
@@ -106,7 +121,7 @@ export async function copyRuntime(rootfs, node, npmCli, trusted, role, step) {
       copy(canonical, destination, 64 * 1024 * 1024, mode);
       copiedLibraries.set(library, { canonical, mode });
     }
-    assert.ok(libraries > 0 && interpreters === 1);
+    assert.ok(libraries > 0 && (!executable || interpreters === 1));
   }
   step("CA");
   const ca = realpathSync("/etc/ssl/certs/ca-certificates.crt");
