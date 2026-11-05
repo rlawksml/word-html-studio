@@ -1,4 +1,14 @@
-# 호환 fallback 실행 후보 — 소스 검토 완료, 실행 미완료
+# 호환 fallback 앱 검증 — 운영 준비 미완료
+
+## 후속 실제 PASS — 아래 초기 이력보다 우선
+
+Exact `1f3fb0be1a7938c54692a42c9b5227e305cc948b`에서 [full30](https://github.com/rlawksml/word-html-studio/actions/runs/42070130353/job/127395552718)은 typecheck/lint/build/unit 모두 exit0·제한 초과 없음·30PASS/실패·취소·skip·todo0였다. 엄격 소유 정리 후17:00:30.3255768Z COMPLETE, sourceSHA51345f8cb5e20371ec04b4ae4dc937e1b90b048156e4b761a1e6b54b256dc86f를 확인했다. package/lock은 아래 승인 pair와 일치한다.
+
+같은 exact의 [native JSON10](https://github.com/rlawksml/word-html-studio/actions/runs/42070135624/job/127395552239)은10PASS/실패·skip0·**16:59:57.7522793Z** OWNED_CLEANUP_CONFIRMED였다. 주 담당과 독립 검증 담당이 실제 fixed marker를 대조했다. 두 suite는 합산하지 않는다.
+
+이전 type15·후속 D1 type2·Node Cloudflare tracing·SEO 직렬화 실패를 최소 보완했다. Client 반환 타입/경로 type predicate/선택 D1 타입 선언은 런타임 분기를 바꾸지 않았으며 DB를 설치하지 않는다. Node fixture는 정확한 선택 tracing 미제공 분기만 모사하고 실제 Cloudflare 검증을 대체하지 않는다. canonical은 절대 URL의 의미 일치·정확1개를 요구하고 manifest만 명시적 절대 주소로 설정했다. 기존 기대 주소/TC수는 유지했다.
+
+판정: **격리 fallback 앱/순수 데이터 보존 GO / 운영 전체 NO-GO**. 실제 DB/사진/독립 복원·불변 배포물·환경 보존은 아직 미완료다.
 
 ## 범위
 
