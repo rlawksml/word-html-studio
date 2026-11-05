@@ -6,7 +6,7 @@
 
 - [x] #92 별도 분석→수정 전29TC 중19FAIL 재현→최소 수정→같은29/기존복원25/전체276 및 type/lint/build·엄격 정리 PASS, exact9497d1b·독립 검토 (실제 백업/복원 성공 아님)
 - [ ] #93 백업 목적지의 ancestor symlink/TOCTOU 방어와 격리 재현·회귀 (기존 백업을 자동 이동/수정하지 않음)
-- [ ] #94 미참조 사진 보존과 백업 차단 정책 정합화 (참조된 사진 누락은 계속 차단, 삭제로 통과시키지 않음)
+- [ ] #94 사용자 정책 확정: 모든 사진 보관·백업, 미참조는 경고만. 구현은 중단 후 미착수. 참조된 사진 누락·해시/통계 오류는 계속 차단하고 삭제로 통과시키지 않음
 - [ ] #46/#48 옛 exact28efad2 parser6TC 중 미래4종 보존FAIL ([보고서](https://github.com/rlawksml/word-html-studio/blob/0fec8b719a88001b61b54b31238bb28472757628/docs/test-reports/2026-11-05-exact-fallback-preservation.md)); 호환 fallback·불변 artifact/환경/기간/사진 검증 필요. 후보PASS로 대체 금지
 - [ ] 전체 테스트 출력 요약 개선 검토: 276TC stdout64690bytes, 현재64KiB까지846bytes 여유. 상한 완화/TC 제거 금지
 

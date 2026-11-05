@@ -6,6 +6,8 @@
 
 ## 2026-11-05 운영 반영 전 상태
 
+**사용자 요청으로 일시 중단했습니다.** [이어하기 체크포인트](docs/test-reports/2026-11-05-pause-resume-checkpoint.md)에 완료 결과·미검증 audit WIP·#94 승인 정책과 재개 순서를 기록했습니다. 사용자가 다시 요청하기 전에는 작업·실행을 재개하지 않습니다.
+
 후속 #87 최소 Next 후보 exact `bae02fb`도 **새 lock의 무스크립트 설치·typecheck·lint·build·276TC·엄격 정리 PASS**입니다. [보안 후보 회귀 보고서](docs/test-reports/2026-11-05-issue87-next-candidate.md)를 보세요. audit는 아직 미실행이며 #87 완료나 운영 승인으로 판단하지 않습니다.
 
 후속 #92의 exact `9497d1b`에서 **typecheck·lint·build·276TC와 자식 종료/임시 자원 정리**를 무료 Linux 격리 CI로 검증했습니다. 수정 전29TC 중19FAIL을 재현한 뒤 같은29개와 기존복원25개도 별도 통과했습니다. [백업 완전성 RED/GREEN 보고서](docs/test-reports/2026-11-05-issue92-backup-completeness.md)를 확인하세요. 과거 후보의 [247TC](docs/test-reports/2026-11-05-preprod-candidate-offline.md)·[native99](docs/test-reports/2026-11-05-candidate99-native-regression.md)는 다른 exact 증거이며 중복 합산하지 않습니다.
