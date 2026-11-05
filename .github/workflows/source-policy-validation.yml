@@ -163,7 +163,7 @@ jobs:
           [[ -f "$launcher_source" && ! -L "$launcher_source" && "$(/usr/bin/realpath -e -- "$launcher_source")" == "$launcher_source" ]] || fail LAUNCHER_NOT_REGULAR
           [[ "$(wc -c < "$launcher_source")" -le 16384 ]] || fail LAUNCHER_SIZE_EXCEEDED
           launcher_sha256="$(sha256sum -- "$launcher_source")"
-          [[ "${launcher_sha256%% *}" == '5a5707e57df7eaf6458ac0936b73fc3fa81442f20eeb23df720856d999984b01' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
+          [[ "${launcher_sha256%% *}" == 'f1235af428776d1c9d8775f969d670bf6eb72d3ca259481b8016e56145e3b149' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
           cp -- "$launcher_source" "$rootfs/usr/bin/source-policy-launcher.mjs"
 
           # Suite names never become paths/commands. No npm, SDK, key or app build.
@@ -192,6 +192,22 @@ jobs:
                 apps/web/components/molecules/NewsEditorCard.tsx
               )
               test_argv=(tests/image-retention-policy.test.mjs)
+              ;;
+            preservation)
+              expected_tests=30
+              source_files=(
+                apps/web/package.json
+                apps/web/worker/staging-gate.mjs
+                apps/web/tests/staging-gate.test.mjs
+                apps/web/tests/supabase-cleanup-guard.test.mjs
+                apps/web/tests/helpers/supabase-cleanup-guard.mjs
+                apps/web/tests/helpers/owned-cleanup-plan.mjs
+                apps/web/tests/integration-safety-block.test.mjs
+                apps/web/tests/supabase-integration.test.mjs
+                apps/web/tests/helpers/integration-target-guard.mjs
+                apps/web/tests/run-integration-local.mjs
+              )
+              test_argv=(tests/staging-gate.test.mjs tests/supabase-cleanup-guard.test.mjs tests/integration-safety-block.test.mjs)
               ;;
             *) fail SOURCE_SUITE_NOT_ALLOWLISTED ;;
           esac

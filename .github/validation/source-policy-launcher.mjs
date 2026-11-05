@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 const reviewedSuites = [
   ["tests/schema-marker-restore-policy.test.mjs", "tests/backup-safety.test.mjs"],
   ["tests/image-retention-policy.test.mjs"],
+  ["tests/staging-gate.test.mjs", "tests/supabase-cleanup-guard.test.mjs", "tests/integration-safety-block.test.mjs"],
 ];
 const allowedTests = process.argv.slice(2);
 const allowedEnvironment = ["HOME", "PATH", "TMPDIR", "TZ", "UV_THREADPOOL_SIZE", "XDG_CACHE_HOME"];
