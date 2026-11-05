@@ -170,13 +170,17 @@ test("AUDIT-18 sanitized summary rejects invented reasons, fields, IDs and count
       vulnerabilities: null, advisoryIds: [], sourceIds: [] }, VERSION));
   }
 });
-test("AUDIT-19 contradictory advisory and linked-record severities are blocked", () => {
+test("AUDIT-19 range-specific linked severities remain findings while invalid direct aggregates and references block", () => {
   const direct = report({ alpha: "low" });
   direct.vulnerabilities.alpha.via[0].severity = "critical";
   blocked(classify(direct), "SCHEMA_RECORD_AGGREGATE");
   const linked = report({ alpha: "low", beta: "high" });
   linked.vulnerabilities.alpha.via = ["beta"];
-  blocked(classify(linked, 1), "SCHEMA_RECORD_AGGREGATE");
+  const linkedSummary = classify(linked, 1);
+  assert.deepEqual(linkedSummary, { outcome: "FINDINGS", reason: "HIGH_OR_CRITICAL", npmVersion: VERSION,
+    vulnerabilities: { info: 0, low: 1, moderate: 0, high: 1, critical: 0, total: 2 },
+    advisoryIds: ["GHSA-2345-6789-cfgh"], sourceIds: [1234567] });
+  assert.equal(validateSummary(linkedSummary, VERSION), linkedSummary);
   const absent = report({ alpha: "low" });
   absent.vulnerabilities.alpha.via.push("beta");
   blocked(classify(absent), "SCHEMA_RECORD_VIA_REF");

@@ -125,19 +125,22 @@ function reportSummary(report, inventory, step) {
     text(item.range, 4096);
     assert.ok(Array.isArray(item.via) && item.via.length > 0 && item.via.length <= 4000);
     for (const via of item.via) {
-      let severity;
       if (typeof via === "string") {
         step("RECORD_VIA_REF");
         knownName(via, inventory);
         assert.ok(Object.hasOwn(report.vulnerabilities, via) && record(report.vulnerabilities[via]));
-        severity = report.vulnerabilities[via].severity;
+        const severity = report.vulnerabilities[via].severity;
         step("RECORD_VIA_SEVERITY");
         assert.ok(SEVERITIES.includes(severity));
-      } else severity = advisory(via, inventory, ids, sources, step);
-      // A lower aggregate must never conceal a higher direct/transitive
-      // advisory. Registry inconsistency is BLOCKED, not a clean audit.
-      step("RECORD_AGGREGATE");
-      assert.ok(SEVERITIES.indexOf(item.severity) >= SEVERITIES.indexOf(severity));
+        // npm11.19.1 emits range-specific metavulns as dependency names. That
+        // linked record's maximum can include unrelated, higher advisories.
+        // https://github.com/npm/cli/blob/v11.19.1/workspaces/arborist/lib/vuln.js
+      } else {
+        const severity = advisory(via, inventory, ids, sources, step);
+        // A direct advisory object belongs to this record's own maximum.
+        step("RECORD_AGGREGATE");
+        assert.ok(SEVERITIES.indexOf(item.severity) >= SEVERITIES.indexOf(severity));
+      }
     }
     step("RECORD_EFFECTS");
     distinctStrings(item.effects, 4000, (effect) => knownName(effect, inventory));
