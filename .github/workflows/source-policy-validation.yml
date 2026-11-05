@@ -253,6 +253,8 @@ jobs:
               expected_tests=14
               source_files=(
                 apps/web/scripts/supabase-backup.mjs
+                apps/web/scripts/backup-writer-client.mjs
+                apps/web/scripts/backup-dirfd-writer.py
                 apps/web/scripts/backup-utils.mjs
                 apps/web/scripts/backup-manifest-policy.mjs
                 apps/web/scripts/supabase-schema.mjs
