@@ -5,11 +5,10 @@ import { chmodSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bounded, readRegular, requireSuccess } from "./offline-host-support.mjs";
-import { validateManifests } from "./offline-host-source.mjs";
 import { copyRuntime } from "./offline-host-runtime.mjs";
 import { MetadataDocker } from "./metadata-export-docker.mjs";
 import { decodePacket } from "./metadata-packet.mjs";
-import { METADATA_LIMITS, validateCandidate } from "./metadata-policy.mjs";
+import { METADATA_LIMITS, validateCandidate, validateOriginalPair } from "./metadata-policy.mjs";
 import { requireTransferApproval } from "./metadata-approval.mjs";
 import { promotePair } from "./metadata-retained-check.mjs";
 
@@ -78,7 +77,7 @@ async function originalPair(workspace, commit) {
     assert.equal(createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex"), match[1]);
     result[kind] = bytes;
   }
-  validateManifests(result.package, result.lock); // exact CBC8/18ff baseline
+  validateOriginalPair(result.package, result.lock); // metadata-only 4b79/bcd input pins
   return result;
 }
 function copyTrusted(source, destination, max = 32768) {

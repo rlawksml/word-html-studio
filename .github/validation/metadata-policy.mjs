@@ -1,9 +1,16 @@
-// Data-only contract for a narrowly scoped Next metadata candidate. This is
-// separate from (and does not weaken) the fixed offline276 baseline validator.
+// Data-only source-map-js update. Metadata input pins are intentionally
+// separate from the unchanged offline-app baseline and its test expectations.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 
-export const TARGET_VERSION = "16.4.5";
+export const INPUT_PACKAGE_SHA256 = "4b79c8d63413e685bbe8d04b199ff976c99c24b8257e9e66d5861f58e2eaf5e8";
+export const INPUT_LOCK_SHA256 = "bcd90db9e993e0dc5ec270cfe9efc141e783f3a7a5682236d33ce1a3dde029fe";
+export const TARGET_PATH = "node_modules/source-map-js";
+export const TARGET_VERSION = "1.2.2";
+export const TARGET_RESOLVED = "https://registry.npmjs.org/source-map-js/-/source-map-js-1.2.2.tgz";
+// Observed by the trusted parent from the official npm registry, not invented
+// or accepted from a generated lock. The parent also reviews received bytes.
+export const TARGET_INTEGRITY = "sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==";
 export const METADATA_LIMITS = Object.freeze({ package: 65536, lock: 2 * 1024 * 1024 });
 export const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"];
@@ -86,38 +93,38 @@ function validateGraph(manifest, lock) {
   }
   assert.deepEqual([...seen].sort(), Object.keys(BUNDLED_VERSIONS).sort());
 }
-export function nextManifest(original) {
-  assert.ok(record(original) && record(original.dependencies) && record(original.devDependencies));
-  assert.equal(original.dependencies.next, "16.3.4");
-  assert.equal(original.devDependencies["eslint-config-next"], "16.3.4");
-  const candidate = structuredClone(original);
-  candidate.dependencies.next = TARGET_VERSION;
-  candidate.devDependencies["eslint-config-next"] = TARGET_VERSION;
-  return candidate;
+function originalPair(packageBytes, lockBytes) {
+  const manifest = parseMetadata(packageBytes, "package"), lock = parseMetadata(lockBytes, "lock");
+  validateGraph(manifest, lock);
+  assert.deepEqual(Object.keys(lock.packages).filter((path) => /(?:^|\/)node_modules\/source-map-js$/.test(path)), [TARGET_PATH]);
+  assert.equal(lock.packages[TARGET_PATH].version, "1.2.1");
+  return { manifest, lock };
+}
+export function validateOriginalPair(packageBytes, lockBytes) {
+  assert.equal(sha256(packageBytes), INPUT_PACKAGE_SHA256);
+  assert.equal(sha256(lockBytes), INPUT_LOCK_SHA256);
+  return originalPair(packageBytes, lockBytes);
 }
 export function validateCandidate(originalPackageBytes, originalLockBytes, packageBytes, lockBytes) {
-  const original = parseMetadata(originalPackageBytes, "package"), originalLock = parseMetadata(originalLockBytes, "lock");
+  // Pure structural comparison also supports synthetic policy tests. Every
+  // executable metadata caller first enforces validateOriginalPair's pins.
+  const { lock: originalLock } = originalPair(originalPackageBytes, originalLockBytes);
   const manifest = parseMetadata(packageBytes, "package"), lock = parseMetadata(lockBytes, "lock");
   assert.ok(packageBytes.length + lockBytes.length <= METADATA_LIMITS.package + METADATA_LIMITS.lock);
-  assert.deepEqual(manifest, nextManifest(original));
+  assert.ok(packageBytes.equals(originalPackageBytes));
   assert.deepEqual({ ...lock, packages: null }, { ...originalLock, packages: null });
-  const root = structuredClone(originalLock.packages[""]);
-  root.dependencies.next = TARGET_VERSION;
-  root.devDependencies["eslint-config-next"] = TARGET_VERSION;
-  assert.deepEqual(lock.packages[""], root);
+  assert.deepEqual(Object.keys(lock.packages), Object.keys(originalLock.packages));
   validateGraph(manifest, lock);
-  assert.equal(lock.packages["node_modules/next"]?.version, TARGET_VERSION);
-  assert.equal(lock.packages["node_modules/eslint-config-next"]?.version, TARGET_VERSION);
-  const keys = new Set([...Object.keys(originalLock.packages), ...Object.keys(lock.packages)]);
-  const graph = { added: 0, removed: 0, changed: 0, unchanged: 0 };
-  for (const key of keys) {
-    if (!Object.hasOwn(originalLock.packages, key)) graph.added++;
-    else if (!Object.hasOwn(lock.packages, key)) graph.removed++;
-    else if (JSON.stringify(originalLock.packages[key]) !== JSON.stringify(lock.packages[key])) graph.changed++;
-    else graph.unchanged++;
+  for (const [path, item] of Object.entries(originalLock.packages)) {
+    if (path === TARGET_PATH) continue;
+    assert.equal(JSON.stringify(lock.packages[path]), JSON.stringify(item));
   }
-  // These counters identify review work. They are NOT automatic approval of
-  // every transitive change, an audit result, or proof that sharp is patched.
+  const expected = { ...originalLock.packages[TARGET_PATH], version: TARGET_VERSION,
+    resolved: TARGET_RESOLVED, integrity: TARGET_INTEGRITY };
+  assert.deepEqual(Object.keys(lock.packages[TARGET_PATH]), Object.keys(expected));
+  assert.deepEqual(lock.packages[TARGET_PATH], expected);
+  const graph = { added: 0, removed: 0, changed: 1, unchanged: Object.keys(lock.packages).length - 1 };
+  // A narrow graph change is not an audit result or runtime compatibility test.
   return Object.freeze({ packageSha256: sha256(packageBytes), lockSha256: sha256(lockBytes),
     packageBytes: packageBytes.length, lockBytes: lockBytes.length, graph: Object.freeze(graph) });
 }

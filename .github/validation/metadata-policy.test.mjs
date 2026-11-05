@@ -4,7 +4,8 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, linkSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { nextManifest, parseMetadata, sha256, validateCandidate } from "./metadata-policy.mjs";
+import { INPUT_LOCK_SHA256, INPUT_PACKAGE_SHA256, TARGET_INTEGRITY, TARGET_PATH, TARGET_RESOLVED,
+  parseMetadata, sha256, validateCandidate, validateOriginalPair } from "./metadata-policy.mjs";
 import { decodePacket, encodePacket, EXPORT_PACKET_LIMIT, kindForAction } from "./metadata-packet.mjs";
 import { readStableFile } from "./metadata-file-io.mjs";
 import { requireTransferApproval } from "./metadata-approval.mjs";
@@ -15,7 +16,7 @@ const NONCE = "a".repeat(32), COMMIT = "b".repeat(40);
 function synthetic() {
   const manifest = { name: "synthetic-metadata-only", version: "1.1.0-rc.1", private: true,
     engines: { node: ">=22.13.0" }, scripts: { test: "never evaluated" },
-    dependencies: { next: "16.3.4", react: "19.2.8" }, devDependencies: { "eslint-config-next": "16.3.4" } };
+    dependencies: { next: "16.4.5", react: "19.2.8" }, devDependencies: { "eslint-config-next": "16.4.5" } };
   const pkg = (name, version) => ({ version, resolved: `https://registry.npmjs.org/${name}/-/${name.split("/").at(-1)}-${version}.tgz`,
     integrity: `sha512-${Buffer.alloc(64).toString("base64")}` });
   const bundled = { "@emnapi/core": "1.8.1", "@emnapi/runtime": "1.8.1", "@emnapi/wasi-threads": "1.1.0",
@@ -24,15 +25,13 @@ function synthetic() {
   const lock = { name: manifest.name, version: manifest.version, lockfileVersion: 3, requires: true,
     packages: { "": { name: manifest.name, version: manifest.version, dependencies: { ...manifest.dependencies },
       devDependencies: { ...manifest.devDependencies }, engines: { ...manifest.engines } },
-    "node_modules/next": pkg("next", "16.3.4"), "node_modules/react": pkg("react", "19.2.8"),
-    "node_modules/eslint-config-next": pkg("eslint-config-next", "16.3.4"),
+    "node_modules/next": pkg("next", "16.4.5"), "node_modules/react": pkg("react", "19.2.8"),
+    "node_modules/eslint-config-next": pkg("eslint-config-next", "16.4.5"),
+    [TARGET_PATH]: { ...pkg("source-map-js", "1.2.1"), license: "BSD-3-Clause", engines: { node: ">=0.10.0" } },
     [parent]: { ...pkg("@tailwindcss/oxide-wasm32-wasi", "4.2.1"), dependencies: bundled, bundleDependencies: Object.keys(bundled) } } };
   for (const [name, version] of Object.entries(bundled)) lock.packages[`${parent}/node_modules/${name}`] = { version, inBundle: true };
-  const candidatePackage = nextManifest(manifest), candidateLock = structuredClone(lock);
-  candidateLock.packages[""].dependencies.next = "16.4.5";
-  candidateLock.packages[""].devDependencies["eslint-config-next"] = "16.4.5";
-  candidateLock.packages["node_modules/next"] = pkg("next", "16.4.5");
-  candidateLock.packages["node_modules/eslint-config-next"] = pkg("eslint-config-next", "16.4.5");
+  const candidatePackage = structuredClone(manifest), candidateLock = structuredClone(lock);
+  Object.assign(candidateLock.packages[TARGET_PATH], { version: "1.2.2", resolved: TARGET_RESOLVED, integrity: TARGET_INTEGRITY });
   return { manifest, lock, candidatePackage, candidateLock };
 }
 function validate(value) { return validateCandidate(bytes(value.manifest), bytes(value.lock), bytes(value.candidatePackage), bytes(value.candidateLock)); }
@@ -47,19 +46,19 @@ function withScratch(run) {
 }
 const evidence = () => ({ cleaned: true, commit: COMMIT, nonce: NONCE });
 
-test("META-01 candidate changes only the exact two direct version fields", () => {
-  const value = synthetic(), before = JSON.stringify(value.manifest);
-  assert.equal(value.candidatePackage.dependencies.next, "16.4.5");
-  assert.equal(value.candidatePackage.devDependencies["eslint-config-next"], "16.4.5");
-  assert.equal(JSON.stringify(value.manifest), before);
-  assert.throws(() => nextManifest(value.candidatePackage));
+test("META-01 package stays byte-identical while only source-map-js is updated", () => {
+  const value = synthetic(), before = JSON.stringify(value);
+  validate(value);
+  assert.deepEqual(bytes(value.candidatePackage), bytes(value.manifest));
+  assert.equal(value.candidateLock.packages[TARGET_PATH].version, "1.2.2");
+  assert.equal(JSON.stringify(value), before);
 });
 test("META-02 a complete synthetic graph is accepted as shape, not actual registry trust", () => {
   const value = synthetic(), before = JSON.stringify(value);
   const summary = validate(value);
   assert.equal(summary.packageSha256, sha256(bytes(value.candidatePackage)));
   assert.equal(summary.lockSha256, sha256(bytes(value.candidateLock)));
-  assert.equal(summary.graph.changed, 3);
+  assert.deepEqual(summary.graph, { added: 0, removed: 0, changed: 1, unchanged: Object.keys(value.lock.packages).length - 1 });
   assert.equal(JSON.stringify(value), before);
 });
 test("META-03 scripts changes cannot be smuggled into a version update", () => {
@@ -76,9 +75,12 @@ test("META-05 private engines peer optional and overrides cannot change", () => 
     const value = synthetic(); Object.assign(value.candidatePackage, patch); assert.throws(() => validate(value));
   }
 });
-test("META-06 lock root metadata outside the two declarations stays fixed", () => {
-  const value = synthetic(); value.candidateLock.packages[""].engines.node = "*";
-  assert.throws(() => validate(value));
+test("META-06 all lock root metadata and direct declarations stay fixed", () => {
+  for (const mutate of [(root) => { root.engines.node = "*"; },
+    (root) => { root.dependencies.next = "16.4.6"; },
+    (root) => { root.devDependencies["eslint-config-next"] = "16.4.6"; }]) {
+    const value = synthetic(); mutate(value.candidateLock.packages[""]); assert.throws(() => validate(value));
+  }
 });
 test("META-07 lock format and top-level metadata cannot change", () => {
   for (const patch of [{ lockfileVersion: 2 }, { version: "2.0.0" }, { newKey: true }]) {
@@ -93,15 +95,15 @@ test("META-08 links unsafe paths and nonregistry dependency specs fail closed", 
   ]) { const value = synthetic(); mutate(value.candidateLock); assert.throws(() => validate(value)); }
 });
 test("META-09 registry URL authentication alternate host and URL suffixes are rejected", () => {
-  for (const url of ["http://registry.npmjs.org/react/-/react-19.2.8.tgz", "https://example.invalid/react.tgz",
-    "https://user:password@registry.npmjs.org/react/-/react-19.2.8.tgz", "https://registry.npmjs.org/react/-/react-19.2.8.tgz?secret=never",
-    "https://registry.npmjs.org/react/-/react-19.2.8.tgz#extra"]) {
-    const value = synthetic(); value.candidateLock.packages["node_modules/react"].resolved = url; assert.throws(() => validate(value));
+  for (const url of ["http://registry.npmjs.org/source-map-js/-/source-map-js-1.2.2.tgz", "https://example.invalid/source-map-js.tgz",
+    "https://user:password@registry.npmjs.org/source-map-js/-/source-map-js-1.2.2.tgz", `${TARGET_RESOLVED}?secret=never`,
+    `${TARGET_RESOLVED}#extra`]) {
+    const value = synthetic(); value.candidateLock.packages[TARGET_PATH].resolved = url; assert.throws(() => validate(value));
   }
 });
 test("META-10 integrity must be exact canonical SHA512 base64", () => {
   for (const integrity of ["sha256-bad", "sha512-A===", "sha512-" + "A".repeat(88), null]) {
-    const value = synthetic(); value.candidateLock.packages["node_modules/react"].integrity = integrity; assert.throws(() => validate(value));
+    const value = synthetic(); value.candidateLock.packages[TARGET_PATH].integrity = integrity; assert.throws(() => validate(value));
   }
 });
 test("META-11 only the precise six already-pinned bundled records are exempt", () => {
@@ -199,3 +201,43 @@ test("META-24 extra retained files cannot enter the two-file artifact", () => wi
   assert.throws(() => verifyRetained(root));
   assert.ok(readFileSync(join(root, "completion.json")).length < 4096);
 }));
+test("META-25 unrelated transitive changes and added or removed records fail", () => {
+  for (const mutate of [
+    (lock) => { lock.packages["node_modules/react"].license = "CHANGED"; },
+    (lock) => { lock.packages["node_modules/added"] = structuredClone(lock.packages[TARGET_PATH]); },
+    (lock) => { delete lock.packages["node_modules/react"]; },
+  ]) { const value = synthetic(); mutate(value.candidateLock); assert.throws(() => validate(value)); }
+});
+test("META-26 unchanged wrong or unpinned target version URL and SRI fail", () => {
+  for (const patch of [{ version: "1.2.1" }, { version: "1.2.3" },
+    { resolved: "https://registry.npmjs.org/react/-/react-19.2.8.tgz" },
+    { integrity: `sha512-${Buffer.alloc(64).toString("base64")}` }]) {
+    const value = synthetic(); Object.assign(value.candidateLock.packages[TARGET_PATH], patch); assert.throws(() => validate(value));
+  }
+  const value = synthetic(); value.candidateLock = structuredClone(value.lock); assert.throws(() => validate(value));
+});
+test("META-27 target metadata changes and nested duplicate targets fail", () => {
+  for (const patch of [{ license: "CHANGED" }, { dev: true }, { engines: { node: "*" } }]) {
+    const value = synthetic(); Object.assign(value.candidateLock.packages[TARGET_PATH], patch); assert.throws(() => validate(value));
+  }
+  const value = synthetic(), nested = "node_modules/next/node_modules/source-map-js";
+  value.lock.packages[nested] = structuredClone(value.lock.packages[TARGET_PATH]);
+  value.candidateLock.packages[nested] = structuredClone(value.candidateLock.packages[TARGET_PATH]);
+  assert.throws(() => validate(value));
+});
+test("META-28 package reordering or whitespace cannot bypass byte identity", () => {
+  const value = synthetic(), originalPackage = bytes(value.manifest), originalLock = bytes(value.lock), lock = bytes(value.candidateLock);
+  const reordered = Object.fromEntries(Object.entries(value.candidatePackage).reverse());
+  assert.throws(() => validateCandidate(originalPackage, originalLock, bytes(reordered), lock));
+  assert.throws(() => validateCandidate(originalPackage, originalLock, Buffer.from(`${originalPackage}\n`), lock));
+  assert.throws(() => validateCandidate(originalPackage, originalLock, Buffer.from(JSON.stringify(value.candidatePackage)), lock));
+});
+test("META-29 metadata input pins reject synthetic stale or altered originals", () => {
+  assert.equal(INPUT_PACKAGE_SHA256, "4b79c8d63413e685bbe8d04b199ff976c99c24b8257e9e66d5861f58e2eaf5e8");
+  assert.equal(INPUT_LOCK_SHA256, "bcd90db9e993e0dc5ec270cfe9efc141e783f3a7a5682236d33ce1a3dde029fe");
+  const value = synthetic();
+  assert.throws(() => validateOriginalPair(bytes(value.manifest), bytes(value.lock)));
+  const stale = structuredClone(value.lock); stale.packages[TARGET_PATH].version = "1.2.0";
+  assert.throws(() => validateCandidate(bytes(value.manifest), bytes(stale), bytes(value.candidatePackage), bytes(value.candidateLock)));
+  assert.throws(() => validateOriginalPair(Buffer.from("{}\n"), bytes(value.lock)));
+});

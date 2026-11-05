@@ -1,16 +1,14 @@
 // Read-only, network-none metadata holder/exporter. No npm/app command exists.
 import assert from "node:assert/strict";
 import { readFileSync, renameSync, writeFileSync } from "node:fs";
-import { LOCK_SHA256, PACKAGE_SHA256 } from "./offline-baseline.mjs";
 import { emit, jsonFile, noOtherProcesses, preflight, validNonce } from "./offline-sandbox-common.mjs";
-import { validateCandidate, sha256 } from "./metadata-policy.mjs";
+import { validateCandidate, validateOriginalPair } from "./metadata-policy.mjs";
 import { encodePacket, kindForAction, readManifestFile } from "./metadata-packet.mjs";
 
 const readyPath = "/scratch/metadata-consumer-ready.json";
 function candidatePair() {
   const originalPackage = readManifestFile("/input", "package"), originalLock = readManifestFile("/input", "lock");
-  assert.equal(sha256(originalPackage), PACKAGE_SHA256);
-  assert.equal(sha256(originalLock), LOCK_SHA256);
+  validateOriginalPair(originalPackage, originalLock);
   const packageBytes = readManifestFile("/toolchain", "package"), lockBytes = readManifestFile("/toolchain", "lock");
   const candidate = validateCandidate(originalPackage, originalLock, packageBytes, lockBytes);
   return { candidate, packageBytes, lockBytes };

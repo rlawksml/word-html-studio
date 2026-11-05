@@ -247,7 +247,7 @@ jobs:
               test_argv=(tests/backup-completeness.test.mjs)
               ;;
             metadata)
-              expected_tests=24
+              expected_tests=29
               source_files=(
                 .github/validation/metadata-policy.test.mjs
                 .github/validation/metadata-policy.mjs
