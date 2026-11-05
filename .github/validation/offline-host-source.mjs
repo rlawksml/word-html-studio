@@ -104,6 +104,7 @@ export async function copyReviewedSources(workspace, commit, rootfs) {
   assert.ok(entries.length > 0 && entries.length <= 2000);
   const digest = createHash("sha256");
   let bytesTotal = 0, files = 0;
+  const sourcePaths = [];
   let packageBytes, lockBytes;
   for (const record of entries) {
     const match = /^(100644|100755) blob ([a-f0-9]{40})\t(.+)$/.exec(record);
@@ -122,10 +123,11 @@ export async function copyReviewedSources(workspace, commit, rootfs) {
     chmodSync(destination, 0o444);
     digest.update(path).update("\0").update(sha256(bytes)).update("\0");
     files++;
+    sourcePaths.push(path);
     if (path === "apps/web/package.json") packageBytes = bytes;
     if (path === "apps/web/package-lock.json") lockBytes = bytes;
   }
   assert.ok(packageBytes && packageBytes.length <= 65536 && lockBytes && lockBytes.length <= 2 * 1024 * 1024);
   validateManifests(packageBytes, lockBytes);
-  return { files, bytes: bytesTotal, digest: digest.digest("hex"), packageBytes, lockBytes };
+  return { files, bytes: bytesTotal, digest: digest.digest("hex"), packageBytes, lockBytes, sourcePaths: Object.freeze(sourcePaths) };
 }
