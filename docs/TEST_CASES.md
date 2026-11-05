@@ -4,6 +4,10 @@
 
 ## 문서 정보
 
+### 2026-11-05 #87 최소 Next 후보
+
+exactbae02fb의 [별도 보고서](test-reports/2026-11-05-issue87-next-candidate.md): 새 lock 무스크립트 설치/type/lint/build·같은27파일276TC·엄격 종료/정리 PASS. NEXT-LOCK/APP 단계는 PASS, production audit·실제 브라우저·실DB/fallback은 BLOCKED다. 예전 fallback의6TC 중4FAIL과 browser inventory 차단도 링크했다. 모든 실행 수를 합산하지 않으며 운영 NO-GO다.
+
 ### 2026-11-05 #92 백업 완전성 후속
 
 exact9497d1b의 [RED/GREEN 보고서](test-reports/2026-11-05-issue92-backup-completeness.md): 새 BACKUP-COMPLETE01~29는 수정 전19FAIL/10PASS→수정 후29PASS, 기존복원25PASS, 전체27파일276TC/type/lint/build/엄격 종료·정리 PASS. 세 실행은 중복 합산하지 않는다. #93 경로·#94 미참조 보관 정책·실제 백업/복원·브라우저·audit는 미완료이며 운영 NO-GO다.
