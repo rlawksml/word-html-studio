@@ -1,5 +1,7 @@
 # Supabase 무손실 백업·복구 Runbook
 
+2026-11-05 #94 정책: 목록화된 모든 원본·미리보기 사진을 보관한다. 검증을 모두 통과한 미참조 사진은 고정 경고만 남기며, 참조 사진 누락·파일/해시·통계 오류는 계속 FAIL이다. verify 및 restore dry-run/최종 요약에 `warnings`가 전달된다. [파일 기반 검증 보고서](test-reports/2026-11-05-issue94-retained-photo-warnings.md)의30/25/277 PASS는 실복원·#93 경로 안전성·원자 snapshot·운영 승인이 아니다. 미참조 사진을 지워 통과시키거나 기존 백업 manifest를 고치지 않는다.
+
 이 문서는 동네책방 소식 스튜디오의 Database와 사진을 안전하게 백업하고, **운영·현재 보관용 Staging과 다른 새 격리 프로젝트**에서 복원 가능성을 검증하는 절차입니다.
 
 2026-11-05 준비 변경: marker의 component/version이 같고 적용 시각만 다른 경우, 대상 marker를 그대로 보존하는 계획/최종 검증을 추가했습니다. 아래 절차의 **소스 구현 단계**이며 실제 SQL 적용·복원 성공이나 실행 승인을 뜻하지 않습니다. 운영 `kdigttaghqubfjsmbngl`과 보관 Staging `kriyjyyudngtibrtkylf`는 복원 대상에서 하드 차단합니다.

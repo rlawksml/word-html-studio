@@ -2,13 +2,13 @@
 
 ## 2026-11-05 현재 릴리스 게이트 (아래 과거 단계 기록보다 우선)
 
-현재 **운영 NO-GO**. [후속 #92의276TC](docs/test-reports/2026-11-05-issue92-backup-completeness.md)와 [과거 후보247](docs/test-reports/2026-11-05-preprod-candidate-offline.md)은 각각 검증했지만 브라우저·실DB·audit·복원/롤백 전체 게이트는 별도입니다. 아래 과거 체크 표시는 당시 범위이며 현재 배포 완료가 아닙니다.
+현재 **운영 NO-GO**. [#94의277TC](docs/test-reports/2026-11-05-issue94-retained-photo-warnings.md)는 통과했고 별도 실제 audit는 source-map-js high1로 실패했습니다. [이전 #92의276TC](docs/test-reports/2026-11-05-issue92-backup-completeness.md)·[과거 후보247](docs/test-reports/2026-11-05-preprod-candidate-offline.md)과 합산하지 않습니다. 브라우저·실DB·복원/롤백 전체 게이트와 보안 재검증이 남습니다. 아래 과거 체크 표시는 당시 범위이며 현재 배포 완료가 아닙니다.
 
 - [x] #92 별도 분석→수정 전29TC 중19FAIL 재현→최소 수정→같은29/기존복원25/전체276 및 type/lint/build·엄격 정리 PASS, exact9497d1b·독립 검토 (실제 백업/복원 성공 아님)
 - [ ] #93 백업 목적지의 ancestor symlink/TOCTOU 방어와 격리 재현·회귀 (기존 백업을 자동 이동/수정하지 않음)
-- [ ] #94 사용자 정책 확정: 모든 사진 보관·백업, 미참조는 경고만. 구현은 중단 후 미착수. 참조된 사진 누락·해시/통계 오류는 계속 차단하고 삭제로 통과시키지 않음
+- [x] #94 모든 사진 보관·미참조 경고 정책 구현: RED30중3FAIL→같은30PASS/복원정책25PASS/전체277·type/lint/build·엄격 정리 PASS, exact1f9c605 ([보고서](docs/test-reports/2026-11-05-issue94-retained-photo-warnings.md)). 실제 백업/복원·운영 반영 아님
 - [ ] #46/#48 옛 exact28efad2 parser6TC 중 미래4종 보존FAIL ([보고서](https://github.com/rlawksml/word-html-studio/blob/0fec8b719a88001b61b54b31238bb28472757628/docs/test-reports/2026-11-05-exact-fallback-preservation.md)); 호환 fallback·불변 artifact/환경/기간/사진 검증 필요. 후보PASS로 대체 금지
-- [ ] 전체 테스트 출력 요약 개선 검토: 276TC stdout64690bytes, 현재64KiB까지846bytes 여유. 상한 완화/TC 제거 금지
+- [ ] 전체 테스트 출력 요약 개선 검토: 새277TC stdout64972bytes, 현재64KiB까지564bytes 여유. 상한 완화/TC 제거/제목 축약 금지
 
 - [x] 원래 dirty36개 보존·분류, source 복구 사본의 hash/bundle 검증 및 로컬 `.git` 비공개 보관 (DB 백업 아님)
 - [x] #47 marker 무쓰기/대상 hash 보존·#88 무삭제 방어·기존 gate/실연결 hardblock 보존
@@ -19,7 +19,7 @@
 - [x] #91 유효 월 보존/invalid calendar 방어와 순수15TC·같은 후보247 회귀. 실제 UI 완료로 판단하지 않음
 - [x] HTML fixture의 소유 esbuild 실제 close 대기·자동 HTML-LINES-07 한 개 추가. 수동 외부편집기06과 구분
 - [x] #87 최소 Next/eslint-config-next16.4.5 후보·검토한 새 lock 적용, exactbae02fb의 무스크립트 설치/type/lint/build/276TC·엄격 정리 PASS ([보고서](docs/test-reports/2026-11-05-issue87-next-candidate.md)); 보안 완료/배포 아님
-- [ ] #87 새 lock production audit·source-map-js 잔여 확인, #66 vinext/React 및 개발 Miniflare/sharp 별도 호환 검증
+- [ ] #87 별도 실제 production audit에서 source-map-js1.2.1 high1 발견.1.2.2 최소 lock 변경/재audit·전체 회귀 및 추가2JSON전달 승인 필요. #66 vinext/React·개발 Miniflare/sharp는 별도
 - [ ] #91 실제 DOM 부분 월 편집/IME 및 로그인·사진·통합본 브라우저/Network·자원 P0
 - [ ] npm/build 각각 관측 warning2의 분류·필요한 조치 (경고 부재나 안전성으로 일반화하지 않음)
 - [ ] 별도 승인 후 #86 SQL·신규 QA·두 작업자/사진의 실제 Staging P0 검증

@@ -6,13 +6,15 @@
 
 ## 2026-11-05 운영 반영 전 상태
 
-**사용자 요청으로 일시 중단했습니다.** [이어하기 체크포인트](docs/test-reports/2026-11-05-pause-resume-checkpoint.md)에 완료 결과·미검증 audit WIP·#94 승인 정책과 재개 순서를 기록했습니다. 사용자가 다시 요청하기 전에는 작업·실행을 재개하지 않습니다.
+사용자의 재개 요청에 따라 #94의 **모든 사진 보관·미참조 경고** 정책을 구현하고 exact1f9c605에서 목표30/복원정책25/전체277TC·type/lint/build와 엄격 정리를 검증했습니다. [#94 보고서](docs/test-reports/2026-11-05-issue94-retained-photo-warnings.md)를 보세요. 이전 [중단 기록](docs/test-reports/2026-11-05-pause-resume-checkpoint.md)은 당시 checkpoint이며 현재 중단 상태를 뜻하지 않습니다.
 
-후속 #87 최소 Next 후보 exact `bae02fb`도 **새 lock의 무스크립트 설치·typecheck·lint·build·276TC·엄격 정리 PASS**입니다. [보안 후보 회귀 보고서](docs/test-reports/2026-11-05-issue87-next-candidate.md)를 보세요. audit는 아직 미실행이며 #87 완료나 운영 승인으로 판단하지 않습니다.
+별도 브랜치의 [실제 metadata audit](https://github.com/rlawksml/word-html-studio/blob/3e8289ffd041c3fba48ec3087c226d286c10f5e7/docs/test-reports/2026-11-05-issue87-metadata-audit.md)는 source-map-js high1로 FAIL(FINDINGS)입니다. 보안 잔여·#93 경로·실제 백업/복원·브라우저/DB·호환 fallback 검증이 남아 **운영 NO-GO**를 유지합니다.
+
+이전 #87 최소 Next 후보 exact `bae02fb`도 **새 lock의 무스크립트 설치·typecheck·lint·build·276TC·엄격 정리 PASS**였습니다. [당시 보안 후보 회귀 보고서](docs/test-reports/2026-11-05-issue87-next-candidate.md)의 앱 실행에는 audit가 없었고, 이후 위 별도 실제 audit에서 high1을 확인했습니다. #87 완료나 운영 승인은 아닙니다.
 
 후속 #92의 exact `9497d1b`에서 **typecheck·lint·build·276TC와 자식 종료/임시 자원 정리**를 무료 Linux 격리 CI로 검증했습니다. 수정 전29TC 중19FAIL을 재현한 뒤 같은29개와 기존복원25개도 별도 통과했습니다. [백업 완전성 RED/GREEN 보고서](docs/test-reports/2026-11-05-issue92-backup-completeness.md)를 확인하세요. 과거 후보의 [247TC](docs/test-reports/2026-11-05-preprod-candidate-offline.md)·[native99](docs/test-reports/2026-11-05-candidate99-native-regression.md)는 다른 exact 증거이며 중복 합산하지 않습니다.
 
-**운영 NO-GO**는 유지합니다. #93 백업 경로와 #94 미참조 사진 정책, 보안 업데이트/audit, 브라우저·실DB P0, 최신 독립 백업과 exact fallback 호환은 별도입니다. 이번에는 main merge·운영/Staging 배포·SQL·기존 DB/사진·유료 설정을 변경하지 않았습니다. 실제 긴급 롤백 가능을 아직 확정하지 않으며 남은 게이트는 [TODO](TODO.md)를 따릅니다.
+**운영 NO-GO**는 유지합니다. #93 백업 경로와 #94 정책의 실제 백업/복원 검증, 잔여 보안 업데이트·재audit, 브라우저·실DB P0, 최신 독립 백업과 exact fallback 호환이 남습니다. 이번에는 main merge·운영/Staging 배포·SQL·기존 DB/사진·유료 설정을 변경하지 않았습니다. 실제 긴급 롤백 가능을 아직 확정하지 않으며 남은 게이트는 [TODO](TODO.md)를 따릅니다.
 
 ## 현재 구현된 프로토타입
 

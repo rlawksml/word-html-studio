@@ -4,6 +4,10 @@
 
 ## 문서 정보
 
+### 2026-11-05 #94 사진 보관 정책 후속
+
+exact1f9c605의 [보고서](test-reports/2026-11-05-issue94-retained-photo-warnings.md): 최종 RED와 같은30TC/기존복원25/전체277 및 type/lint/build·엄격 정리 PASS. 미참조 원본/미리보기는 모두 보관하고 고정 경고만 주며, 누락/변조/거짓 통계는 계속 FAIL·warnings[]다. TC20은 참조 전체 소멸 포함4가지 보존, TC30은 부정4가지·사진 존재/bytes 불변과 CLI 소스 계약을 확인한다. 기존29 중20의 정책 기대와21의 빈 경고 assert를 명시적으로 변경하고 새30을 추가했다. 실제 SDK/복원·#93 경로·운영 GO가 아니며,30/25/277은 합산하지 않는다.
+
 ### 2026-11-05 #87 최소 Next 후보
 
 exactbae02fb의 [별도 보고서](test-reports/2026-11-05-issue87-next-candidate.md): 새 lock 무스크립트 설치/type/lint/build·같은27파일276TC·엄격 종료/정리 PASS. NEXT-LOCK/APP 단계는 PASS, production audit·실제 브라우저·실DB/fallback은 BLOCKED다. 예전 fallback의6TC 중4FAIL과 browser inventory 차단도 링크했다. 모든 실행 수를 합산하지 않으며 운영 NO-GO다.
