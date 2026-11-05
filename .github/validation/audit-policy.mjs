@@ -12,7 +12,9 @@ const LOCK_PATH = /^(?:node_modules\/(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+)(?:\/node_
 const GHSA = /^GHSA-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4}$/;
 const CVE = /^CVE-[0-9]{4}-[0-9]{4,10}$/;
 const VERSION = /^(?:0|[1-9][0-9]{0,2})\.(?:0|[1-9][0-9]{0,2})\.(?:0|[1-9][0-9]{0,2})$/;
-const REASONS = new Set(["NONE", "HIGH_OR_CRITICAL", "OUTPUT_CAP", "TIMEOUT", "PROCESS", "STDERR", "JSON", "ENDPOINT", "SCHEMA", "EXIT_MISMATCH"]);
+const SCHEMA_STEPS = Object.freeze(["ROOT", "METADATA", "RECORD", "ADVISORY", "URL", "NODE", "FIX", "COUNTERS"]);
+const REASONS = new Set(["NONE", "HIGH_OR_CRITICAL", "OUTPUT_CAP", "TIMEOUT", "PROCESS", "STDERR", "JSON", "ENDPOINT", "EXIT_MISMATCH",
+  ...SCHEMA_STEPS.map((step) => `SCHEMA_${step}`)]);
 const record = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const count = (value, max = 4000) => Number.isSafeInteger(value) && value >= 0 && value <= max;
 const keys = (value, expected) => {
@@ -49,7 +51,8 @@ function distinctStrings(values, limit, check) {
   assert.equal(new Set(values).size, values.length);
   values.forEach(check);
 }
-function advisory(value, inventory, ids, sources) {
+function advisory(value, inventory, ids, sources, step) {
+  step("ADVISORY");
   keys(value, ["source", "name", "dependency", "title", "url", "severity", "cwe", "cvss", "range"]);
   assert.ok(Number.isSafeInteger(value.source) && value.source > 0 && value.source <= 9_999_999_999);
   knownName(value.name, inventory);
@@ -62,6 +65,7 @@ function advisory(value, inventory, ids, sources) {
   assert.ok(value.cvss.score === null || (Number.isFinite(value.cvss.score) && value.cvss.score >= 0 && value.cvss.score <= 10));
   assert.ok(value.cvss.vectorString === null || typeof value.cvss.vectorString === "string");
   if (value.cvss.vectorString !== null) text(value.cvss.vectorString, 512);
+  step("URL");
   text(value.url, 512);
   const url = new URL(value.url);
   assert.ok(url.protocol === "https:" && !url.username && !url.password && !url.port && !url.hash);
@@ -87,10 +91,12 @@ function fix(value, inventory) {
   assert.match(value.version, /^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/);
   assert.equal(typeof value.isSemVerMajor, "boolean");
 }
-function reportSummary(report, inventory) {
+function reportSummary(report, inventory, step) {
+  step("ROOT");
   keys(report, ["auditReportVersion", "vulnerabilities", "metadata"]);
   assert.equal(report.auditReportVersion, 2);
   assert.ok(record(report.vulnerabilities));
+  step("METADATA");
   keys(report.metadata, ["vulnerabilities", "dependencies"]);
   keys(report.metadata.vulnerabilities, COUNT_KEYS);
   keys(report.metadata.dependencies, DEPENDENCY_KEYS);
@@ -100,8 +106,10 @@ function reportSummary(report, inventory) {
   assert.ok(report.metadata.dependencies.total > 0);
   const counts = Object.fromEntries(COUNT_KEYS.map((key) => [key, 0]));
   const ids = new Set(), sources = new Set(), records = Object.entries(report.vulnerabilities);
+  step("RECORD");
   assert.ok(records.length <= 4000);
   for (const [name, item] of records) {
+    step("RECORD");
     knownName(name, inventory);
     keys(item, ["name", "severity", "isDirect", "via", "effects", "range", "nodes", "fixAvailable"]);
     assert.equal(item.name, name);
@@ -110,26 +118,32 @@ function reportSummary(report, inventory) {
     text(item.range, 4096);
     assert.ok(Array.isArray(item.via) && item.via.length > 0 && item.via.length <= 4000);
     for (const via of item.via) {
+      step("RECORD");
       let severity;
       if (typeof via === "string") {
         knownName(via, inventory);
         assert.ok(Object.hasOwn(report.vulnerabilities, via) && record(report.vulnerabilities[via]));
         severity = report.vulnerabilities[via].severity;
         assert.ok(SEVERITIES.includes(severity));
-      } else severity = advisory(via, inventory, ids, sources);
+      } else severity = advisory(via, inventory, ids, sources, step);
       // A lower aggregate must never conceal a higher direct/transitive
       // advisory. Registry inconsistency is BLOCKED, not a clean audit.
+      step("RECORD");
       assert.ok(SEVERITIES.indexOf(item.severity) >= SEVERITIES.indexOf(severity));
     }
+    step("RECORD");
     distinctStrings(item.effects, 4000, (effect) => knownName(effect, inventory));
+    step("NODE");
     distinctStrings(item.nodes, 4000, (path) => {
       assert.ok(typeof path === "string" && inventory.paths.has(path) && inventory.paths.get(path).has(name));
     });
     assert.ok(item.nodes.length > 0);
+    step("FIX");
     fix(item.fixAvailable, inventory);
     counts[item.severity]++;
     counts.total++;
   }
+  step("COUNTERS");
   assert.ok(records.length === 0 || ids.size > 0);
   for (const key of COUNT_KEYS) {
     assert.ok(count(report.metadata.vulnerabilities[key]));
@@ -157,9 +171,12 @@ export function classifyAudit(result, inventory, version) {
     assert.equal(raw, `${JSON.stringify(report, null, 2)}\n`);
   } catch { return blocked(version, "JSON"); }
   if (record(report) && Object.hasOwn(report, "error")) return blocked(version, "ENDPOINT");
-  let summary;
-  try { summary = reportSummary(report, inventory); }
-  catch { return blocked(version, "SCHEMA"); }
+  let summary, schemaStep = "ROOT";
+  // Local fixed labels only. Never inspect/return an assertion message, key,
+  // advisory title, URL, package name or raw report in a schema diagnostic.
+  const step = (value) => { assert.ok(SCHEMA_STEPS.includes(value)); schemaStep = value; };
+  try { summary = reportSummary(report, inventory, step); }
+  catch { return blocked(version, `SCHEMA_${schemaStep}`); }
   const findings = summary.vulnerabilities.high + summary.vulnerabilities.critical > 0;
   if (result.code !== (findings ? 1 : 0)) return blocked(version, "EXIT_MISMATCH");
   return { outcome: findings ? "FINDINGS" : "PASS", reason: findings ? "HIGH_OR_CRITICAL" : "NONE", npmVersion: version, ...summary };

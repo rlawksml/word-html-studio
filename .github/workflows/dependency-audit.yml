@@ -70,7 +70,7 @@ jobs:
           74bb3cba81f31ec90ec9a87ae5ea03d909df506280e7b0b40cf963ccd5d98c1c audit-host-controller.mjs
           ef25747676fb35fafcac5afe8550f20490df9eb07a3b59f5b1c589663eefcdaf audit-host-docker.mjs
           9292eff6336b448e995722a7791479deac421ac816e057a2d85a5ba5bcbd6ec3 audit-sandbox-preflight.mjs
-          578f457e86297df01c3025e3b834333202f8bd2e6105eeb5da76d7a1fad051da audit-policy.mjs
+          e58cdc1d0651d223b98047482ff77c3cf319202be412556e16370fcc96d0a84b audit-policy.mjs
           251ced3998bdb9a30f3e86fa6af5670ab377c790bb4d9815de56d2479ba0966b audit-file-io.mjs
           c0eb39d53f9d480fe509105072be49c2b8f04b8b9c43138d21ab54940e4f8109 audit-prep-launcher.mjs
           2e0cd2a3ca80bce800069995db7783c0607b8ac9db190f604080dc86d64a65ce offline-baseline.mjs
