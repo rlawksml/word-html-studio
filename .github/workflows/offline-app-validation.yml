@@ -59,7 +59,7 @@ jobs:
             [[ "${actual%% *}" == "$expected" ]] || fail OFFLINE_REVIEW_HASH_MISMATCH
             /usr/bin/cp -- "$source_file" "$scratch/trusted/$relative"
           done <<'REVIEWED_CLOSURE'
-          cce523c50d4f6bb3bff67c502eb8132fe0d89c2210305527517b653e80cf690e offline-host-controller.mjs
+          4631df1d258a6cf35a506d4e0c6e927d0fb674fd0bf8c42be66c32ed2dee709c offline-host-controller.mjs
           abe01b3a84116e30cea9d85ae71f292f23d7611c1b3ac3dcce42e8c2ea013c51 offline-host-support.mjs
           223b835765501da761e5be646131305cad24830b86361922bfa4db53da2ed790 offline-host-source.mjs
           9fc295a1ea304d7cfb4075168f169bad4b484dea787426a8d05e5199eced9023 offline-host-runtime.mjs
@@ -67,7 +67,7 @@ jobs:
           d11063523c11eebfdff3745ef77ae3df70ceb6e94f043736896de1c4b6e8c9c8 offline-baseline.mjs
           18e576e8d2f0123a38ce28d76ea939099b1ae98705115868f860cf5cca72861b offline-sandbox-common.mjs
           11df609cae4121782f2a3e2ad977aa12d891c9914451c7a95bfc4153e6b2ae58 offline-prep-launcher.mjs
-          c74fef3f181e646f08046643b12a308583f3c9cfe3155600734494326ddbc78a offline-app-launcher.mjs
+          54a5058467dd9913123f632883b3d96bcf2cd2010271b219908f3ebdddb64b8a offline-app-launcher.mjs
           499ed0e6a76ded0ba21350c381107651eb6cb0cf73e5160102050236f7315cd5 offline-app.Dockerfile
           REVIEWED_CLOSURE
           # No npm/SDK/app code on the host; the copied reviewed closure imports

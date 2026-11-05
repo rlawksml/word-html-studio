@@ -121,6 +121,15 @@ function verifySpec(bytes, observe) {
   assert.ok(!/^✖ /m.test(text));
   return counters;
 }
+function unitFailureLocations(bytes) {
+  const locations = [];
+  for (const match of bytes.toString("utf8").matchAll(/^test at (tests\/[A-Za-z0-9._-]+\.mjs):(\d{1,7}):(\d{1,7})$/gm)) {
+    if (!TESTS.includes(match[1]) || locations.length >= 20) continue;
+    const line = Number(match[2]), column = Number(match[3]);
+    if (line > 0 && column > 0) locations.push({ file: match[1], line, column });
+  }
+  return locations; // owned public source locations only, never error text
+}
 function summarizeRemainingProcesses() {
   const pids = readdirSync("/proc").filter((name) => /^\d+$/.test(name)).filter((name) => ![1, process.pid].includes(Number(name)));
   assert.ok(pids.length <= 128);
@@ -170,9 +179,16 @@ async function runStages() {
     const summary = summarize(stage, result);
     if (stage === "typecheck" && result.code !== 0) summary.typeDiagnostics = typecheckDiagnostics(result.stdout);
     summaries.push(summary);
+    if (stage === "unit" && !result.limited && !result.signal && !result.error) {
+      summary.unitDiagnostics = unitFailureLocations(result.stdout);
+      const knownCodes = ["ERR_MODULE_NOT_FOUND", "ERR_UNKNOWN_BUILTIN_MODULE", "ERR_UNKNOWN_FILE_EXTENSION", "ERR_UNSUPPORTED_ESM_URL_SCHEME", "ERR_REQUIRE_ESM", "ERR_INVALID_ARG_TYPE", "ERR_ASSERTION", "ENOENT"];
+      const output = result.stdout.toString("utf8");
+      summary.unitRuntimeErrors = knownCodes.filter((code) => new RegExp(`\\b${code}\\b`).test(output));
+      // Observe the footer even on exit1; a failed assertion below still blocks.
+      summary.tap = verifySpec(result.stdout, (counters) => { summary.tap = counters; });
+    }
     if (result.code !== 0 || result.signal || result.error || result.limited) throw fixedError("OFFLINE_STAGE_FAILED_OR_LIMITED");
     // `tap` is the existing protocol field name, not the output formatter.
-    if (stage === "unit") summary.tap = verifySpec(result.stdout, (counters) => { summary.tap = counters; });
     phase = "POST_STAGE";
     await quiescent();
     preflight("app"); // also rejects actual cgroup OOM, not just exit codes
