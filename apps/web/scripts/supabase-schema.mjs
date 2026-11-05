@@ -52,9 +52,20 @@ export function tableSpecsForBackup(schemaVersionAvailable, digestOrderAvailable
 }
 
 export function tableSpecsForRestore(databaseManifest) {
-  const expectedNames = new Set(Object.keys(databaseManifest || {}));
+  if (!databaseManifest || typeof databaseManifest !== "object" || Array.isArray(databaseManifest)) {
+    throw new Error("BACKUP_TABLE_MANIFEST_INVALID");
+  }
+  const expectedNames = new Set(Object.keys(databaseManifest));
   const knownNames = new Set(SUPABASE_TABLE_SPECS.map((table) => table.name));
   const unknown = [...expectedNames].filter((name) => !knownNames.has(name));
-  if (unknown.length > 0) throw new Error(`Backup contains unsupported tables: ${unknown.join(", ")}`);
+  if (unknown.length > 0) throw new Error("Backup contains unsupported tables");
+  if (SUPABASE_TABLE_SPECS.some((table) => table.legacyRequired && !expectedNames.has(table.name))) {
+    throw new Error("BACKUP_CORE_TABLES_REQUIRED");
+  }
+  const hasMarkers = expectedNames.has("app_schema_versions");
+  const hasRanges = expectedNames.has("news_schedule_ranges");
+  if (hasMarkers !== hasRanges || (expectedNames.has("monthly_digest_orders") && !hasMarkers)) {
+    throw new Error("BACKUP_OPTIONAL_TABLE_BUNDLE_INCOMPLETE");
+  }
   return SUPABASE_TABLE_SPECS.filter((table) => expectedNames.has(table.name));
 }

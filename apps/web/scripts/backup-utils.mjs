@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { inspectBackupContents, inspectBackupManifest } from "./backup-manifest-policy.mjs";
 
 export const BACKUP_FORMAT_VERSION = 1;
 
@@ -135,70 +136,65 @@ export async function verifyBackupDirectory(backupDir) {
     throw new Error("Backup directory must be an absolute path");
   }
   const manifestPath = resolveInside(backupDir, "manifest.json");
-  const manifestPayload = await readFile(manifestPath);
-  const manifest = JSON.parse(manifestPayload);
+  let manifestPayload, manifest;
   const failures = [];
   let verifiedFiles = 0;
   let verifiedBytes = 0;
+  const result = () => ({
+    status: failures.length === 0 ? "PASS" : "FAIL", manifest: manifest ?? null,
+    manifestSha256: manifestPayload ? sha256(manifestPayload) : null,
+    verifiedFiles, verifiedBytes, failures: [...new Set(failures)],
+  });
+  try { manifestPayload = await readFile(manifestPath); }
+  catch { failures.push("BACKUP_MANIFEST_UNREADABLE"); return result(); }
+  try { manifest = JSON.parse(manifestPayload); }
+  catch { failures.push("BACKUP_MANIFEST_JSON_INVALID"); return result(); }
+  failures.push(...inspectBackupManifest(manifest, BACKUP_FORMAT_VERSION));
+  if (failures.length) return result();
 
-  if (manifest.formatVersion !== BACKUP_FORMAT_VERSION) {
-    failures.push(`unsupported backup format: ${manifest.formatVersion}`);
-  }
-  if (manifest.mode !== "read-only-export") {
-    failures.push(`unexpected backup mode: ${manifest.mode}`);
-  }
-
-  for (const [table, expected] of Object.entries(manifest.database || {})) {
-    const payload = await readFile(resolveInside(backupDir, "database", `${table}.json`));
-    if (payload.length !== expected.bytes) failures.push(`${table}: byte size mismatch`);
-    if (sha256(payload) !== expected.sha256) failures.push(`${table}: sha256 mismatch`);
-    const rows = JSON.parse(payload);
-    if (!Array.isArray(rows) || rows.length !== expected.rows) failures.push(`${table}: row count mismatch`);
+  const tables = {};
+  async function verifiedPayload(segments, expected, category) {
+    let payload;
+    try { payload = await readFile(resolveInside(backupDir, ...segments)); }
+    catch { failures.push(`BACKUP_${category}_FILE_UNREADABLE`); return null; }
     verifiedFiles += 1;
     verifiedBytes += payload.length;
+    if (payload.length !== expected.bytes) failures.push(`BACKUP_${category}_SIZE_MISMATCH`);
+    if (sha256(payload) !== expected.sha256) failures.push(`BACKUP_${category}_HASH_MISMATCH`);
+    return payload;
   }
 
-  for (const [bucket, details] of Object.entries(manifest.storage || {})) {
-    for (const object of details.objects || []) {
-      const payload = await readFile(resolveInside(backupDir, "storage", bucket, object.path));
-      if (payload.length !== object.bytes) failures.push(`${bucket}/${object.path}: byte size mismatch`);
-      if (sha256(payload) !== object.sha256) failures.push(`${bucket}/${object.path}: sha256 mismatch`);
-      verifiedFiles += 1;
-      verifiedBytes += payload.length;
+  for (const [table, expected] of Object.entries(manifest.database)) {
+    const payload = await verifiedPayload(["database", `${table}.json`], expected, "DATABASE");
+    if (payload === null) continue;
+    let rows;
+    try { rows = JSON.parse(payload); }
+    catch { failures.push("BACKUP_DATABASE_JSON_INVALID"); continue; }
+    if (!Array.isArray(rows) || rows.length !== expected.rows
+      || rows.some((row) => !row || typeof row !== "object" || Array.isArray(row))) {
+      failures.push("BACKUP_DATABASE_ROWS_INVALID");
+      continue;
+    }
+    tables[table] = rows;
+  }
+
+  for (const [bucket, details] of Object.entries(manifest.storage)) {
+    for (const object of details.objects) {
+      await verifiedPayload(["storage", bucket, object.path], object, "STORAGE");
     }
   }
 
-  for (const migration of manifest.migrations || []) {
-    const payload = await readFile(resolveInside(backupDir, "migrations", migration.name));
-    if (payload.length !== migration.bytes) failures.push(`${migration.name}: byte size mismatch`);
-    if (sha256(payload) !== migration.sha256) failures.push(`${migration.name}: sha256 mismatch`);
-    verifiedFiles += 1;
-    verifiedBytes += payload.length;
+  for (const migration of manifest.migrations) {
+    await verifiedPayload(["migrations", migration.name], migration, "MIGRATION");
   }
 
-  const incompleteExists = await stat(resolveInside(backupDir, "INCOMPLETE"))
-    .then(() => true)
-    .catch((error) => {
-      if (error?.code === "ENOENT") return false;
-      throw error;
-    });
-  if (incompleteExists) failures.push("INCOMPLETE marker exists");
-
-  for (const key of [
-    "missingOriginalObjects",
-    "missingPreviewObjects",
-    "unreferencedOriginalObjects",
-    "unreferencedPreviewObjects",
-  ]) {
-    if ((manifest.references?.[key] || []).length > 0) failures.push(`reference check failed: ${key}`);
+  try {
+    await stat(resolveInside(backupDir, "INCOMPLETE"));
+    failures.push("BACKUP_INCOMPLETE_MARKER_PRESENT");
+  } catch (error) {
+    if (error?.code !== "ENOENT") failures.push("BACKUP_COMPLETION_STATE_UNREADABLE");
   }
-
-  return {
-    status: failures.length === 0 ? "PASS" : "FAIL",
-    manifest,
-    manifestSha256: sha256(manifestPayload),
-    verifiedFiles,
-    verifiedBytes,
-    failures,
-  };
+  // Hash/read failures must not be upgraded to a claim about DB references.
+  if (failures.length === 0) failures.push(...inspectBackupContents(manifest, tables));
+  return result();
 }

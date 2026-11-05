@@ -57,8 +57,14 @@ test("DORDER-BACKUP-04 restore는 새table을 알지만 옛manifest에 table을 
   assert.deepEqual(tableSpecsForRestore(Object.fromEntries(withDigest.map((name) => [name, {}]))).map((item) => item.name), withDigest);
   const futureRows = [{ month: "2026-11", revision: 2, submission_ids: [2, 1], future_metadata: { keep: "opaque" } }];
   const before = canonicalJson(futureRows);
-  tableSpecsForRestore({ monthly_digest_orders: { rows: 1, future_manifest_metadata: "keep" } });
+  const manifest = {
+    ...Object.fromEntries(established.map((name) => [name, {}])),
+    monthly_digest_orders: { rows: 1, future_manifest_metadata: "keep", future_manifest_rows: futureRows },
+  };
+  const manifestBefore = canonicalJson(manifest);
+  tableSpecsForRestore(manifest);
   assert.equal(canonicalJson(futureRows), before, "table plan must not normalize raw future row fields");
+  assert.equal(canonicalJson(manifest), manifestBefore, "complete inventory validation must not rewrite unknown metadata");
 });
 
 test("DORDER-BACKUP-05 backup source는 설치 gate를 사용하며 table 조회 실패를 계속 실패시킨다", async () => {

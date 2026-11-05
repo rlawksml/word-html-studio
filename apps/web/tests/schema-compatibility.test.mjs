@@ -138,9 +138,10 @@ test("이전 백업은 기존 테이블만, 새 백업은 호환 테이블까지
     ["bookstores", "submissions", "editing_leases", "improvement_requests", "app_schema_versions", "news_schedule_ranges"],
   );
   assert.deepEqual(
-    tableSpecsForRestore({ bookstores: {}, submissions: {} }).map((table) => table.name),
-    ["bookstores", "submissions"],
+    tableSpecsForRestore({ bookstores: {}, submissions: {}, editing_leases: {}, improvement_requests: {} }).map((table) => table.name),
+    ["bookstores", "submissions", "editing_leases", "improvement_requests"],
   );
+  assert.throws(() => tableSpecsForRestore({ bookstores: {}, submissions: {} }), /CORE_TABLES_REQUIRED/);
   assert.throws(() => tableSpecsForRestore({ unknown_table: {} }), /unsupported tables/);
 });
 

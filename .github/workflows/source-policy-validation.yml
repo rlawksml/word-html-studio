@@ -175,11 +175,13 @@ jobs:
               expected_tests=25
               source_files=(
                 apps/web/scripts/backup-utils.mjs
+                apps/web/scripts/backup-manifest-policy.mjs
                 apps/web/scripts/schema-marker-restore-policy.mjs
                 apps/web/scripts/supabase-schema.mjs
                 apps/web/scripts/supabase-restore-staging.mjs
                 apps/web/tests/schema-marker-restore-policy.test.mjs
                 apps/web/tests/backup-safety.test.mjs
+                apps/web/tests/helpers/backup-directory-fixture.mjs
               )
               test_argv=(tests/schema-marker-restore-policy.test.mjs tests/backup-safety.test.mjs)
               ;;
@@ -237,6 +239,7 @@ jobs:
               expected_tests=29
               source_files=(
                 apps/web/scripts/backup-utils.mjs
+                apps/web/scripts/backup-manifest-policy.mjs
                 apps/web/scripts/supabase-schema.mjs
                 apps/web/tests/helpers/backup-directory-fixture.mjs
                 apps/web/tests/backup-completeness.test.mjs

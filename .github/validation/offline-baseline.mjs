@@ -1,5 +1,5 @@
 // Fixed existing package/lock baseline. No upgrades or npm script evaluation.
-export const PACKAGE_SHA256 = "cdc5fde96aa6665a7642b256a2b4329e2a9dee147bbd12981df3c35e38199fa9";
+export const PACKAGE_SHA256 = "cbc8bc1cb6ab5c4a4ce1c3a702079b743510f679cf80606822044322a1c70d9d";
 export const LOCK_SHA256 = "18ff641e6f54f79d3c6158ba8717309e7e0e237eb65d7fdff6012b39d1433f34";
 export const TESTS = Object.freeze([
   "tests/html-line-breaks.test.mjs",
@@ -14,6 +14,7 @@ export const TESTS = Object.freeze([
   "tests/publication-month.test.mjs",
   "tests/schema-compatibility.test.mjs",
   "tests/backup-safety.test.mjs",
+  "tests/backup-completeness.test.mjs",
   "tests/supabase-environment.test.mjs",
   "tests/deployment-target.test.mjs",
   "tests/access-code-normalization.test.mjs",
@@ -29,9 +30,9 @@ export const TESTS = Object.freeze([
   "tests/digest-order-client.test.mjs",
   "tests/digest-response-observer.test.mjs",
 ]);
-// Static top-level test declarations in the exact 26 files above, not a claim
+// Static top-level test declarations in the exact 27 files above, not a claim
 // that these tests have run. Any TAP mismatch, skip/cancellation/todo fails.
-export const EXPECTED_TESTS = 247;
+export const EXPECTED_TESTS = 276;
 
 export const BASE_ENV = Object.freeze({
   PATH: "/usr/bin:/bin", HOME: "/scratch", TMPDIR: "/scratch",
