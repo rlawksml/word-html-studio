@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createClient } from "@supabase/supabase-js";
 import { assertIntegrationTarget } from "./helpers/integration-target-guard.mjs";
+import { assertLegacyIntegrationBlocked } from "./helpers/owned-cleanup-plan.mjs";
 import {
   assertRowsAbsent,
   assertStorageObjectAbsent,
@@ -9,8 +9,11 @@ import {
 } from "./helpers/supabase-cleanup-guard.mjs";
 
 const enabled = process.env.RUN_SUPABASE_INTEGRATION === "1";
-// Must fail before Worker imports, session requests, DB clients or cleanup.
+// Stage 1: legacy cleanup has no ownership adapter. No override or live execution.
+if (enabled) assertLegacyIntegrationBlocked();
+// Unreachable while enabled: retain target checks for a future separately reviewed adapter.
 if (enabled) assertIntegrationTarget(process.env);
+const { createClient } = enabled ? await import("@supabase/supabase-js") : {};
 
 async function loadWorker() {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
