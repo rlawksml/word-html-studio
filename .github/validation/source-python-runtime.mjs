@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 
 const [rootfs, ...extra] = process.argv.slice(2);
 const LIMIT = 128 * 1024 * 1024;
@@ -103,7 +103,17 @@ try {
   const extensions = [];
   const visit = (source, destination, ancestors = new Set()) => {
     const { canonical, info: entry } = trusted(source);
-    assert.ok(roots.some((root) => canonical === root || canonical.startsWith(`${root}/`)));
+    if (!roots.some((root) => canonical === root || canonical.startsWith(`${root}/`))) {
+      const name = basename(source), triplet = { x64: "x86_64-linux-gnu", arm64: "aarch64-linux-gnu" }[process.arch];
+      const prefix = triplet ? `/usr/lib/${triplet}/${expected}` : "";
+      const category = /^_sysconfigdata.*\.py$/.test(name) ? "SYSCONFIG"
+        : /^config-/.test(name) ? "CONFIG" : name === "lib-dynload" ? "LIB_DYNLOAD" : "OTHER";
+      const parent = prefix && (canonical === prefix || canonical.startsWith(`${prefix}/`)) ? "MATCHED_MULTIARCH_STDLIB"
+        : canonical.startsWith("/usr/share/") ? "USR_SHARE" : "OTHER";
+      const type = entry.isFile() ? "FILE" : entry.isDirectory() ? "DIRECTORY" : "OTHER";
+      console.error(`SOURCE_PYTHON_RUNTIME_ALIAS category=${category} parent=${parent} type=${type}`);
+      assert.fail("OS_RUNTIME_ALIAS_OUTSIDE_REVIEWED_LAYOUT");
+    }
     const components = canonical.split("/");
     assert.ok(!components.some((name) => SKIP.has(name)));
     assert.ok(!ancestors.has(canonical));

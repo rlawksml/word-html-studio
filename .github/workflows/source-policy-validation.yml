@@ -306,8 +306,11 @@ jobs:
             [[ -f "$python_assembler" && ! -L "$python_assembler" && "$(/usr/bin/realpath -e -- "$python_assembler")" == "$python_assembler" ]] || fail PYTHON_ASSEMBLER_NOT_REGULAR
             [[ "$(wc -c < "$python_assembler")" -le 32768 ]] || fail PYTHON_ASSEMBLER_SIZE_EXCEEDED
             python_sha="$(/usr/bin/sha256sum -- "$python_assembler")"
-            [[ "${python_sha%% *}" == 'd0bb9bfea5be064a9f1085e959198ffde4f981d6d873aad91188139aafb5bae8' ]] || fail PYTHON_ASSEMBLER_NOT_REVIEWED
+            [[ "${python_sha%% *}" == 'd880d42ddab83f7a525d489d15035c2c1f7842e80b3a7e625bd8bdb387126ab9' ]] || fail PYTHON_ASSEMBLER_NOT_REVIEWED
             bounded 30 "$scratch/python-assembly.log" /usr/bin/env -i PATH=/usr/bin:/bin TZ=UTC "$node_real" --no-addons "$python_assembler" "$rootfs" || {
+              if [[ "$(grep -Ec '^SOURCE_PYTHON_RUNTIME_ALIAS category=(SYSCONFIG|CONFIG|LIB_DYNLOAD|OTHER) parent=(MATCHED_MULTIARCH_STDLIB|USR_SHARE|OTHER) type=(FILE|DIRECTORY|OTHER)$' "$scratch/python-assembly.log")" == 1 ]]; then
+                grep -E '^SOURCE_PYTHON_RUNTIME_ALIAS category=(SYSCONFIG|CONFIG|LIB_DYNLOAD|OTHER) parent=(MATCHED_MULTIARCH_STDLIB|USR_SHARE|OTHER) type=(FILE|DIRECTORY|OTHER)$' "$scratch/python-assembly.log"
+              fi
               grep -E '^SOURCE_PYTHON_RUNTIME_BLOCKED line=[0-9]{1,4}$' "$scratch/python-assembly.log" || true
               fail PYTHON_RUNTIME_ASSEMBLY_FAILED
             }
