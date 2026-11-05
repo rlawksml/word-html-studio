@@ -236,11 +236,13 @@ jobs:
               test_argv=(tests/publication-month.test.mjs)
               ;;
             backup_completeness)
-              expected_tests=29
+              expected_tests=30
               source_files=(
                 apps/web/scripts/backup-utils.mjs
                 apps/web/scripts/backup-manifest-policy.mjs
                 apps/web/scripts/supabase-schema.mjs
+                apps/web/scripts/supabase-backup-verify.mjs
+                apps/web/scripts/supabase-restore-staging.mjs
                 apps/web/tests/helpers/backup-directory-fixture.mjs
                 apps/web/tests/backup-completeness.test.mjs
               )

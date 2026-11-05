@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
-import { canonicalJson, sha256, verifyBackupDirectory } from "../scripts/backup-utils.mjs";
+import { canonicalJson, planObjectRestore, sha256, verifyBackupDirectory } from "../scripts/backup-utils.mjs";
 import { tableSpecsForRestore } from "../scripts/supabase-schema.mjs";
 import {
   CORE_BACKUP_TABLES, FIXTURE_PHOTO_PATH, ORIGINAL_BUCKET, PREVIEW_BUCKET,
@@ -14,6 +14,32 @@ async function expectFail(fixture) {
   const result = await verifyBackupDirectory(fixture.root);
   assert.equal(result.status, "FAIL", "incomplete or inconsistent backup must not pass");
   assert.ok(result.failures.length > 0);
+}
+
+const PHOTO_BUCKETS = [ORIGINAL_BUCKET, PREVIEW_BUCKET];
+const RETAINED_WARNINGS = [
+  "BACKUP_UNREFERENCED_ORIGINALS_RETAINED",
+  "BACKUP_UNREFERENCED_PREVIEWS_RETAINED",
+];
+
+// Prepare only this test invocation's newly owned synthetic backup. Its file
+// inventories and bytes stay intact while selected DB references are removed.
+async function arrangeRetainedPhotos(fixture, retainedBuckets) {
+  const rows = structuredClone(fixture.rows.submissions);
+  const image = rows[0].news[0].images[0];
+  for (const [bucket, field] of [[ORIGINAL_BUCKET, "originalPath"], [PREVIEW_BUCKET, "previewPath"]]) {
+    if (retainedBuckets.includes(bucket)) image[field] = "";
+  }
+  await fixture.writeTable("submissions", rows);
+  Object.assign(fixture.manifest.references, {
+    originalPaths: image.originalPath ? 1 : 0,
+    uniqueOriginalPaths: image.originalPath ? 1 : 0,
+    previewPaths: image.previewPath ? 1 : 0,
+    uniquePreviewPaths: image.previewPath ? 1 : 0,
+    unreferencedOriginalObjects: image.originalPath ? [] : [FIXTURE_PHOTO_PATH],
+    unreferencedPreviewObjects: image.previewPath ? [] : [FIXTURE_PHOTO_PATH],
+  });
+  await fixture.writeManifest();
 }
 
 test("BACKUP-COMPLETE-01 empty manifest lists cannot certify an empty restore", async () => {
@@ -194,26 +220,40 @@ test("BACKUP-COMPLETE-19 accurate reporting of a missing referenced photo still 
   });
 });
 
-test("BACKUP-COMPLETE-20 retained unreferenced photos stay a blocker, never an instruction to delete", async () => {
-  await withBackupFixture({ images: true }, async (fixture) => {
-    await fixture.writeTable("submissions", []);
-    fixture.manifest.references = {
-      newsItems: 0, images: 0, originalPaths: 0, uniqueOriginalPaths: 0,
-      previewPaths: 0, uniquePreviewPaths: 0,
-      missingOriginalObjects: [], missingPreviewObjects: [],
-      unreferencedOriginalObjects: [FIXTURE_PHOTO_PATH],
-      unreferencedPreviewObjects: [FIXTURE_PHOTO_PATH],
-    };
-    const photo = path.join(fixture.root, "storage", ORIGINAL_BUCKET, FIXTURE_PHOTO_PATH);
-    const before = await readFile(photo);
-    await expectFail(fixture);
-    assert.deepEqual(await readFile(photo), before);
-  });
+test("BACKUP-COMPLETE-20 retained unreferenced photos pass with warnings, never an instruction to delete", async () => {
+  const rejected = [];
+  for (const retainedBuckets of [[ORIGINAL_BUCKET], [PREVIEW_BUCKET], PHOTO_BUCKETS]) {
+    await withBackupFixture({ images: true }, async (fixture) => {
+      await arrangeRetainedPhotos(fixture, retainedBuckets);
+      const before = await fixture.snapshot();
+      const photoFiles = PHOTO_BUCKETS.map((bucket) => path.join(fixture.root, "storage", bucket, FIXTURE_PHOTO_PATH));
+      const photosBefore = await Promise.all(photoFiles.map((file) => readFile(file)));
+      const result = await verifyBackupDirectory(fixture.root);
+      for (const bucket of PHOTO_BUCKETS) {
+        const objects = fixture.manifest.storage[bucket].objects;
+        const plan = planObjectRestore({ bucketName: bucket, expectedObjects: objects, remotePaths: [], allowResume: false });
+        assert.deepEqual(plan.existing, []);
+        assert.deepEqual(plan.missing, objects, "restore must retain every inventoried object");
+      }
+      assert.deepEqual(await fixture.snapshot(), before);
+      assert.deepEqual(await Promise.all(photoFiles.map((file) => readFile(file))), photosBefore);
+      try {
+        assert.equal(result.status, "PASS");
+        assert.deepEqual(result.failures, []);
+        assert.deepEqual(result.warnings, PHOTO_BUCKETS.flatMap((bucket, index) => retainedBuckets.includes(bucket) ? [RETAINED_WARNINGS[index]] : []));
+      } catch {
+        rejected.push(retainedBuckets === PHOTO_BUCKETS ? "both" : retainedBuckets[0] === ORIGINAL_BUCKET ? "original" : "preview");
+      }
+    });
+  }
+  assert.deepEqual(rejected, [], "every retained-photo case must pass without changing backup bytes");
 });
 
 test("BACKUP-COMPLETE-21 complete legacy backups may contain zero rows and zero photos", async () => {
   await withBackupFixture({}, async (fixture) => {
-    assert.equal((await verifyBackupDirectory(fixture.root)).status, "PASS");
+    const result = await verifyBackupDirectory(fixture.root);
+    assert.equal(result.status, "PASS");
+    assert.deepEqual(result.warnings, []);
     assert.deepEqual(tableSpecsForRestore(fixture.manifest.database).map((table) => table.name), CORE_BACKUP_TABLES);
   });
 });
@@ -290,4 +330,58 @@ test("BACKUP-COMPLETE-29 historical workspace foundation markers remain supporte
     await fixture.writeManifest();
     assert.equal((await verifyBackupDirectory(fixture.root)).status, "PASS");
   });
+});
+
+test("BACKUP-COMPLETE-30 invalid retained-photo backups fail and CLI summaries expose only verified warnings", async () => {
+  // All matrix entries and source contracts are attempted before the final
+  // assertion. Fixed case IDs preserve diagnostics without echoing source data.
+  const rejected = [];
+  async function check(caseId, run) {
+    try { await run(); }
+    catch { rejected.push(caseId); }
+  }
+  const invalidCases = [
+    ["forged-summary", "BACKUP_REFERENCE_SUMMARY_MISMATCH", async (fixture) => {
+      await arrangeRetainedPhotos(fixture, PHOTO_BUCKETS);
+      fixture.manifest.references.unreferencedOriginalObjects = [];
+    }],
+    ["missing-retained-file", "BACKUP_STORAGE_FILE_UNREADABLE", async (fixture) => {
+      await arrangeRetainedPhotos(fixture, PHOTO_BUCKETS);
+      await unlink(path.join(fixture.root, "storage", ORIGINAL_BUCKET, FIXTURE_PHOTO_PATH));
+    }],
+    ["tampered-retained-file", "BACKUP_STORAGE_HASH_MISMATCH", async (fixture) => {
+      await arrangeRetainedPhotos(fixture, PHOTO_BUCKETS);
+      await writeFile(path.join(fixture.root, "storage", ORIGINAL_BUCKET, FIXTURE_PHOTO_PATH), "synthetic tampered bytes\n");
+    }],
+    ["missing-reference-and-retained-preview", "BACKUP_REFERENCED_PHOTO_MISSING", async (fixture) => {
+      await arrangeRetainedPhotos(fixture, [PREVIEW_BUCKET]);
+      fixture.clearBucketInventory(ORIGINAL_BUCKET);
+      fixture.manifest.references.missingOriginalObjects = [FIXTURE_PHOTO_PATH];
+    }],
+  ];
+  for (const [caseId, failureCode, arrange] of invalidCases) {
+    await check(caseId, () => withBackupFixture({ images: true }, async (fixture) => {
+      await arrange(fixture);
+      await fixture.writeManifest();
+      const before = await fixture.snapshot();
+      const result = await verifyBackupDirectory(fixture.root);
+      assert.deepEqual(await fixture.snapshot(), before);
+      assert.equal(result.status, "FAIL");
+      assert.ok(result.failures.includes(failureCode));
+      assert.deepEqual(result.warnings, [], "failed verification must not claim verified retention");
+    }));
+  }
+  await check("verify-cli-warning-contract", async () => {
+    const source = await readFile(new URL("../scripts/supabase-backup-verify.mjs", import.meta.url), "utf8");
+    assert.match(source, /warnings:\s*result\.warnings\b/);
+    assert.match(source, /if \(result\.status !== "PASS"\) process\.exitCode = 1/);
+  });
+  await check("restore-cli-warning-contract", async () => {
+    // Read the SDK-using CLI as text only. No import, execution, or cloud call.
+    const source = await readFile(new URL("../scripts/supabase-restore-staging.mjs", import.meta.url), "utf8");
+    const summaries = source.match(/console\.log\(canonicalJson\(\{[\s\S]*?\}\)\);/g) || [];
+    assert.equal(summaries.length, 2, "dry-run and final restore summaries are both required");
+    for (const summary of summaries) assert.match(summary, /warnings:\s*verification\.warnings\b/);
+  });
+  assert.deepEqual(rejected, [], "all invalid cases and CLI warning contracts must hold");
 });
