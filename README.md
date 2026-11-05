@@ -30,7 +30,7 @@
 
 독립 Cloudflare staging의 진입점은 `apps/web/staging-entry.mjs`입니다. Wrangler가 main을 basename으로 업로드하므로 앱 루트 위치를 유지합니다. `npm run test:staging-worker`는 실제 dry-run 산출물의 상대 import도 검증합니다.
 
-공용 저장소는 **Supabase**를 사용하며 기존 브라우저 `localStorage`의 샘플·임시 데이터는 가져오지 않습니다. Supabase가 연결되면 빈 운영 데이터에서 책방을 새로 등록해 시작합니다.
+공용 저장소는 **Supabase**를 사용하며 기존 브라우저 `localStorage`의 샘플·임시 데이터는 가져오지 않습니다. 최초 프로토타입은 빈 DB에서 시작했지만 현재는 보관 중인 자료가 있으므로 연결·검증을 위해 초기화하거나 새 데이터로 덮어쓰지 않습니다.
 
 - Supabase Database: 책방 기본정보, 월별 소식, 일정·작업 상태와 개선사항
 - Supabase Storage: 비공개 원본 사진 버킷과 공개 모바일 미리보기 버킷
@@ -42,7 +42,7 @@ HTML 편집자의 통합 작업 ZIP에는 브라우저 미리보기용 `.html`, 
 
 사진은 한 장당 20MB까지 받습니다. 브라우저는 모바일 미리보기를 만든 뒤 짧게 유효한 업로드 주소를 발급받아 원본과 미리보기를 Supabase Storage에 직접 전송합니다. 큰 파일이 Next.js 서버 요청 크기 제한에 걸려 `413` 오류가 나는 것을 피하면서도 Storage 비밀키와 원본 사진은 공개하지 않습니다. Windows에서 MIME 정보가 비어 있는 파일도 확장자로 판별하고, 브라우저가 직접 표시하지 못하는 HEIC/HEIF는 사진을 고를 때만 전용 변환기를 지연 로드해 JPEG 미리보기를 만듭니다.
 
-파일을 드래그할 때 브라우저가 `drop`과 파일 입력 `change`를 연달아 발생시키더라도 한 번에 하나의 업로드만 진행합니다. 업로드 중에는 진행 안내를 표시하고 뒤로가기·임시 저장·입력 마무리가 사진의 DB 연결보다 먼저 실행되지 않게 합니다. 네트워크·Storage 5xx는 같은 전송을 짧게 재시도하고, 연결이 끊기거나 서명 주소가 무효해졌다면 새 주소를 발급받아 최대 3회 복구합니다. Supabase가 이미 저장된 예약 파일에 대해 HTTP `400` 안에 `409 Duplicate`를 반환하면 성공한 업로드로 이어서 처리합니다. 최종 실패 시 예약된 원본·미리보기를 정리하며, 사진 삭제는 DB에서 참조가 사라진 뒤 Storage 객체를 제거해 저장 실패가 깨진 이미지로 이어지지 않게 합니다.
+파일을 드래그할 때 브라우저가 `drop`과 파일 입력 `change`를 연달아 발생시키더라도 한 번에 하나의 업로드만 진행합니다. 업로드 중에는 진행 안내를 표시하고 뒤로가기·임시 저장·입력 마무리가 사진의 DB 연결보다 먼저 실행되지 않게 합니다. 네트워크·Storage 5xx는 같은 전송을 짧게 재시도하고, 연결이 끊기거나 서명 주소가 무효해졌다면 새 주소를 발급받아 최대 3회 복구합니다. Supabase가 이미 저장된 예약 파일에 대해 HTTP `400` 안에 `409 Duplicate`를 반환하면 성공한 업로드로 이어서 처리합니다. 저장 성공 뒤 응답만 유실될 수 있으므로 이번 #88 수정에서는 실패·재예약 파일도 보수적으로 보관합니다. × 버튼은 소식의 사진 참조만 제거하며 원본·미리보기의 물리 삭제나 기존 공개 URL 철회를 뜻하지 않습니다.
 
 한글·공백·특수문자가 포함된 원본 파일명은 화면과 ZIP 다운로드 이름으로 그대로 보존하되, Supabase Storage의 실제 객체 경로에는 UUID와 MIME 타입에서 결정한 영문 확장자만 사용합니다. 운영체제마다 다른 파일명 인코딩 때문에 `InvalidKey`가 발생하지 않도록 저장 경로와 표시 이름을 분리했습니다.
 
@@ -141,13 +141,15 @@ npm run backup:verify -- /absolute/path/to/backup
 
 현재 수동 CI는 exact feature SHA에 대한 무키·무외부네트워크·읽기전용·OS 자원 제한 **source-policy 검증**만 수행합니다. 일반 PR/main의 audit·lint·typecheck·build·회귀 gate는 유지하지만 이번 수동 source 검증 성공이 그 전체 통과를 의미하지 않습니다. [운영 전 병렬 체크포인트](docs/test-reports/2026-11-05-preprod-parallel-checkpoints.md)에서 원래 미커밋 변경의 보존 범위와 미검증 항목을 확인하세요.
 
+`test:browser-html-copy`와 `test:staging-browser`는 기존 Playwright/브라우저를 쓰는 선택 검증입니다. 합성 API·메모리 clipboard/native form을 다루며 실제 DB·OS clipboard·외부 편집기와는 다릅니다. Stage2 SDK mock12개와 HTML browser5개는 이번 순수17TC 실행에서 제외했습니다. [과거 증거 색인](docs/test-reports/2026-11-05-historical-evidence-index.md)은 당시 보고서의 역사 요약이며 현재 전체 PASS로 재사용하지 않습니다.
+
 Vite 빌드는 TypeScript 문법을 변환하지만 전체 타입 검사를 대신하지 않습니다. 배포 전 `npm run typecheck` 통과가 필수입니다. Cloudflare 타입은 개발 의존성으로만 제공하며 `cloudflare-env.d.ts`의 선택적 D1 선언은 DB를 생성하거나 Supabase 연결을 바꾸지 않습니다.
 
 SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metadata.ts`에서 관리합니다. 운영 도메인이 바뀌면 `SITE_URL`을 먼저 변경하고 canonical, Open Graph, sitemap을 다시 확인합니다. Lighthouse 성능은 앱 코드 외에도 Cloudflare 보안 스크립트와 첫 요청의 콜드 스타트에 영향을 받으므로 배포 전 로컬 빌드와 배포 후 운영 주소를 모두 측정합니다.
 
 ## 배포
 
-별도 무료 Cloudflare 스테이징의 비공개 설정과 모의 배포 검증은 [독립 스테이징 준비](docs/CLOUDFLARE_STAGING.md)를 참고하세요. 기존 운영 Sites는 유지하며 새 Worker는 아직 배포하지 않았습니다.
+별도 무료 Cloudflare 스테이징의 설정과 검증은 [독립 스테이징 준비](docs/CLOUDFLARE_STAGING.md)를 참고하세요. 2026-11-04 기록에는 독립 Worker 배포·입장·제한된 QA 확인이 남아 있습니다. 이 준비 브랜치의 #47/#88 및 후속 소스는 운영이나 staging에 새로 배포하지 않았고, 과거 기록을 현재 원격 상태 확인으로 표현하지 않습니다. 기존 운영 Sites의 플랫폼 이전도 하지 않습니다.
 
 독립 스테이징은 별도 입장 암호 gate를 사용하며 기존 역할별 암호를 대체하지 않습니다. 원본 최근 3개월·글/미리보기 유지의 [사진 보관 정책](docs/PHOTO_RETENTION.md)은 설계 합의만 기록했으며 자동 삭제는 구현하거나 실행하지 않았습니다.
 

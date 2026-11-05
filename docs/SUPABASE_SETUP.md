@@ -14,9 +14,9 @@ apps/web/supabase/migrations/202607240001_improvement_requests.sql
 apps/web/supabase/migrations/202607240002_improvement_request_types.sql
 ```
 
-`202607240001_improvement_requests.sql`까지 적용한 운영 프로젝트에는 마지막 파일만
-추가로 실행합니다. 다섯 번째 마이그레이션은 기존 접수 자료를 보존하면서 버그·개선
-유형, 버그 발생 위치/사용 경로, 개선이 필요한 이유 필드를 추가합니다.
+아래 migration 설명은 초기 설치/이전 설계입니다. 현재 운영 프로젝트에 SQL을 실행하라는
+지시가 아니며, 실제 대상·백업·호환성 검토와 별도 승인이 필요합니다. 다섯 번째 파일은
+이전 네 파일 위에 버그·개선 유형·위치/사용 경로·이유 필드를 추가하는 설계입니다.
 
 네 번째 마이그레이션은 공개 개선사항 접수와 진행 상태·예정일 관리를 위한 테이블을
 추가합니다. `anon`, `authenticated`의 직접 접근은 허용하지 않고 서버 API만 사용합니다.
@@ -63,27 +63,28 @@ HTML_ACCESS_CODES=편집자-암호,편집자-암호의-다른-자판값
 9. Supabase Storage에서 원본 버킷이 `Private`, 미리보기 버킷이 `Public`인지 확인합니다.
 10. 개선사항 페이지에서 버그와 개선을 각각 접수하고 HTML 편집자 세션에서만 상태와 예정일을 변경합니다.
 
-공개 미리보기는 모바일 속도를 위해 CDN에 최대 5분 캐시됩니다. 사진 삭제는 변경된 소식이 Database에 저장된 뒤 Storage에서 처리됩니다. 이렇게 하면 Database 저장이 실패했을 때 기존 게시물의 사진이 먼저 사라지는 문제를 피할 수 있습니다. 이미 열린 공개 URL은 캐시가 만료될 때까지 잠시 보일 수 있습니다.
+공개 미리보기는 모바일 속도를 위해 CDN에 최대 5분 캐시됩니다. #88 준비 소스는 소식에서 참조를 제거하더라도 Storage 파일은 물리 삭제하지 않습니다. 저장 응답 유실로 실제 반영 여부가 불명확할 때 성공 파일을 지우지 않기 위한 보수적 정책입니다. 알려진 공개 URL의 접근 철회는 보장하지 않으며, 기간 정리·안전한 GC는 별도 설계·승인 대상입니다.
 
 ## 4. 실제 통합 테스트
 
-로컬 환경변수를 사용해 테스트 전용 레코드와 이미지를 만들었다가 자동 정리합니다.
+기존 자동 생성·정리 suite는 안전한 ownership adapter가 없어 **하드 차단**했습니다. 활성 flag나 유효한 프로젝트 설정도 이를 해제하지 못합니다. `test:integration:local`은 환경파일·SDK·Worker·HTTP 전에 고정 오류로 종료합니다. 현재 자동 검증과 별도 승인된 실제 UI 작업을 구분합니다.
 
 ```bash
 cd apps/web
-npm run build
-npm run test:integration:local
+node --test tests/supabase-cleanup-guard.test.mjs tests/integration-safety-block.test.mjs
 ```
 
-테스트는 두 작업 세션의 편집 임대·인계, 책방·소식 생성, 정상 수정, 오래된 `updated_at` 요청의 `409 Conflict`, 원본·미리보기 직접 업로드와 일괄 삭제, 공개 버그 접수와 HTML 편집자 전용 상태 변경을 확인합니다. 실제 운영 책방과 구분되는 먼 미래 월과 임시 ID를 사용하며 `finally` 단계에서 Database와 Storage를 정리합니다.
+위 두 파일은 무키 합성 차단·mock-only cleanup 정책 검증입니다. caller의 receipt/부재 확인 모델은 실제 소유권·원자성·TOCTOU 검증이 아니며 실제 DB 삭제 권한을 만들지 않습니다. 위 명령 역시 OS 격리 조건을 충족한 환경에서만 실행하고, 현재 준비 브랜치에서는 수동 source-policy CI를 사용합니다.
 
-GitHub 저장소의 Actions Secret에 `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `INPUT_ACCESS_CODES`, `HTML_ACCESS_CODES`, `WORKSPACE_SESSION_SECRET`을 등록하면 `CI` 워크플로를 수동 실행해 같은 검증을 수행할 수 있습니다. Pull Request에서는 외부 Secret 없이 lint·build·회귀 테스트만 실행합니다.
+CI의 legacy 실연결 job도 고정 비활성화했습니다. Secret 추가나 workflow 입력으로 실제 통합 suite를 실행할 수 있다고 안내하지 않습니다. Stage2 ledger6·SDK adapter12는 가짜 키와 mock fetch만 사용하며 `cleanup()`·Storage를 지원하지 않습니다. ledger와 observer의 순수17TC는 재검증했지만 SDK12·브라우저5·실DB 전체 검증은 별도입니다.
+
+2026-11-04의 실제 신규 QA 보관형 검증과 외부 편집기 사용자 확인은 [과거 증거 색인](test-reports/2026-11-05-historical-evidence-index.md)으로 추적합니다. 당시 보관 자료를 이번 테스트의 생성/정리 대상으로 재사용하지 않습니다. 새 QA·실제 SQL·DB/Storage 작업은 별도 승인이 필요합니다.
 
 운영 데이터로 통합 테스트를 실행하지 않습니다. 개발·복구 훈련용 프로젝트는 운영과 분리하고, 백업·복원 절차와 Staging 대상 보호장치는 [Supabase 무손실 백업·복구 Runbook](BACKUP_RESTORE.md)을 따릅니다.
 
 ## 5. 기존 단일 버킷 자료가 있을 때
 
-현재 운영 데이터가 없는 초기 프로젝트는 새 버킷으로 바로 시작하면 됩니다. 이전 `bookstore-news` 버킷에 파일이 이미 있다면 배포 전 다음을 별도 수행해야 합니다.
+아래는 초기 이전 설계이며 현재 서비스에 그대로 실행할 작업 목록이 아닙니다. 기존 버킷·사진이 있으면 독립 백업·참조 검증과 별도 승인부터 확인합니다. 이번 준비 작업에서는 복사·정리하지 않습니다.
 
 1. `originals/` 객체를 `bookstore-news-originals`로 복사
 2. `previews/` 객체를 `bookstore-news-previews`로 복사
