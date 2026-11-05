@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, retryFutureJwt, SupabaseConfigurationError } from "@/lib/supabase-server";
+import { mergeNewsPreservingUnknownFields, stripExternalNewsFields } from "@/lib/submission-json-compatibility";
 import { mapSubmission, sanitizeNews, SUBMISSION_SELECT, type SubmissionRow } from "@/lib/workspace-records";
 import { readWorkerSession } from "@/lib/workspace-session";
 import { parseSubmission, readWorkspaceJson, WorkspaceValidationError } from "@/lib/workspace-validation";
@@ -67,7 +68,8 @@ async function save(request: NextRequest) {
       published_at: next.publishedAt || null,
       published_url: next.publishedUrl,
       monthly_notice: next.monthlyNotice,
-      news: sanitizeNews(next.news),
+      // 검증된 요청만 반영하고, 미래 버전 필드는 서버의 기존 raw JSON에서만 보존합니다.
+      news: stripExternalNewsFields(mergeNewsPreservingUnknownFields(existing?.news, sanitizeNews(next.news))),
     };
     const result = await retryFutureJwt(() => {
       const query = existing

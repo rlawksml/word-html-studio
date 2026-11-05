@@ -5,12 +5,18 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      expected_commit:
+        description: Exact reviewed fallback feature commit; never deployment
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   verify:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -27,7 +33,8 @@ jobs:
       - run: npm test
 
   supabase-integration:
-    if: github.event_name == 'workflow_dispatch'
+    # Retired live suite must never be reactivated by manual validation.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -48,3 +55,23 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run test:integration
+
+  fallback-dispatch-guard:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require public isolated exact fallback source
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_commit }}
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY_PRIVATE" == false && "$GITHUB_REF" == refs/heads/codex/m1-compatible-fallback && "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ && "$GITHUB_SHA" == "$EXPECTED_SHA" ]] || { echo '::error::FALLBACK_DISPATCH_BLOCKED'; exit 1; }
+
+  isolated-fallback-policy:
+    needs: fallback-dispatch-guard
+    if: github.event_name == 'workflow_dispatch' && needs.fallback-dispatch-guard.result == 'success'
+    uses: ./.github/workflows/source-policy-validation.yml
+    with:
+      suite: fallback_compatibility
