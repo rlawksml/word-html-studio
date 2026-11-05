@@ -81,6 +81,6 @@ test("HTML-LINES-05 generation never mutates source and digest remains title-onl
   assert.ok(!digest.includes("<br>"));
 });
 
-test("HTML-LINES-06 the owned native bundler closes before test registration", () => {
+test("HTML-LINES-07 the owned native bundler closes before test registration", () => {
   assert.deepEqual(lifecycle, { services: 1, closed: 1 });
 });
