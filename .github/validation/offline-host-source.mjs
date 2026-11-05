@@ -9,6 +9,13 @@ import { bounded, readRegular, requireSuccess, sha256 } from "./offline-host-sup
 const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"];
 const NAME = /^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/;
 const LOCK_PATH = /^(?:node_modules\/(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+)(?:\/node_modules\/(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+)*$/;
+// These six entries are data INSIDE the already integrity-pinned oxide tarball,
+// not separately fetched packages. No general exemption for bundled records.
+const BUNDLE_PARENT = "node_modules/@tailwindcss/oxide-wasm32-wasi";
+const BUNDLED_VERSIONS = Object.freeze({
+  "@emnapi/core": "1.8.1", "@emnapi/runtime": "1.8.1", "@emnapi/wasi-threads": "1.1.0",
+  "@napi-rs/wasm-runtime": "1.1.1", "@tybys/wasm-util": "0.10.1", tslib: "2.8.1",
+});
 function dependencySpecs(value, root) {
   if (value === undefined) return;
   assert.ok(value && typeof value === "object" && !Array.isArray(value));
@@ -33,6 +40,10 @@ export function validateManifests(packageBytes, lockBytes) {
   assert.equal(lock.lockfileVersion, 3);
   assert.ok(lock.packages && typeof lock.packages === "object" && !Array.isArray(lock.packages));
   assert.ok(Object.keys(lock.packages).length <= 4000);
+  const bundle = lock.packages[BUNDLE_PARENT];
+  assert.equal(bundle?.version, "4.2.1");
+  assert.deepEqual([...bundle.bundleDependencies].sort(), Object.keys(BUNDLED_VERSIONS).sort());
+  const seenBundled = new Set();
   for (const field of DEPENDENCY_FIELDS) {
     dependencySpecs(manifest[field], true);
     assert.deepEqual(lock.packages[""][field], manifest[field]);
@@ -43,6 +54,16 @@ export function validateManifests(packageBytes, lockBytes) {
     for (const field of DEPENDENCY_FIELDS) dependencySpecs(item[field], path === "");
     if (path === "") continue;
     assert.ok(LOCK_PATH.test(path) && path.split("/").every((part) => ![".", ".."].includes(part)));
+    if (item.inBundle === true) {
+      assert.ok(path.startsWith(`${BUNDLE_PARENT}/node_modules/`));
+      const name = path.slice(`${BUNDLE_PARENT}/node_modules/`.length);
+      assert.ok(Object.hasOwn(BUNDLED_VERSIONS, name));
+      assert.equal(item.version, BUNDLED_VERSIONS[name]);
+      assert.ok(!Object.hasOwn(item, "resolved") && !Object.hasOwn(item, "integrity"));
+      assert.ok(Object.hasOwn(bundle.dependencies, name) && bundle.bundleDependencies.includes(name));
+      seenBundled.add(name);
+      continue;
+    }
     assert.equal(typeof item.resolved, "string");
     const url = new URL(item.resolved);
     assert.equal(url.protocol, "https:");
@@ -57,6 +78,7 @@ export function validateManifests(packageBytes, lockBytes) {
     assert.equal(Buffer.from(integrity, "base64").length, 64);
     assert.equal(Buffer.from(integrity, "base64").toString("base64"), integrity);
   }
+  assert.deepEqual([...seenBundled].sort(), Object.keys(BUNDLED_VERSIONS).sort());
   return { packageBytes, lockBytes };
 }
 const FORBIDDEN = new Set([

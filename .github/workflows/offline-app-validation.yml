@@ -59,9 +59,9 @@ jobs:
             [[ "${actual%% *}" == "$expected" ]] || fail OFFLINE_REVIEW_HASH_MISMATCH
             /usr/bin/cp -- "$source_file" "$scratch/trusted/$relative"
           done <<'REVIEWED_CLOSURE'
-          f2e8c4e5decc0d497a6736ab81121fd7ff5926a53350bd95583d44a3a6c2f136 offline-host-controller.mjs
+          8fe34509e0f43beef14470cd9ee9363b6715267f0e87188ed31abfbc0bfbf8c2 offline-host-controller.mjs
           abe01b3a84116e30cea9d85ae71f292f23d7611c1b3ac3dcce42e8c2ea013c51 offline-host-support.mjs
-          1a78595f1ea6e2944d6047cea1411835a7c15b802e0d55718464e10524915ef5 offline-host-source.mjs
+          221b247f4b9d044278db4ba36998843598fe0d73b6e0ea5afb9db20abd8f3c83 offline-host-source.mjs
           51b4d73cf78b451b543bcd60f685c2d6adedf6b4b90c326d321769fe86171845 offline-host-runtime.mjs
           ef5bc3c7404a393c9633862676abbe56287abbc293e7dacc169dad885a6c978a offline-host-docker.mjs
           21e5432e9b3b3cddd132df571ac669dfac11637ecc7bc7ffe154919efe47aec9 offline-baseline.mjs
