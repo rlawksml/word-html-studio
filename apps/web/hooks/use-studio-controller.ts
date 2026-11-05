@@ -10,10 +10,12 @@ import {
   BOOKSTORE_COLORS,
   formatMonth,
   hasSubmissionContent,
+  keepValidPublicationMonth,
   makeNewsId,
   makeSubmission,
   nowIso,
   previousMonth,
+  publicationCalendarDays,
   safeFilename,
   type LeaveTarget,
   type Role,
@@ -64,7 +66,7 @@ export function useStudioController(initialMonth: string) {
   const [password, setPassword] = useState("");
   const [bookstores, setBookstores] = useState<Bookstore[]>([]);
   const [submissions, setSubmissionsState] = useState<Submission[]>([]);
-  const [month, setMonth] = useState(initialMonth);
+  const [month, setMonthState] = useState(initialMonth);
   const [selectedBookstoreId, setSelectedBookstoreId] = useState<number | null>(null);
   const [inputView, setInputView] = useState<"list" | "edit" | "bookstores">("list");
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<number>(1);
@@ -94,6 +96,10 @@ export function useStudioController(initialMonth: string) {
   const openingBookstoreRef = useRef<number | null>(null);
   const imageUploadInProgressRef = useRef(false);
   const textCompositionActiveRef = useRef(false);
+  // 연속 입력도 이전 렌더 값으로 덮어쓰지 않고 직전의 유효한 발행 월을 유지합니다.
+  const setMonth = useCallback((candidate: string) => {
+    setMonthState((previous) => keepValidPublicationMonth(previous, candidate));
+  }, []);
   // 저장 버튼이나 뒤로가기가 같은 프레임에서 실행되어도 가장 최근 입력값을 즉시 읽을 수 있는 setter입니다.
   const setSubmissions = useCallback<Dispatch<SetStateAction<Submission[]>>>((action) => {
     const next = typeof action === "function" ? action(submissionsRef.current) : action;
@@ -831,12 +837,7 @@ export function useStudioController(initialMonth: string) {
   };
 
   // 달력 칸과 책방별 색상은 저장하지 않고 현재 월·책방 순서에서 매번 계산합니다.
-  const calendarDays = useMemo(() => {
-    const [year, numericMonth] = month.split("-").map(Number);
-    const first = new Date(year, numericMonth - 1, 1).getDay();
-    const count = new Date(year, numericMonth, 0).getDate();
-    return [...Array(first).fill(null), ...Array.from({ length: count }, (_, index) => `${month}-${String(index + 1).padStart(2, "0")}`)];
-  }, [month]);
+  const calendarDays = useMemo(() => publicationCalendarDays(month), [month]);
 
   const bookstoreColor = (bookstoreId: number) => BOOKSTORE_COLORS[Math.max(0, bookstores.findIndex((bookstore) => bookstore.id === bookstoreId)) % BOOKSTORE_COLORS.length];
   const calendarItems = (date: string) => publicEntries.flatMap(({ bookstore, items }) => {
