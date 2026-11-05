@@ -64,6 +64,9 @@ function libraries(binary) {
   assert.ok(lines.length > 0 && lines.length <= 128);
   for (const line of lines) {
     if (/^\s*linux-vdso\.so\.\d+\s+\(0x[a-f0-9]+\)$/.test(line)) continue;
+    // Some trusted stdlib ELF extensions have no shared-library dependencies.
+    // ldd reports this exact successful single line rather than an address list.
+    if (lines.length === 1 && /^\s*statically linked$/.test(line)) continue;
     const dependency = /^\s*\S+ => (\/\S+) \(0x[a-f0-9]+\)$/.exec(line)?.[1];
     const loader = /^\s*(\/\S+) \(0x[a-f0-9]+\)$/.exec(line)?.[1];
     const path = dependency ?? loader;
