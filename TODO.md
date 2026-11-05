@@ -2,15 +2,19 @@
 
 ## 2026-11-05 현재 릴리스 게이트 (아래 과거 단계 기록보다 우선)
 
-현재 **운영 NO-GO**. 과거 단계의 체크 표시는 당시 검증이며, 현재 exact 커밋 전체 회귀·배포 완료를 뜻하지 않습니다. [병렬 체크포인트와 남은 작업](docs/test-reports/2026-11-05-preprod-parallel-checkpoints.md)을 참조합니다.
+현재 **운영 NO-GO**. [후보247 오프라인 검증](docs/test-reports/2026-11-05-preprod-candidate-offline.md)은 완료했지만 브라우저·실DB·audit·복원/롤백 전체 게이트는 별도입니다. 아래 과거 체크 표시는 당시 범위이며 현재 배포 완료가 아닙니다.
 
 - [x] 원래 dirty36개 보존·분류, source 복구 사본의 hash/bundle 검증 및 로컬 `.git` 비공개 보관 (DB 백업 아님)
 - [x] #47 marker 무쓰기/대상 hash 보존·#88 무삭제 방어·기존 gate/실연결 hardblock 보존
 - [x] exact `3ccb429`에서 무키 격리 restore25/photo12/preservation30 = **67PASS**, 실패/외부 TC skip0·독립 확인
 - [x] Stage2/HTML-copy8파일 원본 해시 보존·현재 문서 정합화·과거 보고서11+캡처1 비공개 보존/공개 색인. exact16b7558 evidence17PASS ([후속 기록](docs/test-reports/2026-11-05-source-completion.md))
-- [ ] 사용자 승인된 무료 Linux 의존성 준비→오프라인 전체 앱 검증 경로 구현·독립 리뷰·실행 (설치스크립트/운영키/DB 없음, 현재 아직 실행 전)
-- [ ] #87 Next audit·#66 vinext 호환 업그레이드: 준비된 격리 의존성 환경 확보 후 별도 변경·검증 (현재 설치/lock 변경 없음)
-- [ ] #91 빈 발행 월 실제 UI 재현/수정/검증, 동일 후보의 전체 type/lint/build/browser 회귀
+- [x] exact24279e7의 restore25/photo12/preservation30/evidence17/publication15를 병렬 실행해 native99PASS (다른 실행과 합산하지 않음)
+- [x] 승인된 무스크립트·무키 Linux prep→오프라인 검증 경로·독립 리뷰·실제 실행. 기준9485c79의232와 후보fb75c62의247 각각 type/lint/build/TAP·엄격 자식 종료·소유 자원 정리 PASS
+- [x] #91 유효 월 보존/invalid calendar 방어와 순수15TC·같은 후보247 회귀. 실제 UI 완료로 판단하지 않음
+- [x] HTML fixture의 소유 esbuild 실제 close 대기·자동 HTML-LINES-07 한 개 추가. 수동 외부편집기06과 구분
+- [ ] #87 Next 보안 업데이트·새 lock/audit, #66 vinext/React 별도 호환 검증 (기존 lock 설치만 완료, 버전/lock 업데이트와 audit는 아직 미실행)
+- [ ] #91 실제 DOM 부분 월 편집/IME 및 로그인·사진·통합본 브라우저/Network·자원 P0
+- [ ] npm/build 각각 관측 warning2의 분류·필요한 조치 (경고 부재나 안전성으로 일반화하지 않음)
 - [ ] 별도 승인 후 #86 SQL·신규 QA·두 작업자/사진의 실제 Staging P0 검증
 - [ ] #47 새 빈 복구 대상의 실제 복원·최신 독립 백업, #46/#48 exact fallback/최신 데이터/환경 보존 증거
 - [ ] 사용자 최종 운영 승인 전 main merge·배포·운영 SQL/DB/Storage 변경 금지

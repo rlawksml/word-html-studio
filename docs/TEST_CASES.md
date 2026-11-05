@@ -4,6 +4,12 @@
 
 ## 문서 정보
 
+### 2026-11-05 후보 오프라인 회귀 — 운영 승인과 구분
+
+exactfb75c62에서 typecheck/lint/build/기본26파일247TC와 엄격 자식 종료·격리·소유 자원 정리까지 PASS했다. 실제 DB·Storage·브라우저/외부 편집기·audit·운영 배포는 아니다. [후보 보고서](test-reports/2026-11-05-preprod-candidate-offline.md)와 [native99](test-reports/2026-11-05-candidate99-native-regression.md)의 서로 다른 exact 결과는 합산하지 않는다. 아래 main 기준·과거 배포 사례도 당시 기록으로 구분한다.
+
+자동 HTML TC는01~05와07의6개다. **06은 실제 외부 편집기 수동 검증**으로 남겨 두며 자동 단위 성공으로 체크하지 않는다. 새 자동07은 테스트가 만든 esbuild ChildProcess만 실제 close까지 기다리고 다른 PID·기존 데이터를 정리하지 않는다.
+
 ### 독립 Staging 정적 파일 회귀 — STAGE-ASSET / STAGE-RUNTIME
 
 - 우선순위: P0, 로컬 격리 전용. 사전 조건: `npm ci`, `npm run build`, loopback 실행 권한. 실제 DB/비밀키 불필요.
@@ -911,3 +917,4 @@
 | HTML-LINES-04 | 미리보기/복사와 caption/alt 구분 | 본문 일치, 속성에 `<br>` 미삽입, 사진 정책 유지 |
 | HTML-LINES-05 | 여러 번 생성 및 통합본 생성 | 원본 객체 불변, 통합본 제목 중심 유지 |
 | HTML-LINES-06 | 실제 사용 편집기에 HTML 복사 및 ZIP TXT 붙여넣기 | 첫 줄·빈 줄·이모티콘 동일 표시; 별도 브라우저 검증 필요 |
+| HTML-LINES-07 | 자동 fixture가 만든 native bundler 종료 | 정확한 소유 서비스1개·실제 close1개, 원래 spawn 복원, timeout은 실패. 전체 runner의 좀비 포함 잔여 프로세스 검사도 계속 필수 |

@@ -4,6 +4,12 @@
 
 제품 방향은 **Word 변환기**가 아니라 **소식 입력·공개·HTML 발행 서비스**입니다. Word를 작성할 줄 아는 사람이 HTML/CSS를 몰라도 한 화면에서 한 책방씩 작성할 수 있도록 설계했습니다.
 
+## 2026-11-05 운영 반영 전 상태
+
+후보 exact `fb75c62`에서 **typecheck·lint·build·247TC와 자식 종료/임시 자원 정리**를 무료 Linux 격리 CI로 검증했습니다. 별도 exact 후보의 native99도 통과했지만 중복 TC가 있으므로 합산하지 않습니다. [최종 후보 보고서](docs/test-reports/2026-11-05-preprod-candidate-offline.md), [native99](docs/test-reports/2026-11-05-candidate99-native-regression.md)를 확인하세요.
+
+**운영 NO-GO**는 유지합니다. 보안 업데이트/audit, 브라우저·실DB P0, 최신 독립 백업과 exact fallback 호환은 별도입니다. 이번에는 main merge·운영/Staging 배포·SQL·기존 DB/사진·유료 설정을 변경하지 않았습니다. 실제 긴급 롤백 가능을 아직 확정하지 않으며 남은 게이트는 [TODO](TODO.md)를 따릅니다.
+
 ## 현재 구현된 프로토타입
 
 - 방문자: 지관서가 동네책방 페이지 바로가기, 책방·소식 수 요약, 책방별 색상 일정과 툴팁을 갖춘 모바일 달력, 제목 중심 카드, 중앙 정렬 사진 상세 화면과 후면 스크롤 잠금, 디바운스 검색
@@ -139,9 +145,9 @@ npm run backup:verify -- /absolute/path/to/backup
 
 `test:integration:local`은 현재 **안전 차단 확인용**입니다. 환경파일·SDK·Worker를 읽거나 DB/Storage에 연결하기 전에 종료합니다. 기존 실연결 통합 suite도 활성화 flag와 무관하게 쓰기/정리를 차단하고, CI의 해당 job은 하드 비활성화했습니다. caller가 만든 cleanup evidence는 실제 ownership/원자성 증거가 아니므로, 별도 검토·승인한 adapter 없이 이를 해제하지 않습니다. 운영·보관 Staging의 기존 자료와 성공 QA를 삭제하지 않습니다.
 
-현재 수동 CI는 exact feature SHA에 대한 무키·무외부네트워크·읽기전용·OS 자원 제한 **source-policy 검증**만 수행합니다. 일반 PR/main의 audit·lint·typecheck·build·회귀 gate는 유지하지만 이번 수동 source 검증 성공이 그 전체 통과를 의미하지 않습니다. [운영 전 병렬 체크포인트](docs/test-reports/2026-11-05-preprod-parallel-checkpoints.md)에서 원래 미커밋 변경의 보존 범위와 미검증 항목을 확인하세요.
+수동 CI는 exact feature SHA의 두 경로를 제공합니다. `source_policy`는 무키·무외부망 native 검증이고, `offline_app`은 승인된 무스크립트 의존성 준비 뒤 prep를 분리·제거하고 읽기전용 도구/무키/network-none·실효 OS 자원 제한에서 type/lint/build/unit을 실행합니다. 일반 PR/main의 기존 audit/verify gate는 유지하며 이 수동 성공이 audit·실제 통합까지 통과했다는 뜻은 아닙니다. [준비·실패 이력과 기준선232](docs/test-reports/2026-11-05-offline-app-baseline.md)에 실행 경계를 기록했습니다.
 
-`test:browser-html-copy`와 `test:staging-browser`는 기존 Playwright/브라우저를 쓰는 선택 검증입니다. 합성 API·메모리 clipboard/native form을 다루며 실제 DB·OS clipboard·외부 편집기와는 다릅니다. Stage2 SDK mock12개와 HTML browser5개는 이번 순수17TC 실행에서 제외했습니다. [과거 증거 색인](docs/test-reports/2026-11-05-historical-evidence-index.md)은 당시 보고서의 역사 요약이며 현재 전체 PASS로 재사용하지 않습니다.
+`test:browser-html-copy`와 `test:staging-browser`는 기존 Playwright/브라우저를 쓰는 선택 검증입니다. 합성 API·메모리 clipboard/native form을 다루며 실제 DB·OS clipboard·외부 편집기와는 다릅니다. SDK mock12는 후보247에 포함됐고 HTML browser5는 이번 오프라인 단위에 포함되지 않습니다. 과거 native17이나 [역사 색인](docs/test-reports/2026-11-05-historical-evidence-index.md)을 현재 브라우저 전체 PASS로 재사용하지 않습니다.
 
 Vite 빌드는 TypeScript 문법을 변환하지만 전체 타입 검사를 대신하지 않습니다. 배포 전 `npm run typecheck` 통과가 필수입니다. Cloudflare 타입은 개발 의존성으로만 제공하며 `cloudflare-env.d.ts`의 선택적 D1 선언은 DB를 생성하거나 Supabase 연결을 바꾸지 않습니다.
 
