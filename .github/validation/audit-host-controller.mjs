@@ -48,7 +48,7 @@ async function inputPair(workspace, commit) {
     assert.equal(createHash("sha1").update(`blob ${data.length}\0`).update(data).digest("hex"), match[1]);
     pair[kind] = data;
   }
-  validateManifests(pair.package, pair.lock); // candidate 4b79/bcd bytes only
+  validateManifests(pair.package, pair.lock); // reviewed candidate bytes only
   return pair;
 }
 function decodeStatus(result, nonce, version) {
