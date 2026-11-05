@@ -1,5 +1,21 @@
 # 운영 반영 전 통합 진행표
 
+## 최신 결과 — 아래 초기 실패·차단 이력보다 우선
+
+- Git 전송은 회복됐다. 공식 connector 권한을 넓히지 않고 정상 Git 경로로 후속 커밋을 보존/동기화했다.
+- main exact `51193e16f04bb8960f0e845278b50dd6836c98f9`의 [42070054608](https://github.com/rlawksml/word-html-studio/actions/runs/42070054608)은 type/lint/build·unit **277PASS/나머지0**였다. 같은 실행의 기존 실제 Worker suite는 **36완료/32PASS/4FAIL**이었다(최상위28+하위8이며 parent 실패 포함). 전체 실행 GO/COMPLETE는 아니다.
+- Worker 실패는 CF config3필드 비교1건과 구형 `dist/client/assets` 탐색 ENOENT2건·파생 parent1건이다. 공식 vinext1.2 기본 assetsDir는 `_next/static`, 현재 outer gate는 Worker-first이므로 새 static prefix에 맞는 제한된 인증 후 전달 경계가 필요하다. 실패 시점에는 새 prefix HTTP 성공/실패를 아직 실행하지 않았다. date/flags/no_bundle 중 실제 값은 원문 미조회이므로 특정하지 않는다.
+- fallback exact `1f3fb0be1a7938c54692a42c9b5227e305cc948b`의 [실제 full30](https://github.com/rlawksml/word-html-studio/actions/runs/42070130353)과 [실제 JSON10](https://github.com/rlawksml/word-html-studio/actions/runs/42070135624)은 각각 PASS/실패·skip0·소유 정리였다. full은 type/lint/build도0·정리 뒤 COMPLETE다. [fallback 보고서](https://github.com/rlawksml/word-html-studio/blob/1f3fb0be1a7938c54692a42c9b5227e305cc948b/docs/test-reports/2026-11-06-compatible-fallback-runtime.md)의 당시 미완료 표기는 후속 기록으로 구분한다. 실제 배포물·DB·복원 증거는 아니다.
+- Supabase 새 프로젝트 생성 화면에서 **활성 무료 프로젝트2개 한도로 생성 불가**를 확인했다. 유료 전환·기존 프로젝트 pause/delete는 하지 않았다. QA 뒤 Staging만 잠시 정지→별도 빈 복원 대상 검증→원래 Staging 재가동의 무료 방안과 운영 자료 읽기 백업은 사용자 승인 대기다. 배포 파일 전달 질문도 별도로 대기한다.
+
+## 실패 원인과 최소 정합화
+
+277 중8개는 Node에서 compiled Worker를 직접 import할 때의 `ERR_UNSUPPORTED_ESM_URL_SCHEME`와 연결됐다. 공식 vinext1.2는 Cloudflare tracing side-effect 모듈을 주입한다. 생성된 dist/server 부모의 정확한 `cloudflare:workers`만 tracing 미제공 모듈로 바꾸는 Node 테스트 fixture를 적용했다. 세션·SDK·fetch·권한·제품 코드는 mock하지 않았고 after에서 hook을 해제했다. 그 후7개가 통과하고 scheme 토큰이 사라졌다.
+
+남은 SEO1건은 실제 assertion215줄의 canonical 절대 URL 문자열 비교였다. 공식 renderer의 URL 정규화 계약을 검토하고 canonical 정확1개·절대 URL·정규화된 scheme/host/path/query/fragment 전체 일치를 요구하도록 했다. 상대 URL이나 다른 주소를 허용하는 기대 완화가 아니며, home/help 기대 주소는 동일하다. manifest는 renderer가 직접 출력하므로 제품 설정을 명시적 절대 URL로 유지했다. 그 후 같은277이 모두 PASS였다. 실제 원래 tag 문자열을 출력하지 않았으므로 문자열 차이를 오직 한 종류라고 단정하지 않는다.
+
+변경 후 `apps/web/tests/rendered-html.test.mjs`는516줄이다. 기존 대형 테스트의 고정 TC/본문을 이번 호환성 작업에서 대량 분리하지 않고 플랫폼/URL 책임을22줄·17줄 fixture로 분리했다. 변경된 제품 layout은62줄이며 UI/상태/접근성 코드는 바꾸지 않았다.
+
 ## 권한과 경계
 
 사용자가 무료 Staging 후보 배포·#86 additive SQL1건·새 QA2책방/미사용 월/사진·두 세션 검증을 승인했다. 기존 업무/QA/사진은 보존하고 성공한 새 QA도 남긴다. main merge·운영 배포/SQL/DB/Storage·유료 전환은 승인되지 않았다.

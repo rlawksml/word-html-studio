@@ -2,8 +2,9 @@
 export function createStagingAssetAdapter(application) {
   return {
     async fetch(request, env, ctx) {
+      const pathname = new URL(request.url).pathname;
       const isAssetRead = (request.method === "GET" || request.method === "HEAD")
-        && new URL(request.url).pathname.startsWith("/assets/");
+        && (pathname.startsWith("/assets/") || pathname.startsWith("/_next/static/"));
       if (!isAssetRead) return application.fetch(request, env, ctx);
 
       try {

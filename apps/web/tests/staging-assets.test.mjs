@@ -3,6 +3,8 @@ import test from "node:test";
 import { createStagingAssetAdapter } from "../worker/staging-assets.mjs";
 import { createStagingGate } from "../worker/staging-gate.mjs";
 
+const ASSET_PREFIXES = ["/assets/", "/_next/static/"];
+
 function fixture(assetFetch) {
   const calls = [];
   const appResponse = new Response("application", { status: 299 });
@@ -13,39 +15,45 @@ function fixture(assetFetch) {
 }
 
 test("asset GET and HEAD preserve request, binding receiver, response and headers", async () => {
-  for (const method of ["GET", "HEAD"]) {
-    const request = new Request("https://stage.example/assets/app.js?v=1", {
-      method, headers: { range: "bytes=0-9", "if-none-match": '"asset-v1"' },
-    });
-    const response = new Response(method === "HEAD" ? null : "javascript", {
-      status: 206, headers: { "content-type": "text/javascript", etag: '"asset-v1"' },
-    });
-    const f = fixture(function (received) {
-      assert.equal(this, f.env.ASSETS);
-      assert.equal(received, request);
-      return response;
-    });
-    assert.equal(await f.adapter.fetch(request, f.env, f.ctx), response);
-    assert.equal(f.calls.length, 0);
+  for (const prefix of ASSET_PREFIXES) {
+    for (const method of ["GET", "HEAD"]) {
+      const request = new Request(`https://stage.example${prefix}app.js?v=1`, {
+        method, headers: { range: "bytes=0-9", "if-none-match": '"asset-v1"' },
+      });
+      const response = new Response(method === "HEAD" ? null : "javascript", {
+        status: 206, headers: { "content-type": "text/javascript", etag: '"asset-v1"' },
+      });
+      const f = fixture(function (received) {
+        assert.equal(this, f.env.ASSETS);
+        assert.equal(received, request);
+        return response;
+      });
+      assert.equal(await f.adapter.fetch(request, f.env, f.ctx), response);
+      assert.equal(f.calls.length, 0);
+    }
   }
 });
 
 test("only exact 404 falls back and releases its body first", async () => {
-  let cancelled = false;
-  const response = new Response(new ReadableStream({ cancel() { cancelled = true; } }), { status: 404 });
-  const f = fixture(() => response);
-  const request = new Request("https://stage.example/assets/missing.js");
-  assert.equal(await f.adapter.fetch(request, f.env, f.ctx), f.appResponse);
-  assert.equal(cancelled, true);
-  assert.deepEqual(f.calls, [[request, f.env, f.ctx]]);
+  for (const prefix of ASSET_PREFIXES) {
+    let cancelled = false;
+    const response = new Response(new ReadableStream({ cancel() { cancelled = true; } }), { status: 404 });
+    const f = fixture(() => response);
+    const request = new Request(`https://stage.example${prefix}missing.js`);
+    assert.equal(await f.adapter.fetch(request, f.env, f.ctx), f.appResponse);
+    assert.equal(cancelled, true);
+    assert.deepEqual(f.calls, [[request, f.env, f.ctx]]);
+  }
 });
 
 test("asset responses other than 404 never fall back, including redirects and failures", async () => {
-  for (const status of [200, 206, 301, 302, 304, 401, 403, 429, 500, 503]) {
-    const response = new Response(null, { status, headers: { "x-asset": "kept" } });
-    const f = fixture(() => response);
-    assert.equal(await f.adapter.fetch(new Request("https://stage.example/assets/app.css"), f.env, f.ctx), response);
-    assert.equal(f.calls.length, 0);
+  for (const prefix of ASSET_PREFIXES) {
+    for (const status of [200, 206, 301, 302, 304, 401, 403, 429, 500, 503]) {
+      const response = new Response(null, { status, headers: { "x-asset": "kept" } });
+      const f = fixture(() => response);
+      assert.equal(await f.adapter.fetch(new Request(`https://stage.example${prefix}app.css`), f.env, f.ctx), response);
+      assert.equal(f.calls.length, 0);
+    }
   }
 });
 
@@ -54,8 +62,11 @@ test("other paths and unsafe methods remain application-owned", async () => {
     ["/", "GET"], ["/api/workspace", "GET"], ["/assets", "GET"],
     ["/assets-other/app.js", "GET"], ["/ASSETS/app.js", "GET"],
     ["/favicon.ico", "GET"], ["/_vinext/image", "GET"],
-    ["/assets/app.js", "POST"], ["/assets/app.js", "PUT"],
-    ["/assets/app.js", "DELETE"], ["/assets/app.js", "OPTIONS"],
+    ["/_next/staticx/app.js", "GET"], ["/_next/staticx/app.js", "HEAD"],
+    ["/_next/static", "GET"], ["/_next/static", "HEAD"],
+    ["/_next/", "GET"], ["/_next/data/app.json", "GET"], ["/_next/image", "GET"],
+    ...ASSET_PREFIXES.flatMap((prefix) => ["POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+      .map((method) => [`${prefix}app.js`, method])),
   ]) {
     const f = fixture(() => { throw new Error("assets must not run"); });
     const request = new Request(`https://stage.example${path}`, { method });
@@ -65,13 +76,15 @@ test("other paths and unsafe methods remain application-owned", async () => {
 });
 
 test("missing or failing binding returns generic 503 without app fallback or leaked details", async () => {
-  for (const assets of [undefined, {}, { fetch() { throw new Error("private-storage-secret"); } }]) {
-    const f = fixture();
-    f.env.ASSETS = assets;
-    const response = await f.adapter.fetch(new Request("https://stage.example/assets/app.js"), f.env, f.ctx);
-    assert.equal(response.status, 503);
-    assert.equal(await response.text(), "정적 파일을 불러올 수 없습니다.");
-    assert.equal(f.calls.length, 0);
+  for (const prefix of ASSET_PREFIXES) {
+    for (const assets of [undefined, {}, { fetch() { throw new Error("private-storage-secret"); } }]) {
+      const f = fixture();
+      f.env.ASSETS = assets;
+      const response = await f.adapter.fetch(new Request(`https://stage.example${prefix}app.js`), f.env, f.ctx);
+      assert.equal(response.status, 503);
+      assert.equal(await response.text(), "정적 파일을 불러올 수 없습니다.");
+      assert.equal(f.calls.length, 0);
+    }
   }
 });
 
@@ -84,11 +97,21 @@ test("outer gate denies unauthenticated assets without reaching binding or app",
     STAGING_SESSION_SECRET: "unit-test-only-secret-at-least-32-bytes",
   });
   const gate = createStagingGate(f.adapter);
-  const response = await gate.fetch(new Request("https://stage.example/assets/app.js"), f.env, f.ctx);
-  assert.equal(response.status, 401);
-  assert.equal(response.headers.get("cache-control"), "no-store");
-  assert.equal(assetCalls, 0);
-  assert.equal(f.calls.length, 0);
+  const paths = [
+    ...ASSET_PREFIXES.map((prefix) => `${prefix}app.js`),
+    "/_next/staticx/app.js", "/_next/static", "/_next/", "/_next/data/app.json", "/_next/image",
+  ];
+  for (const pathname of paths) {
+    for (const method of ["GET", "HEAD"]) {
+      for (const headers of [{}, { accept: "text/html" }]) {
+        const response = await gate.fetch(new Request(`https://stage.example${pathname}`, { method, headers }), f.env, f.ctx);
+        assert.equal(response.status, 401);
+        assert.equal(response.headers.get("cache-control"), "no-store");
+        assert.equal(assetCalls, 0);
+        assert.equal(f.calls.length, 0);
+      }
+    }
+  }
 });
 
 test("authenticated composition strips only the gate cookie before serving an asset", async () => {
@@ -96,7 +119,7 @@ test("authenticated composition strips only the gate cookie before serving an as
   const f = fixture((request) => {
     assetCalls += 1;
     assert.equal(request.headers.get("cookie"), "theme=dark");
-    return new Response("private asset", {
+    return new Response(request.method === "HEAD" ? null : "private asset", {
       headers: { "content-type": "text/javascript" },
     });
   });
@@ -121,12 +144,16 @@ test("authenticated composition strips only the gate cookie before serving an as
   assert.ok(session);
   await login.arrayBuffer();
 
-  const response = await gate.fetch(new Request("https://stage.example/assets/app.js", {
-    headers: { cookie: `${session}; theme=dark` },
-  }), f.env, f.ctx);
-  assert.equal(response.status, 200);
-  assert.equal(response.headers.get("cache-control"), "no-store");
-  assert.equal(await response.text(), "private asset");
-  assert.equal(assetCalls, 1);
+  for (const prefix of ASSET_PREFIXES) {
+    for (const method of ["GET", "HEAD"]) {
+      const response = await gate.fetch(new Request(`https://stage.example${prefix}app.js`, {
+        method, headers: { cookie: `${session}; theme=dark` },
+      }), f.env, f.ctx);
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+      assert.equal(await response.text(), method === "HEAD" ? "" : "private asset");
+    }
+  }
+  assert.equal(assetCalls, 4);
   assert.equal(f.calls.length, 0);
 });

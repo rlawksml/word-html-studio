@@ -11,6 +11,30 @@ const origin = "https://staging.test";
 const password = "runtime-test-only-password";
 const secret = "runtime-test-only-session-secret-32-bytes";
 const clientRoot = path.join(cwd, "dist/client");
+const clientAssetDirectory = "_next/static";
+const clientAssetRoot = path.join(clientRoot, clientAssetDirectory);
+
+async function clientAssetFiles() {
+  const files = [];
+  let entriesSeen = 0;
+  async function visit(directory, relative = "", depth = 0) {
+    assert.ok(depth <= 8, "client asset traversal must stay bounded");
+    const entries = await readdir(directory, { withFileTypes: true });
+    entriesSeen += entries.length;
+    assert.ok(entriesSeen <= 2048, "client asset entry count must stay bounded");
+    for (const entry of entries) {
+      assert.ok(!entry.isSymbolicLink(), "client build assets must not be symlinks");
+      const name = path.posix.join(relative, entry.name);
+      if (entry.isDirectory()) await visit(path.join(directory, entry.name), name, depth + 1);
+      else {
+        assert.ok(entry.isFile(), "client build assets must be regular files");
+        files.push(name);
+      }
+    }
+  }
+  await visit(clientAssetRoot);
+  return files.sort();
+}
 
 async function moduleFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -163,15 +187,15 @@ test("STAGE-RUNTIME executes the staging gate, assets, app, and native limiter i
     assert.ok(session, "runtime login must produce a session for authenticated checks");
 
     await t.test("compiled JavaScript and CSS require auth and preserve bytes and MIME on GET and HEAD", async () => {
-      const assetNames = (await readdir(path.join(clientRoot, "assets"))).sort();
+      const assetNames = await clientAssetFiles();
       const fixtures = [
         [assetNames.find((name) => name.endsWith(".js")), /^(?:text|application)\/javascript\b/i],
         [assetNames.find((name) => name.endsWith(".css")), /^text\/css\b/i],
       ];
       for (const [name, mime] of fixtures) {
         assert.ok(name, "build must contain both JavaScript and CSS assets");
-        const pathname = `/assets/${name}`;
-        const expected = await readFile(path.join(clientRoot, "assets", name));
+        const pathname = `/${clientAssetDirectory}/${name}`;
+        const expected = await readFile(path.join(clientAssetRoot, name));
 
         for (const method of ["GET", "HEAD"]) {
           const denied = await dispatch(pathname, { method, headers: { accept: "text/html" } });
@@ -215,10 +239,10 @@ test("STAGE-RUNTIME executes the staging gate, assets, app, and native limiter i
     });
 
     await t.test("authenticated asset POST remains application-owned", async () => {
-      const name = (await readdir(path.join(clientRoot, "assets"))).sort().find((entry) => entry.endsWith(".js"));
+      const name = (await clientAssetFiles()).find((entry) => entry.endsWith(".js"));
       assert.ok(name);
-      const expected = await readFile(path.join(clientRoot, "assets", name));
-      const response = await dispatch(`/assets/${name}`, {
+      const expected = await readFile(path.join(clientAssetRoot, name));
+      const response = await dispatch(`/${clientAssetDirectory}/${name}`, {
         method: "POST",
         headers: { cookie: session, "content-type": "text/plain" },
         body: "not an asset read",
