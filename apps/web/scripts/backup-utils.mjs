@@ -64,15 +64,31 @@ export function assertStagingRestoreTarget({
   if (appEnv !== "staging") {
     throw new Error("Restore is allowed only when APP_ENV=staging");
   }
-  const actualProjectRef = projectRefFromUrl(supabaseUrl);
+  const normalizedUrl = normalizeSupabaseUrl(supabaseUrl);
+  let parsedUrl;
+  try { parsedUrl = new URL(normalizedUrl); }
+  catch { throw new Error("Restore target must be an HTTPS official project root URL"); }
+  if (parsedUrl.protocol !== "https:" || parsedUrl.username || parsedUrl.password || parsedUrl.port
+    || parsedUrl.pathname !== "/" || parsedUrl.search || parsedUrl.hash || normalizedUrl !== parsedUrl.origin) {
+    throw new Error("Restore target must be an HTTPS official project root URL");
+  }
+  const actualProjectRef = projectRefFromUrl(parsedUrl.origin);
+  // 이 두 프로젝트는 업무/보관 자료를 가진 현재 환경이며 복원 대상으로 재사용하지 않습니다.
+  if (["kdigttaghqubfjsmbngl", "kriyjyyudngtibrtkylf"].includes(actualProjectRef)) {
+    throw new Error("Refusing to restore into a protected project");
+  }
   if (!expectedProjectRef || actualProjectRef !== expectedProjectRef) {
     throw new Error("SUPABASE_URL does not match EXPECTED_STAGING_PROJECT_REF");
   }
   if (!confirmedProjectRef || actualProjectRef !== confirmedProjectRef) {
     throw new Error("CONFIRM_STAGING_PROJECT_REF must exactly match the target project ref");
   }
-  const targetFingerprint = projectFingerprint(supabaseUrl);
-  if (sourceProjectFingerprint && targetFingerprint === sourceProjectFingerprint) {
+  if (typeof sourceProjectFingerprint !== "string" || !/^[a-f0-9]{16}$/.test(sourceProjectFingerprint)
+    || sourceProjectFingerprint.length !== 16) {
+    throw new Error("A valid backup source project fingerprint is required");
+  }
+  const targetFingerprint = projectFingerprint(parsedUrl.origin);
+  if (targetFingerprint === sourceProjectFingerprint) {
     throw new Error("Refusing to restore into the backup source project");
   }
   return { actualProjectRef, targetFingerprint };

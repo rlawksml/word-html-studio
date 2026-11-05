@@ -12,6 +12,7 @@ import {
   verifyBackupDirectory,
 } from "./backup-utils.mjs";
 import { tableSpecsForRestore } from "./supabase-schema.mjs";
+import { SCHEMA_MARKER_TABLE, planSchemaMarkerRestore, verifySchemaMarkerRestore } from "./schema-marker-restore-policy.mjs";
 
 const backupDir = process.argv[2];
 const execute = process.argv.includes("--execute");
@@ -94,14 +95,16 @@ async function listBucketObjects(bucketName, prefix = "") {
 
 const tablePlans = {};
 for (const table of tableOrder) {
-  const currentRows = existingRows[table] > 0 ? await selectAll(table, orderColumns[table]) : [];
-  tablePlans[table] = planTableRestore({
-    table,
-    currentRows,
-    expectedRows: tableRows[table],
-    expectedSha256: verification.manifest.database[table].sha256,
-    allowResume: resume,
-  });
+  const currentRows = table === SCHEMA_MARKER_TABLE || existingRows[table] > 0 ? await selectAll(table, orderColumns[table]) : [];
+  tablePlans[table] = table === SCHEMA_MARKER_TABLE
+    ? planSchemaMarkerRestore({ sourceRows: tableRows[table], currentRows })
+    : planTableRestore({
+      table,
+      currentRows,
+      expectedRows: tableRows[table],
+      expectedSha256: verification.manifest.database[table].sha256,
+      allowResume: resume,
+    });
 }
 
 const objectPlans = {};
@@ -142,6 +145,10 @@ if (!execute) {
     sourceFingerprint: verification.manifest.sourceProjectFingerprint,
     existingRows,
     backupRows: Object.fromEntries(tableOrder.map((table) => [table, tableRows[table].length])),
+    schemaMarkerPolicy: tablePlans[SCHEMA_MARKER_TABLE]
+      ? { action: "preserve", components: tablePlans[SCHEMA_MARKER_TABLE].components,
+        verification: "same-component-version-and-unchanged-target-hash" }
+      : { action: "not-in-backup", schemaCompatibility: "NOT_VERIFIED" },
     existingObjects: Object.fromEntries(Object.entries(objectPlans).map(([name, plan]) => [name, plan.existing.length])),
     missingObjects: Object.fromEntries(Object.entries(objectPlans).map(([name, plan]) => [name, plan.missing.length])),
     next: resume
@@ -151,7 +158,14 @@ if (!execute) {
   process.exit(0);
 }
 
+// Storage 사전 확인이 길어져도 최초 업무 행 쓰기 직전에 marker drift를 다시 확인합니다.
+if (tablePlans[SCHEMA_MARKER_TABLE]) {
+  verifySchemaMarkerRestore({ plan: tablePlans[SCHEMA_MARKER_TABLE],
+    currentRows: await selectAll(SCHEMA_MARKER_TABLE, orderColumns[SCHEMA_MARKER_TABLE]) });
+}
+
 for (const table of tableOrder) {
+  if (table === SCHEMA_MARKER_TABLE) continue;
   const rows = tablePlans[table].rows;
   for (let offset = 0; offset < rows.length; offset += 100) {
     const result = await client.from(table).insert(rows.slice(offset, offset + 100));
@@ -197,10 +211,15 @@ for (const [bucketName, plan] of Object.entries(objectPlans)) {
 }
 
 const restoredRows = {};
+let schemaMarkerVerification = { mode: "not-in-backup", schemaCompatibility: "NOT_VERIFIED" };
 for (const table of tableOrder) {
   const rows = await selectAll(table, orderColumns[table]);
   const payload = canonicalJson(rows);
   restoredRows[table] = rows.length;
+  if (table === SCHEMA_MARKER_TABLE) {
+    schemaMarkerVerification = verifySchemaMarkerRestore({ plan: tablePlans[table], currentRows: rows });
+    continue;
+  }
   if (sha256(payload) !== verification.manifest.database[table].sha256) {
     throw new Error(`Restore verification hash mismatch for ${table}`);
   }
@@ -221,6 +240,7 @@ console.log(canonicalJson({
   status: "RESTORE_PASS",
   targetProjectRef: target.actualProjectRef,
   restoredRows,
+  schemaMarkerVerification,
   restoredObjects,
   manifestSha256: verification.manifestSha256,
 }));

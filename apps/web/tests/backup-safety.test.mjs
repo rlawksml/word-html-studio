@@ -19,11 +19,11 @@ test("restore guard rejects production-like and mismatched targets", () => {
   const stagingUrl = "https://staging-ref.supabase.co";
   assert.throws(() => assertStagingRestoreTarget({
     appEnv: "production", supabaseUrl: stagingUrl, expectedProjectRef: "staging-ref",
-    confirmedProjectRef: "staging-ref", sourceProjectFingerprint: "source",
+    confirmedProjectRef: "staging-ref", sourceProjectFingerprint: "1".repeat(16),
   }), /APP_ENV=staging/);
   assert.throws(() => assertStagingRestoreTarget({
     appEnv: "staging", supabaseUrl: stagingUrl, expectedProjectRef: "another-ref",
-    confirmedProjectRef: "staging-ref", sourceProjectFingerprint: "source",
+    confirmedProjectRef: "staging-ref", sourceProjectFingerprint: "1".repeat(16),
   }), /EXPECTED_STAGING_PROJECT_REF/);
   assert.throws(() => assertStagingRestoreTarget({
     appEnv: "staging", supabaseUrl: stagingUrl, expectedProjectRef: "staging-ref",
@@ -31,7 +31,7 @@ test("restore guard rejects production-like and mismatched targets", () => {
   }), /backup source project/);
   assert.equal(assertStagingRestoreTarget({
     appEnv: "staging", supabaseUrl: stagingUrl, expectedProjectRef: "staging-ref",
-    confirmedProjectRef: "staging-ref", sourceProjectFingerprint: "different-source",
+    confirmedProjectRef: "staging-ref", sourceProjectFingerprint: "1".repeat(16),
   }).actualProjectRef, "staging-ref");
 });
 
