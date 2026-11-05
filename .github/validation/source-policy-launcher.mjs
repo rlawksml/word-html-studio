@@ -9,6 +9,7 @@ const reviewedSuites = [
   ["tests/image-retention-policy.test.mjs"],
   ["tests/staging-gate.test.mjs", "tests/supabase-cleanup-guard.test.mjs", "tests/integration-safety-block.test.mjs"],
   ["tests/test-owned-ledger.test.mjs", "tests/fixture-response-observer.test.mjs"],
+  ["tests/publication-month.test.mjs"],
 ];
 const allowedTests = process.argv.slice(2);
 const allowedEnvironment = ["HOME", "PATH", "TMPDIR", "TZ", "UV_THREADPOOL_SIZE", "XDG_CACHE_HOME"];

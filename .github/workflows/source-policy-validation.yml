@@ -163,7 +163,7 @@ jobs:
           [[ -f "$launcher_source" && ! -L "$launcher_source" && "$(/usr/bin/realpath -e -- "$launcher_source")" == "$launcher_source" ]] || fail LAUNCHER_NOT_REGULAR
           [[ "$(wc -c < "$launcher_source")" -le 16384 ]] || fail LAUNCHER_SIZE_EXCEEDED
           launcher_sha256="$(sha256sum -- "$launcher_source")"
-          [[ "${launcher_sha256%% *}" == '51a9d11e76e8225bdce5f1d6b142d0b32dd674cb0b64de8555a6ec043445c49b' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
+          [[ "${launcher_sha256%% *}" == '463dd25ddacb738cf75d7fcb2446374b3180a4960d99a4e89e3dc48f1ec5eeaf' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
           cp -- "$launcher_source" "$rootfs/usr/bin/source-policy-launcher.mjs"
 
           # Suite names never become paths/commands. No npm, SDK, key or app build.
@@ -218,6 +218,17 @@ jobs:
                 apps/web/tests/fixture-response-observer.test.mjs
               )
               test_argv=(tests/test-owned-ledger.test.mjs tests/fixture-response-observer.test.mjs)
+              ;;
+            publication)
+              expected_tests=15
+              source_files=(
+                apps/web/package.json
+                apps/web/lib/workspace-formatters.ts
+                apps/web/lib/digest-order.ts
+                apps/web/hooks/use-studio-controller.ts
+                apps/web/tests/publication-month.test.mjs
+              )
+              test_argv=(tests/publication-month.test.mjs)
               ;;
             *) fail SOURCE_SUITE_NOT_ALLOWLISTED ;;
           esac
