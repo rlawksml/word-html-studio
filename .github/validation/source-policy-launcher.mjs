@@ -4,11 +4,15 @@ import { readFileSync, statfsSync, writeFileSync } from "node:fs";
 import { networkInterfaces } from "node:os";
 import { spawnSync } from "node:child_process";
 
-const allowedTests = ["tests/schema-marker-restore-policy.test.mjs", "tests/backup-safety.test.mjs"];
+const reviewedSuites = [
+  ["tests/schema-marker-restore-policy.test.mjs", "tests/backup-safety.test.mjs"],
+  ["tests/image-retention-policy.test.mjs"],
+];
+const allowedTests = process.argv.slice(2);
 const allowedEnvironment = ["HOME", "PATH", "TMPDIR", "TZ", "UV_THREADPOOL_SIZE", "XDG_CACHE_HOME"];
 function fail(code) { console.error(code); process.exit(1); }
 try {
-  assert.deepEqual(process.argv.slice(2), allowedTests);
+  assert.ok(reviewedSuites.some((tests) => JSON.stringify(tests) === JSON.stringify(allowedTests)));
   assert.deepEqual(Object.keys(process.env).sort(), allowedEnvironment);
   assert.equal(process.env.HOME, "/scratch");
   assert.equal(process.env.TMPDIR, "/scratch");
