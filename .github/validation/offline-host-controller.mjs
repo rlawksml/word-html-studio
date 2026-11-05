@@ -38,12 +38,20 @@ const TRUSTED_FAILURES = new Set([
   "OWNED_CONTAINER_REMOVE_UNCONFIRMED", "OFFLINE_TRUSTED_SUMMARY_UNCONFIRMED", "OFFLINE_APP_FAILED_OR_LIMITED",
 ]);
 const ERROR_CLASSES = new Set(["ERR_ASSERTION", "ENOENT", "EACCES", "EPERM", "ENOSPC", "EMFILE"]);
+const RUNTIME_STEPS = new Set([
+  "PATHS", "NPM_METADATA", "NODE_VERSION", "NODE_COPY", "ENV_COPY",
+  "NPM_COPY", "LDD", "CA", "HELPERS",
+]);
 let phase = "START";
 function controlStage(value) {
   assert.ok(CONTROL_STAGES.has(value));
   phase = value;
   // Fixed controller labels only, never a path, exception message or target log.
   console.log(`OFFLINE_CONTROL_STAGE ${value}`);
+}
+function runtimeStep(value) {
+  assert.ok(RUNTIME_STEPS.has(value));
+  console.log(`OFFLINE_RUNTIME_STAGE ${value}`);
 }
 function checkpoint() { if (interrupted) throw fixedError("OFFLINE_HOST_DEADLINE_OR_SIGNAL"); }
 function decode(result, protocol, nonce, code) {
@@ -110,7 +118,7 @@ async function main() {
     mkdirSync(rootfs, { recursive: true, mode: 0o755 });
     writeFileSync(join(context, "Dockerfile"), readRegular(join(trusted, "offline-app.Dockerfile"), 1024), { flag: "wx", mode: 0o444 });
     controlStage(role === "prep" ? "RUNTIME_PREP" : "RUNTIME_APP");
-    await copyRuntime(rootfs, node, npmCli, trusted, role);
+    await copyRuntime(rootfs, node, npmCli, trusted, role, runtimeStep);
     contexts[role] = { context, rootfs };
     checkpoint();
   }

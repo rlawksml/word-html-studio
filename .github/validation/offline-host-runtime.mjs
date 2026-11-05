@@ -13,8 +13,9 @@ function copyBytes(source, target, limit, mode = 0o444) {
   chmodSync(target, mode);
   return bytes.length;
 }
-export async function copyRuntime(rootfs, node, npmCli, trusted, role) {
+export async function copyRuntime(rootfs, node, npmCli, trusted, role, step) {
   assert.ok(["prep", "app"].includes(role));
+  assert.equal(typeof step, "function");
   let totalBytes = 0;
   const copy = (source, target, limit, mode) => {
     const count = copyBytes(source, target, limit, mode);
@@ -22,16 +23,21 @@ export async function copyRuntime(rootfs, node, npmCli, trusted, role) {
     assert.ok(totalBytes <= 440 * 1024 * 1024); // source adds at most 64MiB
     return count;
   };
+  step("PATHS");
   assert.ok(HOST_PREFIX.test(node) && HOST_PREFIX.test(npmCli));
   assert.equal(realpathSync(node), node);
   assert.equal(realpathSync(npmCli), npmCli);
   assert.ok(npmCli.endsWith("/npm/bin/npm-cli.js"));
   const npmRoot = dirname(dirname(npmCli));
+  step("NPM_METADATA");
   assert.equal(JSON.parse(readRegular(join(npmRoot, "package.json"), 65536)).name, "npm");
+  step("NODE_VERSION");
   const version = requireSuccess(await bounded(node, ["--version"], { env: { PATH: "/usr/bin:/bin" }, ms: 5000 }), "TRUSTED_NODE_VERSION_UNCONFIRMED").trim();
   const match = /^v(\d+)\.(\d+)\.(\d+)$/.exec(version);
   assert.ok(match && (Number(match[1]) > 22 || (Number(match[1]) === 22 && Number(match[2]) >= 18)));
+  step("NODE_COPY");
   copy(node, join(rootfs, "usr/bin/node"), 256 * 1024 * 1024, 0o555);
+  step("ENV_COPY");
   const env = realpathSync("/usr/bin/env");
   assert.ok(env.startsWith("/usr/"));
   copy(env, join(rootfs, "usr/bin/env"), 1024 * 1024, 0o555);
@@ -58,7 +64,9 @@ export async function copyRuntime(rootfs, node, npmCli, trusted, role) {
   };
   // The offline image deliberately has NO npm CLI, so a missing native output
   // cannot trigger a package-manager fallback there. Only prep has this tool.
+  step("NPM_COPY");
   if (role === "prep") copyNpm(npmRoot, join(rootfs, "usr/lib/npm"));
+  step("LDD");
   // ldd is NEVER applied to a checkout or downloaded package binary.
   const copiedLibraries = new Map();
   for (const binary of [node, env]) {
@@ -92,9 +100,11 @@ export async function copyRuntime(rootfs, node, npmCli, trusted, role) {
     }
     assert.ok(libraries > 0 && interpreters === 1);
   }
+  step("CA");
   const ca = realpathSync("/etc/ssl/certs/ca-certificates.crt");
   assert.ok(ca.startsWith("/etc/ssl/certs/") || ca.startsWith("/usr/share/ca-certificates/"));
   copy(ca, join(rootfs, "etc/ssl/certs/ca-certificates.crt"), 2 * 1024 * 1024);
+  step("HELPERS");
   for (const name of ["offline-baseline.mjs", "offline-host-support.mjs", "offline-sandbox-common.mjs", role === "prep" ? "offline-prep-launcher.mjs" : "offline-app-launcher.mjs"]) {
     assert.equal(relative(trusted, resolve(trusted, name)), name);
     copy(join(trusted, name), join(rootfs, "trusted", name), 32768);
