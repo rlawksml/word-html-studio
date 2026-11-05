@@ -13,6 +13,21 @@ const readiness = "/scratch/consumer-ready.json";
 const PHASES = new Set(["START", "PREFLIGHT", "READINESS", "SOURCE_CLONE", "TOOLCHAIN_LINK", "TYPECHECK", "LINT", "BUILD", "UNIT", "POST_STAGE"]);
 const ERROR_CLASSES = new Set(["ERR_ASSERTION", "ENOENT", "EACCES", "EPERM", "ENOSPC", "EMFILE"]);
 let phase = "START", executionNonce = null;
+const ownedAppSources = new Set();
+function typecheckDiagnostics(bytes) {
+  const selected = [];
+  for (const line of bytes.toString("utf8").split("\n")) {
+    const match = /^(?:(.+)\((\d{1,7}),(\d{1,7})\): )?error TS(\d{4,5}):/.exec(line);
+    if (!match || selected.length >= 20) continue;
+    const file = match[1]?.replace(/^\.\//, "") ?? null;
+    if (file !== null && !ownedAppSources.has(file)) continue;
+    const row = file === null ? null : Number(match[2]);
+    const column = file === null ? null : Number(match[3]);
+    if (file !== null && (row < 1 || column < 1)) continue;
+    selected.push({ code: Number(match[4]), file, line: row, column });
+  }
+  return selected;
+}
 function cloneSource() {
   const metadata = jsonFile("/metadata/review.json");
   assert.match(metadata.commit, /^[a-f0-9]{40}$/);
@@ -50,6 +65,7 @@ function cloneSource() {
   digestRecords.sort((a, b) => Buffer.compare(Buffer.from(a.path), Buffer.from(b.path)));
   for (const record of digestRecords) digest.update(record.path).update("\0").update(record.hash).update("\0");
   assert.equal(digest.digest("hex"), metadata.sourceDigest);
+  for (const record of digestRecords) if (record.path.startsWith("apps/web/")) ownedAppSources.add(record.path.slice(9));
   for (const [name, expected] of [["package.json", PACKAGE_SHA256], ["package-lock.json", LOCK_SHA256]]) {
     assert.equal(sha256(readFileSync(`/toolchain/${name}`)), expected);
     assert.equal(sha256(readFileSync(`/scratch/repo/apps/web/${name}`)), expected);
@@ -125,6 +141,7 @@ async function runStages() {
       cwd: "/scratch/repo/apps/web", env: APP_ENV, ms: 120_000,
     });
     const summary = summarize(stage, result);
+    if (stage === "typecheck" && result.code !== 0) summary.typeDiagnostics = typecheckDiagnostics(result.stdout);
     summaries.push(summary);
     if (result.code !== 0 || result.signal || result.error || result.limited) throw fixedError("OFFLINE_STAGE_FAILED_OR_LIMITED");
     phase = "POST_STAGE";

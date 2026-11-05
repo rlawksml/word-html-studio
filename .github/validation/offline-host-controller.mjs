@@ -88,6 +88,21 @@ function publishSummary(value) {
   const selected = Object.fromEntries(["stage", "exit", "signal", "limited", "error", "blockedReason", "stdoutBytes", "stderrBytes", "stdoutSha256", "stderrSha256", "observedWarningLines"].map((key) => [key, value[key]]));
   console.log(`OFFLINE_STAGE_SUMMARY ${JSON.stringify(selected)}`);
 }
+function publishTypeDiagnostics(value, sourcePaths) {
+  if (value.stage !== "typecheck" || value.typeDiagnostics === undefined) return;
+  assert.ok(Array.isArray(value.typeDiagnostics) && value.typeDiagnostics.length <= 20);
+  const selected = value.typeDiagnostics.map((entry) => {
+    assert.ok(Number.isInteger(entry.code) && entry.code >= 1000 && entry.code <= 99999);
+    if (entry.file === null) assert.ok(entry.line === null && entry.column === null);
+    else {
+      assert.ok(typeof entry.file === "string" && sourcePaths.includes(`apps/web/${entry.file}`));
+      for (const number of [entry.line, entry.column]) assert.ok(Number.isInteger(number) && number >= 1 && number <= 9999999);
+    }
+    return { code: entry.code, file: entry.file, line: entry.line, column: entry.column };
+  });
+  // Only an owned public source location + compiler number, no error message.
+  console.log(`OFFLINE_TYPECHECK_DIAGNOSTICS ${JSON.stringify(selected)}`);
+}
 async function main() {
   assert.equal(process.platform, "linux");
   const [workspace, commit, scratch, node, npmCli, ...extra] = process.argv.slice(2);
@@ -197,7 +212,10 @@ async function main() {
       console.log(`OFFLINE_APP_CONTROL phase=${result.controlPhase} category=${result.category}`);
     }
     assert.ok(Array.isArray(result.stages) && result.stages.length <= 4);
-    for (const summary of result.stages) publishSummary(summary);
+    for (const summary of result.stages) {
+      publishSummary(summary);
+      publishTypeDiagnostics(summary, source.sourcePaths);
+    }
   } catch { throw fixedError("OFFLINE_TRUSTED_SUMMARY_UNCONFIRMED"); }
   requireSuccess(execution, "OFFLINE_APP_FAILED_OR_LIMITED");
   assert.equal(result.nonce, nonce);
