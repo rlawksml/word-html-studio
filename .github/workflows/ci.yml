@@ -9,7 +9,7 @@ on:
       validation_mode:
         description: Isolated no-key policy tests or reviewed offline app validation, never deployment
         type: choice
-        options: [rollback_preparation, source_policy, offline_app]
+        options: [rollback_preparation, source_policy, offline_app, browser_inventory]
         default: rollback_preparation
         required: true
       expected_commit:
@@ -123,6 +123,9 @@ jobs:
             offline_app)
               [[ "$GITHUB_REF" == refs/heads/codex/* ]] || { echo '::error::OFFLINE_APP_DISPATCH_BLOCKED'; exit 1; }
               ;;
+            browser_inventory)
+              [[ "$GITHUB_REF" == refs/heads/codex/* && "$GITHUB_EVENT_NAME" == workflow_dispatch ]] || { echo '::error::BROWSER_INVENTORY_DISPATCH_BLOCKED'; exit 1; }
+              ;;
             *) echo '::error::ISOLATED_MODE_NOT_ALLOWLISTED'; exit 1 ;;
           esac
 
@@ -142,5 +145,12 @@ jobs:
     needs: rollback-dispatch-guard
     if: github.event_name == 'workflow_dispatch' && inputs.validation_mode == 'offline_app' && needs.rollback-dispatch-guard.result == 'success'
     uses: ./.github/workflows/offline-app-validation.yml
+    with:
+      expected_commit: ${{ inputs.expected_commit }}
+
+  browser-runtime-inventory:
+    needs: rollback-dispatch-guard
+    if: github.event_name == 'workflow_dispatch' && inputs.validation_mode == 'browser_inventory' && needs.rollback-dispatch-guard.result == 'success'
+    uses: ./.github/workflows/browser-runtime-inventory.yml
     with:
       expected_commit: ${{ inputs.expected_commit }}

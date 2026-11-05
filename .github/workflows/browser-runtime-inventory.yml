@@ -1,0 +1,85 @@
+name: Read-only Linux browser runtime inventory
+
+on:
+  workflow_call:
+    inputs:
+      expected_commit:
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  inventory:
+    # Observation only. No checkout, project code, install, cache, artifact,
+    # browser execution, external request, secret, environment or deployment.
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Inspect fixed runner-owned browser candidates without executing them
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_commit }}
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          set -euo pipefail
+          fail() { printf '::error::%s\n' "$1"; exit 1; }
+          [[ "$REPOSITORY_PRIVATE" == false && "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" == refs/heads/codex/* ]] || fail INVENTORY_PUBLIC_FEATURE_DISPATCH_REQUIRED
+          [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ && "$EXPECTED_SHA" == "$GITHUB_SHA" ]] || fail INVENTORY_EXACT_COMMIT_REQUIRED
+          for tool in /usr/bin/env /usr/bin/bash /usr/bin/timeout /usr/bin/realpath /usr/bin/stat /usr/bin/sha256sum /usr/bin/od; do
+            [[ -f "$tool" && -x "$tool" ]] || fail INVENTORY_TRUSTED_OS_TOOL_MISSING
+          done
+          # Only native OS tools and a reviewed inline controller execute.
+          # A failure emits a fixed code, never a raw path or tool stderr.
+          /usr/bin/timeout --kill-after=5s 35s /usr/bin/env -i \
+            PATH=/usr/bin:/bin TZ=UTC LC_ALL=C \
+            /usr/bin/bash --noprofile --norc <<'INVENTORY'
+          set -euo pipefail
+          fail() { printf 'INVENTORY_BLOCKED code=%s\n' "$1"; exit 1; }
+          bounded() { /usr/bin/timeout --kill-after=1s 5s "$@" 2>/dev/null; }
+          trusted_parents() {
+            local directory="$1" data owner mode
+            while :; do
+              [[ -d "$directory" && ! -L "$directory" ]] || fail PARENT_NOT_CANONICAL_DIRECTORY
+              data="$(bounded /usr/bin/stat -c '%u %a' -- "$directory")" || fail PARENT_STAT_FAILED
+              read -r owner mode <<< "$data"
+              [[ "$owner" == 0 && "$mode" =~ ^[0-7]{3,4}$ ]] || fail PARENT_OWNERSHIP_UNCONFIRMED
+              (( (8#$mode & 0022) == 0 )) || fail PARENT_WRITABLE_BY_OTHERS
+              [[ "$directory" == / ]] && break
+              directory="${directory%/*}"
+              [[ -n "$directory" ]] || directory=/
+            done
+          }
+          observe() {
+            local tool_id="$1" candidate="$2" canonical before after size owner mode digest magic
+            if [[ ! -e "$candidate" && ! -L "$candidate" ]]; then
+              printf 'BROWSER_RUNTIME_INVENTORY id=%s present=false\n' "$tool_id"
+              return
+            fi
+            canonical="$(bounded /usr/bin/realpath -e -- "$candidate")" || fail CANDIDATE_UNRESOLVED
+            [[ "$canonical" == "$candidate" && -f "$candidate" && ! -L "$candidate" && -x "$candidate" ]] || fail CANDIDATE_NOT_CANONICAL_EXECUTABLE
+            trusted_parents "${candidate%/*}"
+            before="$(bounded /usr/bin/stat -c '%d:%i:%s:%Y:%Z:%u:%f' -- "$candidate")" || fail CANDIDATE_STAT_FAILED
+            size="$(bounded /usr/bin/stat -c '%s' -- "$candidate")" || fail CANDIDATE_SIZE_FAILED
+            owner="$(bounded /usr/bin/stat -c '%u' -- "$candidate")" || fail CANDIDATE_OWNER_FAILED
+            mode="$(bounded /usr/bin/stat -c '%a' -- "$candidate")" || fail CANDIDATE_MODE_FAILED
+            [[ "$size" =~ ^[0-9]{1,9}$ && "$owner" == 0 && "$mode" =~ ^[0-7]{3,4}$ ]] || fail CANDIDATE_METADATA_INVALID
+            (( size > 0 && size <= 536870912 && (8#$mode & 0022) == 0 )) || fail CANDIDATE_SIZE_OR_MODE_LIMIT
+            digest="$(bounded /usr/bin/sha256sum -- "$candidate")" || fail CANDIDATE_HASH_FAILED
+            digest="${digest%% *}"
+            [[ "$digest" =~ ^[a-f0-9]{64}$ ]] || fail CANDIDATE_HASH_INVALID
+            magic="$(bounded /usr/bin/od -An -N4 -tx1 -- "$candidate")" || fail CANDIDATE_FORMAT_UNCONFIRMED
+            after="$(bounded /usr/bin/stat -c '%d:%i:%s:%Y:%Z:%u:%f' -- "$candidate")" || fail CANDIDATE_FINAL_STAT_FAILED
+            [[ "$before" == "$after" ]] || fail CANDIDATE_CHANGED_DURING_READ
+            if [[ "$magic" =~ ^[[:space:]]*7f[[:space:]]+45[[:space:]]+4c[[:space:]]+46[[:space:]]*$ ]]; then
+              printf 'BROWSER_RUNTIME_INVENTORY id=%s present=true elf_magic=true bytes=%s sha256=%s\n' "$tool_id" "$size" "$digest"
+            else
+              printf 'BROWSER_RUNTIME_INVENTORY id=%s present=true elf_magic=false bytes=%s sha256=%s\n' "$tool_id" "$size" "$digest"
+            fi
+          }
+          observe chrome /opt/google/chrome/chrome
+          observe chromium /usr/lib/chromium/chromium
+          observe chromium_wrapper /usr/bin/chromium
+          printf 'BROWSER_RUNTIME_INVENTORY_COMPLETE execution=false dependencies=NOT_VERIFIED sandbox=NOT_VERIFIED\n'
+          INVENTORY
