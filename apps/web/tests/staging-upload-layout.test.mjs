@@ -5,10 +5,14 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import test from "node:test";
 
 const execFileAsync = promisify(execFile);
 const appRoot = fileURLToPath(new URL("../", import.meta.url));
+const require = createRequire(import.meta.url);
+const cli = require.resolve("wrangler");
+const preload = fileURLToPath(new URL("./helpers/wrangler-owned-cli.mjs", import.meta.url));
 
 test("STAGE-UPLOAD-01 dry-run upload entry resolves packaged application and adapters", { timeout: 120_000 }, async () => {
   // Wrangler's upload main module is the entry basename, regardless of its source directory.
@@ -16,8 +20,8 @@ test("STAGE-UPLOAD-01 dry-run upload entry resolves packaged application and ada
   const directory = await mkdtemp(path.join(tmpdir(), "bookstore-staging-upload-test-"));
   try {
     const config = JSON.parse(await readFile(path.join(appRoot, "wrangler.staging.json"), "utf8"));
-    await execFileAsync(process.execPath, [
-      path.join(appRoot, "node_modules/wrangler/bin/wrangler.js"),
+    const result = await execFileAsync(process.execPath, [
+      "--import", preload, cli,
       "deploy", "--dry-run", "--config", "wrangler.staging.json", "--outdir", directory,
     ], {
       cwd: appRoot,
@@ -25,6 +29,9 @@ test("STAGE-UPLOAD-01 dry-run upload entry resolves packaged application and ada
       maxBuffer: 4 * 1024 * 1024,
       env: { ...process.env, WRANGLER_SEND_METRICS: "false", WRANGLER_LOG_PATH: path.join(directory, "wrangler.log") },
     });
+    const lifecycle = "WRANGLER_OWNED_CLI_LIFECYCLE services=1 closed=1";
+    assert.equal(result.stdout.split(/\r?\n/).filter((line) => line === lifecycle).length, 1,
+      "published CLI must close its one owned esbuild service before exit");
     const entry = path.join(directory, path.basename(config.main));
     assert.ok((await stat(entry)).isFile(), "upload main basename must exist");
     const source = await readFile(entry, "utf8");

@@ -4,6 +4,12 @@
 
 ## 문서 정보
 
+### 2026-11-06 도구 체인·Worker 종료 진단 (최신)
+
+[통합 기록](test-reports/2026-11-06-toolchain-staging-progress.md): exact1d5a07f에서 type/lint/build·앱277·Worker36 모두 PASS지만 종료 esbuild zombie1로 전체 FAIL이다. 진단 분리 결과 runtime9/strict 정리는 exact5bcb9d5에서 PASS, upload1은 exact5547fc4에서 기능 PASS 뒤 같은 정리 실패였다. 진단 수치를 전체36 회귀 성공으로 대신하거나 합산하지 않는다. `STAGE-UPLOAD-01`의 실제 dry-run 산출물 import 검증은 유지하고 해당 CLI의 자식 종료 소유권만 최소 수정한다. 후보 전체36의 엄격 정리 재검증 전 운영 GO로 처리하지 않는다.
+
+호환 fallback exact1f3fb0b는 type/lint/build·앱30과 별도 보존10·엄격 정리를 각각 통과했다. [fallback 보고서](https://github.com/rlawksml/word-html-studio/blob/49bcafab2d7f2f5b523149b48a6d3af847143a57/docs/test-reports/2026-11-06-compatible-fallback-runtime.md). 실제 배포물·DB/복원·환경 보존 검증과 구분한다.
+
 ### 2026-11-06 React/RSC·호환 fallback
 
 [실제 결과](test-reports/2026-11-06-react-rsc-fallback.md): React/RSC19.2.9의 기존 배포 정책 TC를 보강하고 exact7e52fc08에서 전체277/type/lint/build·정리 PASS. 별도 fallback82f79b6은 실제 old parser/sanitizer/helper의10TC·정리 PASS이며 route/CAS는 정적 계약, HTTP/DB는 미실행이다. 옛 exact28efad2의6TC/4FAIL은 역사 증거로 보존한다. 실제 Staging·독립 백업/복원·불변 fallback artifact는 별도이며 운영 NO-GO다. 승인된 새 QA 성공 자료는 삭제하지 않고 보관한다.

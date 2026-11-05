@@ -2,6 +2,8 @@
 
 ## 현재 판정
 
+2026-11-06 후속: 호환 fallback exact1f3fb0be1a7938c54692a42c9b5227e305cc948b의 type/lint/build·앱30과 별도 보존10·엄격 정리를 각각 통과했다. [실제 보고서](https://github.com/rlawksml/word-html-studio/blob/49bcafab2d7f2f5b523149b48a6d3af847143a57/docs/test-reports/2026-11-06-compatible-fallback-runtime.md). 아래 옛28efad2/v34의4FAIL 이력과 구분한다. **운영 NO-GO**는 유지한다. 새 소스의 테스트 PASS만으로 플랫폼의 불변 fallback 배포물·실DB/기간/사진 참조·최신 독립 백업/빈 대상 복원·환경 보존이 완료된 것은 아니다. 읽기 백업과 무료 복원 용량 선택은 사용자 승인 대기이며 실제 pause/create/restore는 하지 않았다.
+
 2026-11-05: **Production NO-GO**. 이 문서와 도구는 준비 전용이며 배포·롤백·DB 복원을 실행하지 않는다. 사용자는 운영 반영 직전까지의 작업만 승인했다. 운영 merge, 배포, 스키마 적용은 별도 승인 대상이다.
 
 후속 실제 검사에서 아래 옛 source28efad2의 parser는 미래 news/image/extra/link 필드 보존 요구를 통과하지 못했다. [exact fallback6TC:2PASS/4FAIL 보고서](https://github.com/rlawksml/word-html-studio/blob/0fec8b719a88001b61b54b31238bb28472757628/docs/test-reports/2026-11-05-exact-fallback-preservation.md)를 우선 참조한다. 이는 순수 parser 실행·route 정적 추적이며 실제 DB 손상 사고나 저장 버전34 불변 artifact 전체 실행의 증거는 아니다. 현재 활성 배포는 이번에 재조회하지 않았다. 후보의276PASS로 이 실패를 대체하지 않으며, 호환 가능한 별도 fallback 기준선과 불변 배포물 검증이 필요하다.

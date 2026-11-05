@@ -2,6 +2,8 @@
 
 ## 최신 결과 — 아래 초기 실패·차단 이력보다 우선
 
+- 최신 exact `1d5a07f7c130d5bd8c39b4bb5439bbe9fddef842`의 [42073321530](https://github.com/rlawksml/word-html-studio/actions/runs/42073321530)은 type/lint/build0·앱277PASS·Worker36PASS/실패·skip 등0이었다. static 경로와 config 정합화 뒤 실제 Worker TC가 통과했다. 다만 `POST_STAGE / UNEXPECTED_PROCESS_REMAINS`: live0/zombie1/parent1/esbuild1이 남아 엄격 정리·전체 COMPLETE는 실패다. 종료 소유권만 조사하며 실패 조건을 완화하지 않는다.
+- 기존 profile의 두 진단 branch는 제품 코드를 바꾸지 않고 고정 Worker 파일만 분리했다. runtime9 exact5bcb9d512328358f140c883845cd2acb32bc0ed4/[42074865221](https://github.com/rlawksml/word-html-studio/actions/runs/42074865221)은 앱277·runtime9·엄격 정리 뒤17:29:20.9704276Z COMPLETE다. upload1 exact5547fc494ed0df5455d1fe8884c82c662388d260/[42074865318](https://github.com/rlawksml/word-html-studio/actions/runs/42074865318)은 앱277·upload1 기능 PASS 뒤 같은 zombie1로 FAIL이다. 실제 owner를 외부 Wrangler dry-run CLI로 좁혔으며 이 진단을 전체36의 최종 통과로 확대하지 않는다. primary의36목록·상한·실패 조건은 그대로다.
 - Git 전송은 회복됐다. 공식 connector 권한을 넓히지 않고 정상 Git 경로로 후속 커밋을 보존/동기화했다.
 - main exact `51193e16f04bb8960f0e845278b50dd6836c98f9`의 [42070054608](https://github.com/rlawksml/word-html-studio/actions/runs/42070054608)은 type/lint/build·unit **277PASS/나머지0**였다. 같은 실행의 기존 실제 Worker suite는 **36완료/32PASS/4FAIL**이었다(최상위28+하위8이며 parent 실패 포함). 전체 실행 GO/COMPLETE는 아니다.
 - Worker 실패는 CF config3필드 비교1건과 구형 `dist/client/assets` 탐색 ENOENT2건·파생 parent1건이다. 공식 vinext1.2 기본 assetsDir는 `_next/static`, 현재 outer gate는 Worker-first이므로 새 static prefix에 맞는 제한된 인증 후 전달 경계가 필요하다. 실패 시점에는 새 prefix HTTP 성공/실패를 아직 실행하지 않았다. date/flags/no_bundle 중 실제 값은 원문 미조회이므로 특정하지 않는다.
@@ -60,7 +62,7 @@ Sites에서 운영 프로젝트 `bookstore-news-studio`가 active/public임을 �
 
 원래 v34는 미래 JSON4종을 잃는 old parser가 있어 **그대로 안전 fallback으로 선정하지 않는다**. 별도82f79b6의 순수 보존10TC PASS와 실제 배포 artifact는 다르다. old 사진 DELETE의 물리 삭제도 막아야 하며 그 범위만 보완 준비한다. 최신 기능 전체를 구버전에 backport하지 않는다.
 
-## 현재 실행 대기/미완료
+## 초기 실행 차단 이력 (위 최신 결과와 구분)
 
 - 실패 source 위치/고정 counter만 남기는 진단 local `01ef66a6845c727a9e3ff06f98127e73a8801ccd`를 보존했다. Git push가 같은 ref 두 번·새 codex ref 한 번 모두 `fatal error in commit_refs_rules`로 거부됐다. 실제 원격은 a02cb39 그대로이며 조회된 branch rules/rulesets는 비어 있었다.
 - 공식 GitHub connector의 정상 create-tree 대안도 `403 Resource not accessible by integration`으로 거부됐다. 설정·권한을 바꾸거나 강제 ref/API 갱신으로 우회하지 않았으며 현재 진단 CI를 실행하지 못했다. 일반 GitHub 전체 장애로 단정하지 않는다.

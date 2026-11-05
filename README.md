@@ -8,7 +8,7 @@
 
 React/RSC19.2.9 최소 패치 exact7e52fc08에서 **type/lint/build·전체277TC·엄격 정리 PASS**를 확인했습니다. 별도 이전 버전 호환 fallback exact82f79b6도 고정 데이터 보존10TC·정리 PASS입니다. [통합 결과와 남은5묶음](docs/test-reports/2026-11-06-react-rsc-fallback.md)을 보세요. 실제 배포물/DB 검증 완료를 뜻하지 않으며 운영 NO-GO입니다.
 
-사용자가 무료 Staging 최신 후보 배포·#86 SQL1건·새 QA2책방/미사용 월/사진/두 세션 검증을 승인했습니다. #86 SQL은 실제 Staging에 적용하고 객체·버전·RLS/익명 접근 차단을 확인했습니다. 도구 체인 후보는 type/lint/build PASS지만 전체 unit exit1 원인 조사 중이며, 진단 커밋의 원격 반영이 GitHub ref 내부 오류로 차단됐습니다. [최신 실행/차단 기록](docs/test-reports/2026-11-06-toolchain-staging-progress.md)을 보세요. 기존 자료는 보존하고 새 성공 QA도 남깁니다. 운영 반영은 별도 승인 전까지 금지하며, 아래11월5일 기록은 이전 단계 이력입니다.
+사용자가 무료 Staging 최신 후보 배포·#86 SQL1건·새 QA2책방/미사용 월/사진/두 세션 검증을 승인했습니다. #86 SQL 설치·객체·버전·RLS/익명 접근 차단을 실제 확인했습니다. Git 전송은 회복됐고 최신 exact1d5a07f의 type/lint/build·앱277·실제 Worker36이 모두 통과했습니다. 다만 종료 후 미회수 esbuild zombie1로 엄격 정리가 실패해 전체 GO는 아닙니다. 호환 fallback exact1f3fb0b도 type/lint/build·앱30·보존10·엄격 정리를 각각 통과했습니다. [최신 실행/차단 기록](docs/test-reports/2026-11-06-toolchain-staging-progress.md)을 보세요. 배포 파일 전달과 실제 백업/복원 선택은 별도 승인 대기입니다. 기존 자료·성공 QA 보관, 운영 반영/유료 전환 금지 원칙은 그대로이며 아래 기록은 과거 이력입니다.
 
 ### 2026-11-05 이전 단계
 
