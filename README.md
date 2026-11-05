@@ -6,9 +6,11 @@
 
 ## 2026-11-05 운영 반영 전 상태
 
+최신 제품 기준에 source-map-js1.2.2만 적용한 exact `83fed46`에서 **전체277TC·typecheck·lint·build·엄격 정리 PASS**를 확인했습니다. 승인된 두JSON 전달·독립 파일 검증도 완료했고 package와 다른734개 lock 레코드는 불변입니다. [최신 보안 후보 보고서](docs/test-reports/2026-11-05-issue87-source-map-candidate.md)를 보세요. **실제 재audit는 별도 registry 전송 승인 대기라 BLOCKED/미실행**이며 보안 전체 완료나 배포 GO가 아닙니다.
+
 사용자의 재개 요청에 따라 #94의 **모든 사진 보관·미참조 경고** 정책을 구현하고 exact1f9c605에서 목표30/복원정책25/전체277TC·type/lint/build와 엄격 정리를 검증했습니다. [#94 보고서](docs/test-reports/2026-11-05-issue94-retained-photo-warnings.md)를 보세요. 이전 [중단 기록](docs/test-reports/2026-11-05-pause-resume-checkpoint.md)은 당시 checkpoint이며 현재 중단 상태를 뜻하지 않습니다.
 
-별도 브랜치의 [실제 metadata audit](https://github.com/rlawksml/word-html-studio/blob/3e8289ffd041c3fba48ec3087c226d286c10f5e7/docs/test-reports/2026-11-05-issue87-metadata-audit.md)는 source-map-js high1로 FAIL(FINDINGS)입니다. 보안 잔여·#93 경로·실제 백업/복원·브라우저/DB·호환 fallback 검증이 남아 **운영 NO-GO**를 유지합니다.
+이전 lock에 대한 [실제 metadata audit](https://github.com/rlawksml/word-html-studio/blob/3e8289ffd041c3fba48ec3087c226d286c10f5e7/docs/test-reports/2026-11-05-issue87-metadata-audit.md)는 source-map-js high1로 FAIL(FINDINGS)이었습니다. 이를 새 lock의 재audit 결과로 대신하지 않습니다. 보안 잔여·#93 경로·실제 백업/복원·브라우저/DB·호환 fallback 검증이 남아 **운영 NO-GO**를 유지합니다.
 
 이전 #87 최소 Next 후보 exact `bae02fb`도 **새 lock의 무스크립트 설치·typecheck·lint·build·276TC·엄격 정리 PASS**였습니다. [당시 보안 후보 회귀 보고서](docs/test-reports/2026-11-05-issue87-next-candidate.md)의 앱 실행에는 audit가 없었고, 이후 위 별도 실제 audit에서 high1을 확인했습니다. #87 완료나 운영 승인은 아닙니다.
 
