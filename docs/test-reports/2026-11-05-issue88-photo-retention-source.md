@@ -1,12 +1,21 @@
-# #88 사진 보존 방어 1차 구현 — 실행 검증 전 기록
+# #88 사진 보존 방어 1차 구현 — 순수·구조 12TC 검증
 
 ## 범위와 판정
 
-- 기준: 부모가 제공한 `0951802`, 별도 `codex/m1-photo-retention-safety` 작업 공간. 이 문서는 커밋·배포 식별 증거가 아니다.
-- 코드 수정과 TC 작성까지만 수행했다. 대상 코드·Node syntax·npm·Git·브라우저·API·DB·Storage·세션·환경 파일은 실행/접근하지 않았다.
+- 기준: `0951802`, 별도 `codex/m1-photo-retention-safety` 작업 공간. 검증한 제품 코드 commit은 `e0219f9ab38280cf8cd0678008817abeedb6c509`다. 운영 배포 식별자는 아니다.
+- 구현 담당자는 코드·TC 작성만 수행했고, 주 에이전트가 이후 무키·무외부네트워크 Linux 격리 CI를 실행했다. 실제 브라우저·API·DB·Storage·세션·환경 파일은 접근하지 않았다.
 - Console / Network / server / heap 측정: **SKIPPED**. 운영·Staging 자료 변경 및 사진 삭제: **없음**.
-- 작성된 TC-IMG-008~019: 12건 모두 **BLOCKED**(부모의 격리 실행 검증 대기). PASS 0 / FAIL 0 / BLOCKED 12. 추가 P0 통합/사용성 회귀도 미검증이다.
-- 현 판정: **NO-GO — 테스트·리뷰·정확한 fallback 호환·백업 확인·사용자 운영 승인이 남아 있음**.
+- TC-IMG-008~019: **12PASS / FAIL0 / cancelled0 / skipped0 / todo0**. 추가 P0 통합/사용성 회귀는 미검증이다.
+- 현 판정: **순수·구조 TC 범위 GO / 운영 NO-GO — 전체 회귀·정확한 fallback 호환·백업 확인·사용자 운영 승인이 남아 있음**.
+
+### exact commit 실제 실행과 독립 확인
+
+- [수동 CI run41968357231](https://github.com/rlawksml/word-html-studio/actions/runs/41968357231), exact `e0219f9ab38280cf8cd0678008817abeedb6c509`, 2026-11-05 04:32:11Z 완료, `success`.
+- 실제 출력: `Source policy validation PASS: suite=photo tests=12 failures=0 skips=0 commit=e0219f9ab38280cf8cd0678008817abeedb6c509`.
+- exact SHA guard/source-policy job 성공, 일반 앱 verify·실Supabase integration·rollback suite는 SKIPPED. 독립 검토자가 metadata와 실제 로그를 직접 대조했다.
+- 기존 호스트 Node/env와 allowlist 7파일만 FROM scratch에 복사했다. 설치/이미지 pull/SDK/환경파일/비밀키는 없다. native TS strip으로 실제 client helper를 import하며 npm script나 package lifecycle은 실행하지 않는다.
+- non-root·네트워크 없음·read-only root·memory256MiB/swap0/CPU1/PID32/scratch16MiB·CPU30초/wall45초/출력64KiB를 요구한다. 검토된 launcher가 실효 OS/환경/쓰기 경계를 확인한 뒤 테스트를 시작했다. 실제 브라우저 heap·장기 자원 측정과는 다르다.
+- 공개 로그에는 대상 TAP/생성 파일을 보관하지 않고 exact SHA·검증된 counters만 기록했다. 후속 보고서-only 커밋은 실제 검증 SHA와 구분한다.
 
 ## 배경: 확인된 소스 경로와 미확인 사고를 구분
 
@@ -52,8 +61,8 @@
 
 ## 검증 인계
 
-1. 부모가 외부 네트워크 차단, 빈 allowlist 환경, 소스/toolchain read-only, 전용 scratch 쓰기, CPU·메모리·프로세스·파일·시간 한도를 갖춘 격리 실행 환경에서 `npm run test:image-retention`을 실행한다.
-2. 타입 검사·lint·관련 기존 테스트·build·diff 검사는 부모가 별도로 수행한다. 이 기록은 성공을 주장하지 않는다.
+1. 부모의 검토된 source-policy CI는 정확한 Node 테스트 파일만 실행해 12PASS를 확인했다. `npm run test:image-retention`은 프로젝트 편의 명령이며 이번 CI에서 npm 자체를 실행한 것은 아니다.
+2. 전체 타입 검사·lint·관련 기존 render 테스트·build는 미실행/BLOCKED다. Git diff whitespace 검사만 PASS했으며 이를 전체 앱 검증으로 보고하지 않는다.
 3. fake ledger와 source assertions는 실제 React effect·API·DB integration 증거가 아니다. save commit 뒤 응답 유실, 늦은 autosave, target 제거, 부분 업로드, Console/Network/server/heap 반복 검증이 남아 있다.
 4. legacy `supabase-integration.test.mjs`는 exact-fixture 직접 cleanup을 포함하므로 실행하지 않았다. 이 작업 공간 기준 소스는 env flag로 활성화 가능한 구형 어댑터이며, 부모의 별도 하드 비활성/격리 안전 변경을 우선 보존해야 한다. 테스트의 보존 응답 기대값 변경은 새 실DB cleanup 승인이나 성공 QA 삭제 승인이 아니다.
 5. 사진 POST/GET·역할 권한·HTML ZIP 다운로드 회귀와 정확한 fallback/미래 데이터 보존 검증 뒤에만 다음 게이트로 진행한다.

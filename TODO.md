@@ -81,7 +81,7 @@
 - [x] 책방·월별 소식 단위 API와 자동 저장 요청 직렬화
 - [x] `updated_at` 기반 낙관적 충돌 방지와 최신 내용 다시 불러오기
 - [x] 빈 Supabase에서 첫 책방을 등록할 수 있는 초기 진입 흐름
-- [ ] #88 사진 응답 유실·이전 자동 저장 경합 보존 방어: client DELETE 무전송·server 명시적 보존 응답·물리 삭제 queue 제거 구현, 격리 검증 대기 ([범위/TC](docs/test-reports/2026-11-05-issue88-photo-retention-source.md))
+- [ ] #88 사진 보존 방어: client DELETE 무전송·server 명시적 보존 응답·물리 삭제 queue 제거 구현, exact e0219f9 격리 순수·구조12TC PASS. 실제 React/API·늦은 자동 저장·전체 회귀·배포 대기 ([범위/TC](docs/test-reports/2026-11-05-issue88-photo-retention-source.md))
 - [x] 책방 관리 저장 성공 응답 확인과 실제 충돌 레코드 단위 격리
 - [x] 일시적인 Database·Storage 오류 재시도와 응답 유실 후 동일 저장 복구
 - [x] 사진 서명 갱신 재시도와 Windows 빈 MIME·HEIC/HEIF 미리보기 지원
