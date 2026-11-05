@@ -30,7 +30,7 @@ export const TESTS = Object.freeze([
 ]);
 // Static top-level test declarations in the exact 25 files above, not a claim
 // that these tests have run. Any TAP mismatch, skip/cancellation/todo fails.
-export const EXPECTED_TESTS = 231;
+export const EXPECTED_TESTS = 232;
 
 export const BASE_ENV = Object.freeze({
   PATH: "/usr/bin:/bin", HOME: "/scratch", TMPDIR: "/scratch",
