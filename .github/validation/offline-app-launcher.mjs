@@ -10,11 +10,15 @@ import { delay, emit, jsonFile, noOtherProcesses, preflight, summarize, validNon
 
 const summaries = [];
 const readiness = "/scratch/consumer-ready.json";
+const PHASES = new Set(["START", "PREFLIGHT", "READINESS", "SOURCE_CLONE", "TOOLCHAIN_LINK", "TYPECHECK", "LINT", "BUILD", "UNIT", "POST_STAGE"]);
+const ERROR_CLASSES = new Set(["ERR_ASSERTION", "ENOENT", "EACCES", "EPERM", "ENOSPC", "EMFILE"]);
+let phase = "START", executionNonce = null;
 function cloneSource() {
   const metadata = jsonFile("/metadata/review.json");
   assert.match(metadata.commit, /^[a-f0-9]{40}$/);
   assert.match(metadata.sourceDigest, /^[a-f0-9]{64}$/);
   const digest = createHash("sha256");
+  const digestRecords = [];
   let files = 0, total = 0;
   function visit(relative) {
     const source = join("/source", relative);
@@ -36,11 +40,15 @@ function cloneSource() {
     const destination = join("/scratch/repo", relative);
     mkdirSync(dirname(destination), { recursive: true, mode: 0o700 });
     writeFileSync(destination, bytes, { flag: "wx", mode: 0o600 });
-    digest.update(relative).update("\0").update(sha256(bytes)).update("\0");
+    digestRecords.push({ path: relative, hash: sha256(bytes) });
   }
   visit("");
   assert.equal(files, metadata.files);
   assert.equal(total, metadata.bytes);
+  // Git orders complete UTF8 paths; recursive directory traversal does not
+  // (e.g. drizzle.config.ts versus drizzle/meta). Hash the same bytewise order.
+  digestRecords.sort((a, b) => Buffer.compare(Buffer.from(a.path), Buffer.from(b.path)));
+  for (const record of digestRecords) digest.update(record.path).update("\0").update(record.hash).update("\0");
   assert.equal(digest.digest("hex"), metadata.sourceDigest);
   for (const [name, expected] of [["package.json", PACKAGE_SHA256], ["package-lock.json", LOCK_SHA256]]) {
     assert.equal(sha256(readFileSync(`/toolchain/${name}`)), expected);
@@ -99,7 +107,9 @@ async function quiescent() {
   throw fixedError("OFFLINE_UNEXPECTED_PROCESS_REMAINS");
 }
 async function runStages() {
+  phase = "SOURCE_CLONE";
   const metadata = cloneSource();
+  phase = "TOOLCHAIN_LINK";
   linkPackages();
   const stages = [
     ["typecheck", ["/toolchain/node_modules/typescript/bin/tsc", "--noEmit", "--incremental", "false"]],
@@ -108,6 +118,7 @@ async function runStages() {
     ["unit", ["--test", "--test-reporter=tap", "--test-concurrency=1", ...TESTS]],
   ];
   for (const [stage, args] of stages) {
+    phase = ({ typecheck: "TYPECHECK", lint: "LINT", build: "BUILD", unit: "UNIT" })[stage];
     noOtherProcesses();
     preflight("app");
     const result = await bounded("/usr/bin/node", ["--max-old-space-size=1536", ...args], {
@@ -116,6 +127,7 @@ async function runStages() {
     const summary = summarize(stage, result);
     summaries.push(summary);
     if (result.code !== 0 || result.signal || result.error || result.limited) throw fixedError("OFFLINE_STAGE_FAILED_OR_LIMITED");
+    phase = "POST_STAGE";
     await quiescent();
     preflight("app"); // also rejects actual cgroup OOM, not just exit codes
     if (stage === "unit") summary.tap = verifyTap(result.stdout);
@@ -125,7 +137,9 @@ async function runStages() {
 async function main() {
   const [action, rawNonce, ...extra] = process.argv.slice(2);
   const nonce = validNonce(rawNonce);
+  executionNonce = nonce;
   assert.ok(!extra.length && ["idle", "status", "run"].includes(action));
+  phase = "PREFLIGHT";
   preflight("app");
   if (action === "idle") {
     assert.equal(process.pid, 1);
@@ -134,6 +148,7 @@ async function main() {
     setInterval(() => {}, 1000);
     return;
   }
+  phase = "READINESS";
   let state;
   try { state = jsonFile(readiness); }
   catch (error) {
@@ -151,6 +166,9 @@ async function main() {
 }
 try { await main(); }
 catch (error) {
-  emit({ protocol: "offline-app-v1", ok: false, code: error?.safeCode ?? "OFFLINE_PREFLIGHT_OR_BASELINE_FAILED", stages: summaries });
+  // Expose fixed trusted control metadata only, never raw exception details.
+  const controlPhase = PHASES.has(phase) ? phase : "START";
+  const category = ERROR_CLASSES.has(error?.code) ? error.code : "OTHER";
+  emit({ protocol: "offline-app-v1", nonce: executionNonce, ok: false, controlPhase, category, stages: summaries });
   process.exitCode = 1;
 }
