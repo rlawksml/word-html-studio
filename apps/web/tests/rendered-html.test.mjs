@@ -434,11 +434,12 @@ test("uses record-scoped Supabase writes with private originals and public mobil
   assert.doesNotMatch(imageRoute, /`\$\{uniqueId\}-\$\{originalName\}`/);
   assert.doesNotMatch(imageRoute, /\uAC00-\uD7A3/);
   assert.match(imageRoute, /validStoragePath/);
-  assert.match(imageRoute, /body\.images\.length > 500/);
+  assert.match(imageRoute, /respondToDeferredImageCleanup\(request, readWorkerSession/);
   assert.doesNotMatch(imageRoute, /request\.formData\(\)/);
   assert.match(pageSource, /uploadFileToSignedUrl\(reservation\.uploads\.originalUrl, file, "300"\)/);
   assert.match(pageSource, /await saveSubmissionChange/);
-  assert.match(pageSource, /await deleteStoredImages\(reserved\)/);
+  assert.doesNotMatch(pageSource, /pendingImageDeletesRef|await deleteStoredImages\(reserved\)/);
+  assert.match(pageSource, /attachUploadedImages\(submission/);
   assert.match(imageRoute, /원본 사진 다운로드 권한/);
   assert.match(imageRoute, /원본 사진을 찾지 못했습니다/);
   assert.match(migration, /alter table public\.bookstores/);

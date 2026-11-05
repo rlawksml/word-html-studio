@@ -104,7 +104,7 @@ page.tsx
 | 최초 세션·데이터 로딩과 재시도 | `hooks/use-workspace-initialization.ts`, `components/molecules/StorageLoadingOverlay.tsx` |
 | 공용 데이터 읽기 | `app/api/workspace/route.ts` |
 | 책방·월별 소식 저장 | `app/api/bookstores/route.ts`, `app/api/submissions/route.ts` |
-| 사진 업로드·삭제·원본 다운로드 | `app/api/images/route.ts` |
+| 사진 업로드·안전 보관·원본 다운로드 | `app/api/images/route.ts`, `lib/image-retention-policy.mjs` |
 | 작업 암호와 탭 세션 | `app/api/session/route.ts`, `lib/access-code-normalization.mjs`, `lib/workspace-session.ts` |
 | 동시 편집 안내 | `hooks/use-editing-presence.ts`, `app/api/presence/route.ts`, `styles/presence.css` |
 | 버그·개선 접수·상태·내보내기 | `components/organisms/ImprovementsWorkspace.tsx`, `app/api/improvements/route.ts`, `lib/improvement-export.ts` |
@@ -148,6 +148,8 @@ SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metad
 별도 무료 Cloudflare 스테이징의 비공개 설정과 모의 배포 검증은 [독립 스테이징 준비](docs/CLOUDFLARE_STAGING.md)를 참고하세요. 기존 운영 Sites는 유지하며 새 Worker는 아직 배포하지 않았습니다.
 
 독립 스테이징은 별도 입장 암호 gate를 사용하며 기존 역할별 암호를 대체하지 않습니다. 원본 최근 3개월·글/미리보기 유지의 [사진 보관 정책](docs/PHOTO_RETENTION.md)은 설계 합의만 기록했으며 자동 삭제는 구현하거나 실행하지 않았습니다.
+
+#88 1차 보존 방어는 소식에서 사진 참조를 제거해도 원본·미리보기 파일을 물리 삭제하지 않습니다. 새 클라이언트는 DELETE를 보내지 않으며 기존 클라이언트의 정리 요청에도 서버는 `retained:true, deleted:false`를 응답합니다. 저장 응답 유실을 저장 실패로 단정해 성공 파일을 지우는 위험을 차단하기 위한 보수적 정책입니다. 미완료 업로드 파일이 남아 용량이 늘 수 있고, 이미 알려진 공개 미리보기 URL을 철회하는 기능은 아닙니다. [수정 범위·미검증 TC](docs/test-reports/2026-11-05-issue88-photo-retention-source.md)를 참고하세요. 아직 실행 검증·배포 완료를 의미하지 않습니다.
 
 인증 후 `/assets/`의 GET·HEAD는 별도 정적 파일 adapter가 처리합니다. 빌드 후 `npm run test:staging-worker`로 DB·외부 통신을 차단한 로컬 Worker 엔진에서 인증과 JS/CSS 전달을 검증하며 CI에도 포함됩니다. [정적 파일 404 수정 검증](docs/test-reports/2026-09-29-staging-assets.md)을 참고하세요. 로컬 통과는 원격 배포·브라우저·DB 전체 검증 완료를 뜻하지 않습니다.
 
