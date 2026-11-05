@@ -50,8 +50,22 @@ export class OwnedDocker {
   }
   async build(context) {
     const output = await this.output(["build", "--network=none", "--pull=false", "--quiet", "--label", `${LABEL}=${this.nonce}`, context], "IMAGE_BUILD_FAILED_OR_LIMITED", 60_000);
+    console.log(`OFFLINE_IMAGE_ID_FORMAT matched=${ID.test(output) || IMAGE.test(output) ? 1 : 0} sha256Prefix=${IMAGE.test(output) ? 1 : 0}`);
     assert.match(output, IMAGE);
     const value = JSON.parse(await this.output(["image", "inspect", "--format", "{{json .}}", output], "IMAGE_INSPECTION_UNCONFIRMED"));
+    // Fixed boolean/count metadata only; never echo image IDs, environment
+    // values, paths, labels, daemon JSON or raw build output.
+    const imageFlags = {
+      identity: value.Id === output, owned: value.Config.Labels?.[LABEL] === this.nonce,
+      user: value.Config.User === "65534:65534",
+      entrypoint: JSON.stringify(value.Config.Entrypoint) === JSON.stringify(["/usr/bin/env"]),
+      volumesAbsent: !value.Config.Volumes,
+      envAbsent: !value.Config.Env || value.Config.Env.length === 0,
+      envCount: Array.isArray(value.Config.Env) ? value.Config.Env.length : -1,
+      dockerDefaultPath: JSON.stringify(value.Config.Env) === JSON.stringify(["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"]),
+    };
+    assert.ok(Number.isSafeInteger(imageFlags.envCount) && imageFlags.envCount >= -1 && imageFlags.envCount <= 100);
+    console.log(`OFFLINE_IMAGE_FLAGS ${JSON.stringify(imageFlags)}`);
     assert.equal(value.Id, output);
     assert.equal(value.Config.Labels?.[LABEL], this.nonce);
     assert.equal(value.Config.User, "65534:65534");

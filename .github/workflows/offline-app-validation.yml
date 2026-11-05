@@ -63,7 +63,7 @@ jobs:
           abe01b3a84116e30cea9d85ae71f292f23d7611c1b3ac3dcce42e8c2ea013c51 offline-host-support.mjs
           221b247f4b9d044278db4ba36998843598fe0d73b6e0ea5afb9db20abd8f3c83 offline-host-source.mjs
           e1168a95d1fce1668143a608ddb14236ed542a1d7c68e99375cff1577d3b2b31 offline-host-runtime.mjs
-          ef5bc3c7404a393c9633862676abbe56287abbc293e7dacc169dad885a6c978a offline-host-docker.mjs
+          b861add5b3767fd02127c8cee0bf247564cccbbb423293f289965e334eaf5c4c offline-host-docker.mjs
           21e5432e9b3b3cddd132df571ac669dfac11637ecc7bc7ffe154919efe47aec9 offline-baseline.mjs
           6261e176a05fb2cb0523fccfd727aabc8255a5bad129bbfc25b0f455d907190c offline-sandbox-common.mjs
           1d362dbeca858dce2a2628f0c37a5bfa5611d50ec3689e3085004ed8a20d0b35 offline-prep-launcher.mjs
