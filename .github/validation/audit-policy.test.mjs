@@ -106,7 +106,8 @@ test("AUDIT-12 audit schema version, exact record keys and counter types are enf
   const fixtures = [["ROOT", () => ({ ...report(), auditReportVersion: 1 })], ["ROOT", () => ({ ...report(), extra: "raw" })],
     ["METADATA", () => { const value = report(); value.metadata.dependencies.total = "2"; return value; }],
     ["METADATA", () => { const value = report(); value.metadata.dependencies.total = 0; return value; }],
-    ["RECORD", () => { const value = report({ alpha: "low" }); value.vulnerabilities.alpha.newField = true; return value; }]];
+    ["RECORD_KEYS", () => { const value = report({ alpha: "low" }); value.vulnerabilities.alpha.newField = true; return value; }],
+    ["RECORD_SEVERITY", () => { const value = report({ alpha: "low" }); value.vulnerabilities.alpha.severity = "invalid"; return value; }]];
   for (const [step, create] of fixtures) blocked(classify(create()), `SCHEMA_${step}`);
 });
 test("AUDIT-13 severity counters and total must match actual vulnerability records", () => {
@@ -116,13 +117,19 @@ test("AUDIT-13 severity counters and total must match actual vulnerability recor
   }
 });
 test("AUDIT-14 vulnerability, via, effects and node identity must exist in this lock", () => {
-  const changes = [["RECORD", (item) => { item.name = "unknown"; }], ["RECORD", (item) => { item.via = ["unknown"]; }],
-    ["RECORD", (item) => { item.effects = ["unknown"]; }], ["NODE", (item) => { item.nodes = ["node_modules/beta"]; }],
+  const changes = [["RECORD_IDENTITY", (item) => { item.name = "unknown"; }],
+    ["RECORD_IDENTITY", (item) => { item.isDirect = "invalid"; }],
+    ["RECORD_VIA_REF", (item) => { item.via = ["unknown"]; }],
+    ["RECORD_EFFECTS", (item) => { item.effects = ["unknown"]; }], ["NODE", (item) => { item.nodes = ["node_modules/beta"]; }],
     ["NODE", (item) => { item.nodes = ["node_modules/alpha", "node_modules/alpha"]; }],
     ["ADVISORY", (item) => { item.via[0].dependency = "unknown"; }]];
   for (const [step, change] of changes) {
     const value = report({ alpha: "low" }); change(value.vulnerabilities.alpha); blocked(classify(value), `SCHEMA_${step}`);
   }
+  const unknown = report({ alpha: "low" });
+  unknown.vulnerabilities.unknown = unknown.vulnerabilities.alpha;
+  delete unknown.vulnerabilities.alpha;
+  blocked(classify(unknown), "SCHEMA_RECORD_NAME");
 });
 test("AUDIT-15 only validated official advisory IDs and numeric sources are exposed", () => {
   for (const url of ["https://attacker.invalid/GHSA-2345-6789-cfgh", "https://github.com/advisories/not-an-id", "https://github.com/advisories/GHSA-2345-6789-cfgh?token=raw"]) {
@@ -152,12 +159,13 @@ test("AUDIT-18 sanitized summary rejects invented reasons, fields, IDs and count
     (value) => { value.npmVersion = "1.0.0"; }, (value) => { value.vulnerabilities.total++; },
     (value) => { value.advisoryIds = ["CVE-bad"]; }, (value) => { value.sourceIds = ["raw"]; }];
   for (const change of changes) { const value = classify(report({ alpha: "low" })); change(value); assert.throws(() => validateSummary(value, VERSION)); }
-  for (const step of ["ROOT", "METADATA", "RECORD", "ADVISORY", "URL", "NODE", "FIX", "COUNTERS"]) {
+  for (const step of ["ROOT", "METADATA", "RECORD_NAME", "RECORD_KEYS", "RECORD_IDENTITY", "RECORD_SEVERITY",
+    "RECORD_VIA_REF", "RECORD_VIA_SEVERITY", "RECORD_AGGREGATE", "RECORD_EFFECTS", "ADVISORY", "URL", "NODE", "FIX", "COUNTERS"]) {
     const value = { outcome: "BLOCKED", reason: `SCHEMA_${step}`, npmVersion: VERSION, vulnerabilities: null, advisoryIds: [], sourceIds: [] };
     assert.equal(validateSummary(value, VERSION), value);
     assert.throws(() => validateSummary({ ...value, schemaStep: step }, VERSION));
   }
-  for (const reason of ["SCHEMA", "SCHEMA_UNKNOWN", "SCHEMA_ROOT\nraw"]) {
+  for (const reason of ["SCHEMA", "SCHEMA_RECORD", "SCHEMA_UNKNOWN", "SCHEMA_ROOT\nraw"]) {
     assert.throws(() => validateSummary({ outcome: "BLOCKED", reason, npmVersion: VERSION,
       vulnerabilities: null, advisoryIds: [], sourceIds: [] }, VERSION));
   }
@@ -165,11 +173,15 @@ test("AUDIT-18 sanitized summary rejects invented reasons, fields, IDs and count
 test("AUDIT-19 contradictory advisory and linked-record severities are blocked", () => {
   const direct = report({ alpha: "low" });
   direct.vulnerabilities.alpha.via[0].severity = "critical";
-  blocked(classify(direct), "SCHEMA_RECORD");
+  blocked(classify(direct), "SCHEMA_RECORD_AGGREGATE");
   const linked = report({ alpha: "low", beta: "high" });
   linked.vulnerabilities.alpha.via = ["beta"];
-  blocked(classify(linked, 1), "SCHEMA_RECORD");
+  blocked(classify(linked, 1), "SCHEMA_RECORD_AGGREGATE");
   const absent = report({ alpha: "low" });
   absent.vulnerabilities.alpha.via.push("beta");
-  blocked(classify(absent), "SCHEMA_RECORD");
+  blocked(classify(absent), "SCHEMA_RECORD_VIA_REF");
+  const invalidSeverity = report({ alpha: "low", beta: "high" });
+  invalidSeverity.vulnerabilities.alpha.via = ["beta"];
+  invalidSeverity.vulnerabilities.beta.severity = "invalid";
+  blocked(classify(invalidSeverity, 1), "SCHEMA_RECORD_VIA_SEVERITY");
 });

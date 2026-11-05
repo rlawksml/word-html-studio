@@ -12,7 +12,9 @@ const LOCK_PATH = /^(?:node_modules\/(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+)(?:\/node_
 const GHSA = /^GHSA-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4}-[23456789cfghjmpqrvwx]{4}$/;
 const CVE = /^CVE-[0-9]{4}-[0-9]{4,10}$/;
 const VERSION = /^(?:0|[1-9][0-9]{0,2})\.(?:0|[1-9][0-9]{0,2})\.(?:0|[1-9][0-9]{0,2})$/;
-const SCHEMA_STEPS = Object.freeze(["ROOT", "METADATA", "RECORD", "ADVISORY", "URL", "NODE", "FIX", "COUNTERS"]);
+const SCHEMA_STEPS = Object.freeze(["ROOT", "METADATA", "RECORD_NAME", "RECORD_KEYS", "RECORD_IDENTITY",
+  "RECORD_SEVERITY", "RECORD_VIA_REF", "RECORD_VIA_SEVERITY", "RECORD_AGGREGATE", "RECORD_EFFECTS",
+  "ADVISORY", "URL", "NODE", "FIX", "COUNTERS"]);
 const REASONS = new Set(["NONE", "HIGH_OR_CRITICAL", "OUTPUT_CAP", "TIMEOUT", "PROCESS", "STDERR", "JSON", "ENDPOINT", "EXIT_MISMATCH",
   ...SCHEMA_STEPS.map((step) => `SCHEMA_${step}`)]);
 const record = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -106,32 +108,38 @@ function reportSummary(report, inventory, step) {
   assert.ok(report.metadata.dependencies.total > 0);
   const counts = Object.fromEntries(COUNT_KEYS.map((key) => [key, 0]));
   const ids = new Set(), sources = new Set(), records = Object.entries(report.vulnerabilities);
-  step("RECORD");
+  step("COUNTERS");
   assert.ok(records.length <= 4000);
   for (const [name, item] of records) {
-    step("RECORD");
+    step("RECORD_NAME");
     knownName(name, inventory);
+    step("RECORD_KEYS");
     keys(item, ["name", "severity", "isDirect", "via", "effects", "range", "nodes", "fixAvailable"]);
+    step("RECORD_IDENTITY");
     assert.equal(item.name, name);
+    step("RECORD_SEVERITY");
     assert.ok(SEVERITIES.includes(item.severity));
+    step("RECORD_IDENTITY");
     assert.equal(typeof item.isDirect, "boolean");
+    step("RECORD_SEVERITY");
     text(item.range, 4096);
     assert.ok(Array.isArray(item.via) && item.via.length > 0 && item.via.length <= 4000);
     for (const via of item.via) {
-      step("RECORD");
       let severity;
       if (typeof via === "string") {
+        step("RECORD_VIA_REF");
         knownName(via, inventory);
         assert.ok(Object.hasOwn(report.vulnerabilities, via) && record(report.vulnerabilities[via]));
         severity = report.vulnerabilities[via].severity;
+        step("RECORD_VIA_SEVERITY");
         assert.ok(SEVERITIES.includes(severity));
       } else severity = advisory(via, inventory, ids, sources, step);
       // A lower aggregate must never conceal a higher direct/transitive
       // advisory. Registry inconsistency is BLOCKED, not a clean audit.
-      step("RECORD");
+      step("RECORD_AGGREGATE");
       assert.ok(SEVERITIES.indexOf(item.severity) >= SEVERITIES.indexOf(severity));
     }
-    step("RECORD");
+    step("RECORD_EFFECTS");
     distinctStrings(item.effects, 4000, (effect) => knownName(effect, inventory));
     step("NODE");
     distinctStrings(item.nodes, 4000, (path) => {
