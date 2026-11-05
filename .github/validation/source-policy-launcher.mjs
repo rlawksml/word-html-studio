@@ -12,9 +12,11 @@ const reviewedSuites = [
   ["tests/publication-month.test.mjs"],
   ["tests/backup-completeness.test.mjs"],
   ["tests/backup-writer-paths.test.mjs"],
+  ["tests/backup-writer-protocol.test.mjs"],
 ];
 const allowedTests = process.argv.slice(2);
-const backupPaths = JSON.stringify(allowedTests) === JSON.stringify(["tests/backup-writer-paths.test.mjs"]);
+const backupWriterSuite = ["tests/backup-writer-paths.test.mjs", "tests/backup-writer-protocol.test.mjs"]
+  .some((testFile) => JSON.stringify(allowedTests) === JSON.stringify([testFile]));
 const allowedEnvironment = ["HOME", "PATH", "TMPDIR", "TZ", "UV_THREADPOOL_SIZE", "XDG_CACHE_HOME"];
 function fail(code) { console.error(code); process.exit(1); }
 try {
@@ -46,7 +48,7 @@ try {
   const interfaces = networkInterfaces();
   assert.ok(Object.keys(interfaces).every((name) => name === "lo"));
   assert.ok(Object.values(interfaces).flat().every((entry) => entry?.internal === true));
-  if (backupPaths) {
+  if (backupWriterSuite) {
     const info = lstatSync("/scratch");
     assert.ok(info.uid === 65534 && info.gid === 65534 && (info.mode & 0o777) === 0o700);
     const status = readFileSync("/proc/self/status", "utf8");
@@ -74,7 +76,7 @@ const result = spawnSync(process.execPath, ["--max-old-space-size=128", "--test"
   cwd: "/work", encoding: "utf8", timeout: 30_000, killSignal: "SIGKILL", maxBuffer: 64 * 1024,
 });
 if (result.error || result.signal) fail("SOURCE_TEST_PROCESS_FAILED_OR_LIMITED");
-if (backupPaths) {
+if (backupWriterSuite) {
   // No helper or fixture process may remain before any PASS is accepted.
   const pids = readdirSync("/proc").filter((name) => /^\d+$/.test(name));
   if (pids.some((pid) => Number(pid) !== process.pid)) fail("SOURCE_HELPER_PROCESS_REMAINS");

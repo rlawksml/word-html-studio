@@ -167,7 +167,7 @@ jobs:
           [[ -f "$launcher_source" && ! -L "$launcher_source" && "$(/usr/bin/realpath -e -- "$launcher_source")" == "$launcher_source" ]] || fail LAUNCHER_NOT_REGULAR
           [[ "$(wc -c < "$launcher_source")" -le 16384 ]] || fail LAUNCHER_SIZE_EXCEEDED
           launcher_sha256="$(sha256sum -- "$launcher_source")"
-          [[ "${launcher_sha256%% *}" == 'c1bfca1f05e2a5c4d023ce759132c43023e1a4445faa6c742d1c116f423af065' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
+          [[ "${launcher_sha256%% *}" == 'b4bf3b69352565a7d71ad2528ba6b5653a4f32a7a459f42461ea142bbc8496fa' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
           cp -- "$launcher_source" "$rootfs/usr/bin/source-policy-launcher.mjs"
 
           # Suite names never become paths/commands. No npm, SDK, key or app build.
@@ -263,6 +263,16 @@ jobs:
               )
               test_argv=(tests/backup-writer-paths.test.mjs)
               ;;
+            backup_protocol)
+              expected_tests=12
+              source_files=(
+                apps/web/scripts/backup-writer-client.mjs
+                apps/web/scripts/backup-dirfd-writer.py
+                apps/web/tests/backup-writer-protocol.test.mjs
+                apps/web/tests/helpers/backup-writer-protocol-fixture.mjs
+              )
+              test_argv=(tests/backup-writer-protocol.test.mjs)
+              ;;
             *) fail SOURCE_SUITE_NOT_ALLOWLISTED ;;
           esac
           [[ "$expected_tests" =~ ^[1-9][0-9]{0,3}$ ]] || fail SOURCE_SUITE_COUNT_NOT_REVIEWED
@@ -302,7 +312,7 @@ jobs:
             done < "$scratch/libraries.list"
           done
           scratch_options='rw,noexec,nosuid,nodev,size=16m,mode=1777'
-          if [[ "$SOURCE_SUITE" == backup_paths ]]; then
+          if [[ "$SOURCE_SUITE" == backup_paths || "$SOURCE_SUITE" == backup_protocol ]]; then
             scratch_options='rw,noexec,nosuid,nodev,size=16m,uid=65534,gid=65534,mode=0700'
             python_assembler="$workspace/.github/validation/source-python-runtime.mjs"
             [[ -f "$python_assembler" && ! -L "$python_assembler" && "$(/usr/bin/realpath -e -- "$python_assembler")" == "$python_assembler" ]] || fail PYTHON_ASSEMBLER_NOT_REGULAR
