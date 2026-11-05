@@ -190,6 +190,12 @@ async function main() {
     assert.ok(execution.stdout.length <= 16384 && execution.stderr.length === 0);
     result = JSON.parse(execution.stdout.toString("utf8"));
     assert.equal(result.protocol, "offline-app-v1");
+    assert.equal(result.nonce, nonce);
+    if (result.ok === false) {
+      assert.ok(["START", "PREFLIGHT", "READINESS", "SOURCE_CLONE", "TOOLCHAIN_LINK", "TYPECHECK", "LINT", "BUILD", "UNIT", "POST_STAGE"].includes(result.controlPhase));
+      assert.ok([...ERROR_CLASSES, "OTHER"].includes(result.category));
+      console.log(`OFFLINE_APP_CONTROL phase=${result.controlPhase} category=${result.category}`);
+    }
     assert.ok(Array.isArray(result.stages) && result.stages.length <= 4);
     for (const summary of result.stages) publishSummary(summary);
   } catch { throw fixedError("OFFLINE_TRUSTED_SUMMARY_UNCONFIRMED"); }
