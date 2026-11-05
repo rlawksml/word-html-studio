@@ -54,11 +54,11 @@ function tamper(cookie) {
   return `${name}=${payload}.${first}${signature.slice(1)}`;
 }
 
-function assertProtected(response) {
+function assertProtected(response, expectedPolicy = "no-referrer") {
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow, noarchive");
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
-  assert.equal(response.headers.get("referrer-policy"), "no-referrer");
+  assert.equal(response.headers.get("referrer-policy"), expectedPolicy);
 }
 
 async function consume(response) {
@@ -120,6 +120,28 @@ test("STAGE-RUNTIME executes the staging gate, assets, app, and native limiter i
       assert.equal(api.status, 401);
       assertProtected(api);
       await consume(api);
+
+      for (const pathname of ["/__staging/login", "/__staging/logout"]) {
+        const page = await dispatch(pathname);
+        assert.equal(page.status, 200);
+        assertProtected(page, "same-origin");
+        assert.equal(page.headers.get("set-cookie"), null);
+        const html = (await consume(page)).toString("utf8");
+        assert.ok(html.includes(`<form method="post" action="${pathname}">`));
+
+        for (const deniedOrigin of ["null", "https://evil.example", undefined]) {
+          const headers = {
+            "content-type": "application/x-www-form-urlencoded",
+            referer: `${origin}${pathname}`,
+            ...(deniedOrigin === undefined ? {} : { origin: deniedOrigin }),
+          };
+          const denied = await dispatch(pathname, { method: "POST", headers, body: "" });
+          assert.equal(denied.status, 403);
+          assertProtected(denied);
+          assert.equal(denied.headers.get("set-cookie"), null);
+          await consume(denied);
+        }
+      }
 
       const login = await dispatch("/__staging/login", {
         method: "POST",

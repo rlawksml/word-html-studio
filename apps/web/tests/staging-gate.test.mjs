@@ -46,7 +46,7 @@ function makeNext() {
         calls.push({ request, env, ctx });
         return new Response("upstream", {
           status: 299,
-          headers: { "x-upstream": "preserved" },
+          headers: { "x-upstream": "preserved", "referrer-policy": "unsafe-url" },
         });
       },
     },
@@ -88,8 +88,9 @@ function assertNoSessionCookie(response) {
   assert.equal(response.headers.get("set-cookie"), null);
 }
 
-function assertPrivateResponse(response) {
+function assertPrivateResponse(response, expectedPolicy = "no-referrer") {
   assert.match(response.headers.get("cache-control") ?? "", /(?:^|,)\s*no-store\b/i);
+  assert.equal(response.headers.get("referrer-policy"), expectedPolicy);
 }
 
 test("STAGE-GATE-01 fails closed when required staging bindings are invalid", async () => {
@@ -131,7 +132,7 @@ test("STAGE-GATE-02 serves only the exact login route and never exposes secrets"
   const response = await gate.fetch(request("/__staging/login"), env, context());
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
-  assertPrivateResponse(response);
+  assertPrivateResponse(response, "same-origin");
   const html = await response.text();
   assert.match(html, /<form\b[^>]*method=["']?post/i);
   assert.match(html, /action=["']\/__staging\/login["']/i);
@@ -150,6 +151,7 @@ test("STAGE-GATE-02 serves only the exact login route and never exposes secrets"
       headers: { accept: "text/css" },
     }), env, context());
     assert.equal(denied.status, 401, path);
+    assertPrivateResponse(denied);
   }
 
   const methodDenied = await gate.fetch(request("/__staging/login", {
@@ -157,6 +159,7 @@ test("STAGE-GATE-02 serves only the exact login route and never exposes secrets"
     headers: formHeaders(),
   }), env, context());
   assert.equal(methodDenied.status, 405);
+  assertPrivateResponse(methodDenied);
   assert.equal(next.calls.length, 0);
 });
 
@@ -249,7 +252,7 @@ test("STAGE-GATE-06 rejects cross-origin login and logout before rate limiting",
     const limiter = makeLimiter();
     const env = makeEnv({ STAGING_LOGIN_LIMITER: limiter });
     const gate = createStagingGate(next.handler);
-    const headers = formHeaders({ origin });
+    const headers = formHeaders({ origin, referer: `${ORIGIN}/__staging/login` });
 
     for (const path of ["/__staging/login", "/__staging/logout"]) {
       const response = await gate.fetch(request(path, {
@@ -419,6 +422,7 @@ test("STAGE-GATE-11 clears the host cookie on same-origin POST logout only", asy
 
   const getLogout = await gate.fetch(request("/__staging/logout"), env, context());
   assert.equal(getLogout.status, 200);
+  assertPrivateResponse(getLogout, "same-origin");
   assertNoSessionCookie(getLogout);
   assert.match(await getLogout.text(), /<form\b[^>]*method=["']?post[^>]*action=["']\/__staging\/logout["']/i);
   assert.equal(next.calls.length, 0);
@@ -466,6 +470,7 @@ test("STAGE-GATE-13 preserves upstream 404 cookies and converts upstream failure
       calls += 1;
       if (mode === "throw") throw new Error("sensitive upstream failure detail");
       const headers = new Headers();
+      headers.set("referrer-policy", "same-origin");
       headers.append("set-cookie", "first=one; Path=/; HttpOnly");
       headers.append("set-cookie", "second=two; Path=/; SameSite=Lax");
       return new Response("upstream not found", { status: 404, headers });

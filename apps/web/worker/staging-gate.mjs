@@ -39,10 +39,13 @@ function page(logout = false) {
   const form = logout ? `<p>테스트 사이트 입장 세션을 이 브라우저에서 종료합니다.</p><form method="post" action="${LOGOUT}"><button>로그아웃</button></form>`
     : `<p>운영 서비스와 분리된 테스트 공간입니다.</p><form method="post" action="${LOGIN}"><label for="password">테스트 공간 입장 암호</label><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="512" autofocus><p>관리자가 설정한 16자 이상의 입장 암호를 입력해 주세요. 기존 작업자 암호와 다릅니다.</p><button>입장하기</button></form>`;
   const script = `const form=document.querySelector('form');const button=form.querySelector('button');const label=button.textContent;window.addEventListener('pageshow',()=>{button.disabled=false;button.textContent=label;document.getElementById('status').textContent='';});form.addEventListener('submit',()=>{button.disabled=true;button.textContent='처리 중…';document.getElementById('status').textContent='잠시만 기다려 주세요.';});`;
-  return reply(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style nonce="${nonce}">body{font:16px/1.6 system-ui;margin:0;background:#f6f3ee;color:#302f2b}main{max-width:420px;margin:12vh auto;padding:28px}input,button{box-sizing:border-box;width:100%;padding:14px;margin-top:12px;font:inherit}button{background:#645b46;color:white;border:0;border-radius:8px}button:disabled{opacity:.6}p{color:#605c54}input{border:1px solid #aaa;border-radius:8px}</style></head><body><main><h1>${title}</h1>${form}<p id="status" role="status" aria-live="polite"></p></main><script nonce="${nonce}">${script}</script></body></html>`, 200, {
+  const response = reply(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style nonce="${nonce}">body{font:16px/1.6 system-ui;margin:0;background:#f6f3ee;color:#302f2b}main{max-width:420px;margin:12vh auto;padding:28px}input,button{box-sizing:border-box;width:100%;padding:14px;margin-top:12px;font:inherit}button{background:#645b46;color:white;border:0;border-radius:8px}button:disabled{opacity:.6}p{color:#605c54}input{border:1px solid #aaa;border-radius:8px}</style></head><body><main><h1>${title}</h1>${form}<p id="status" role="status" aria-live="polite"></p></main><script nonce="${nonce}">${script}</script></body></html>`, 200, {
     "Content-Type": "text/html; charset=utf-8",
     "Content-Security-Policy": `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`,
   });
+  // Native form POSTs need same-origin to preserve Origin instead of sending null.
+  response.headers.set("Referrer-Policy", "same-origin");
+  return response;
 }
 
 async function boundedForm(request) {
