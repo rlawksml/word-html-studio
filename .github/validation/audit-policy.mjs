@@ -77,6 +77,7 @@ function advisory(value, inventory, ids, sources) {
   ids.add(id);
   sources.add(value.source);
   assert.ok(ids.size <= 128 && sources.size <= 128);
+  return value.severity;
 }
 function fix(value, inventory) {
   if (typeof value === "boolean") return;
@@ -109,8 +110,16 @@ function reportSummary(report, inventory) {
     text(item.range, 4096);
     assert.ok(Array.isArray(item.via) && item.via.length > 0 && item.via.length <= 4000);
     for (const via of item.via) {
-      if (typeof via === "string") knownName(via, inventory);
-      else advisory(via, inventory, ids, sources);
+      let severity;
+      if (typeof via === "string") {
+        knownName(via, inventory);
+        assert.ok(Object.hasOwn(report.vulnerabilities, via) && record(report.vulnerabilities[via]));
+        severity = report.vulnerabilities[via].severity;
+        assert.ok(SEVERITIES.includes(severity));
+      } else severity = advisory(via, inventory, ids, sources);
+      // A lower aggregate must never conceal a higher direct/transitive
+      // advisory. Registry inconsistency is BLOCKED, not a clean audit.
+      assert.ok(SEVERITIES.indexOf(item.severity) >= SEVERITIES.indexOf(severity));
     }
     distinctStrings(item.effects, 4000, (effect) => knownName(effect, inventory));
     distinctStrings(item.nodes, 4000, (path) => {
