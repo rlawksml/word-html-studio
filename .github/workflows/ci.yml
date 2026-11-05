@@ -9,7 +9,7 @@ on:
       validation_mode:
         description: Isolated no-key policy tests or reviewed offline app validation, never deployment
         type: choice
-        options: [rollback_preparation, source_policy, offline_app]
+        options: [rollback_preparation, source_policy, offline_app, dependency_audit]
         default: rollback_preparation
         required: true
       expected_commit:
@@ -19,8 +19,13 @@ on:
       source_suite:
         description: Reviewed source-policy suite, ignored by rollback mode
         type: choice
-        options: [restore, photo, preservation, evidence, publication, backup_completeness]
+        options: [restore, photo, preservation, evidence, publication, backup_completeness, dependency_audit]
         default: restore
+        required: false
+      audit_metadata_transfer_approved:
+        description: Approved public graph and npm platform metadata transfer; never install/fix
+        type: boolean
+        default: false
         required: false
 
 permissions:
@@ -109,6 +114,8 @@ jobs:
           EXPECTED_SHA: ${{ inputs.expected_commit }}
           VALIDATION_MODE: ${{ inputs.validation_mode }}
           SOURCE_SUITE: ${{ inputs.source_suite }}
+          AUDIT_METADATA_APPROVED: ${{ inputs.audit_metadata_transfer_approved }}
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
         run: |
           set -euo pipefail
           if [[ ! "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]] || [[ "$GITHUB_SHA" != "$EXPECTED_SHA" ]]; then
@@ -118,10 +125,13 @@ jobs:
           case "$VALIDATION_MODE" in
             rollback_preparation) ;;
             source_policy)
-              [[ "$GITHUB_REF" == refs/heads/codex/* && ( "$SOURCE_SUITE" == restore || "$SOURCE_SUITE" == photo || "$SOURCE_SUITE" == preservation || "$SOURCE_SUITE" == evidence || "$SOURCE_SUITE" == publication || "$SOURCE_SUITE" == backup_completeness ) ]] || { echo '::error::SOURCE_POLICY_DISPATCH_BLOCKED'; exit 1; }
+              [[ "$GITHUB_REF" == refs/heads/codex/* && ( "$SOURCE_SUITE" == restore || "$SOURCE_SUITE" == photo || "$SOURCE_SUITE" == preservation || "$SOURCE_SUITE" == evidence || "$SOURCE_SUITE" == publication || "$SOURCE_SUITE" == backup_completeness || "$SOURCE_SUITE" == dependency_audit ) ]] || { echo '::error::SOURCE_POLICY_DISPATCH_BLOCKED'; exit 1; }
               ;;
             offline_app)
               [[ "$GITHUB_REF" == refs/heads/codex/* ]] || { echo '::error::OFFLINE_APP_DISPATCH_BLOCKED'; exit 1; }
+              ;;
+            dependency_audit)
+              [[ "$GITHUB_REF" == refs/heads/codex/* && "$REPOSITORY_PRIVATE" == false && "$AUDIT_METADATA_APPROVED" == true ]] || { echo '::error::DEPENDENCY_AUDIT_DISPATCH_BLOCKED'; exit 1; }
               ;;
             *) echo '::error::ISOLATED_MODE_NOT_ALLOWLISTED'; exit 1 ;;
           esac
@@ -144,3 +154,11 @@ jobs:
     uses: ./.github/workflows/offline-app-validation.yml
     with:
       expected_commit: ${{ inputs.expected_commit }}
+
+  isolated-dependency-audit:
+    needs: rollback-dispatch-guard
+    if: github.event_name == 'workflow_dispatch' && inputs.validation_mode == 'dependency_audit' && needs.rollback-dispatch-guard.result == 'success'
+    uses: ./.github/workflows/dependency-audit.yml
+    with:
+      expected_commit: ${{ inputs.expected_commit }}
+      audit_metadata_transfer_approved: ${{ inputs.audit_metadata_transfer_approved }}

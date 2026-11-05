@@ -1,0 +1,90 @@
+name: Isolated public dependency metadata audit
+
+on:
+  workflow_call:
+    inputs:
+      expected_commit:
+        required: true
+        type: string
+      audit_metadata_transfer_approved:
+        description: Parent-confirmed approval to send public lock graph and npm platform metadata
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    if: github.event.repository.private == false && inputs.audit_metadata_transfer_approved == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Require reviewed manual public feature target
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_commit }}
+          APPROVED: ${{ inputs.audit_metadata_transfer_approved }}
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" == refs/heads/codex/* && "$REPOSITORY_PRIVATE" == false && "$APPROVED" == true ]] || { echo '::error::DEPENDENCY_AUDIT_TARGET_BLOCKED'; exit 1; }
+          [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ && "$GITHUB_SHA" == "$EXPECTED_SHA" ]] || { echo '::error::DEPENDENCY_AUDIT_COMMIT_BLOCKED'; exit 1; }
+      - name: Audit the exact public manifest pair in a disposable prep container
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_commit }}
+          APPROVED: ${{ inputs.audit_metadata_transfer_approved }}
+        run: |
+          set -euo pipefail
+          umask 077
+          fail() { printf '::error::%s\n' "$1"; exit 1; }
+          for tool in /usr/bin/env /usr/bin/docker /usr/bin/git /usr/bin/ldd /usr/bin/realpath /usr/bin/sha256sum /usr/bin/mktemp /usr/bin/cp /usr/bin/mkdir; do
+            [[ -x "$tool" ]] || fail DEPENDENCY_AUDIT_TRUSTED_TOOL_MISSING
+          done
+          workspace="$(/usr/bin/realpath -e -- "$GITHUB_WORKSPACE")" || fail DEPENDENCY_AUDIT_WORKSPACE_UNRESOLVED
+          [[ "$workspace" == "$GITHUB_WORKSPACE" ]] || fail DEPENDENCY_AUDIT_WORKSPACE_SYMLINK
+          node_source="$(command -v node)" || fail DEPENDENCY_AUDIT_NODE_MISSING
+          npm_source="$(command -v npm)" || fail DEPENDENCY_AUDIT_NPM_MISSING
+          node_real="$(/usr/bin/realpath -e -- "$node_source")" || fail DEPENDENCY_AUDIT_NODE_UNRESOLVED
+          npm_real="$(/usr/bin/realpath -e -- "$npm_source")" || fail DEPENDENCY_AUDIT_NPM_UNRESOLVED
+          case "$node_real" in /usr/*|/opt/*) ;; *) fail DEPENDENCY_AUDIT_NODE_UNTRUSTED ;; esac
+          case "$npm_real" in /usr/*/npm/bin/npm-cli.js|/opt/*/npm/bin/npm-cli.js) ;; *) fail DEPENDENCY_AUDIT_NPM_UNTRUSTED ;; esac
+          [[ -f "$node_real" && -x "$node_real" && -f "$npm_real" ]] || fail DEPENDENCY_AUDIT_RUNTIME_NOT_REGULAR
+          scratch="$(/usr/bin/mktemp -d /tmp/bookstore-audit-qa.XXXXXXXXXX)" || fail DEPENDENCY_AUDIT_SCRATCH_FAILED
+          /usr/bin/mkdir "$scratch/trusted"
+          # Review/hash-pin this complete native-only closure before dispatch.
+          # Placeholders deliberately prevent all checkout JS from running.
+          while read -r expected relative; do
+            [[ "$expected" =~ ^[a-f0-9]{64}$ ]] || fail DEPENDENCY_AUDIT_SOURCE_REVIEW_REQUIRED
+            source_file="$workspace/.github/validation/$relative"
+            [[ -f "$source_file" && ! -L "$source_file" && "$(/usr/bin/realpath -e -- "$source_file")" == "$source_file" ]] || fail DEPENDENCY_AUDIT_SOURCE_NOT_REGULAR
+            actual="$(/usr/bin/sha256sum -- "$source_file")" || fail DEPENDENCY_AUDIT_HASH_FAILED
+            [[ "${actual%% *}" == "$expected" ]] || fail DEPENDENCY_AUDIT_HASH_MISMATCH
+            /usr/bin/cp -- "$source_file" "$scratch/trusted/$relative"
+          done <<'REVIEWED_CLOSURE'
+          REVIEW_REQUIRED_AUDIT_CONTROLLER audit-host-controller.mjs
+          REVIEW_REQUIRED_AUDIT_POLICY audit-policy.mjs
+          REVIEW_REQUIRED_AUDIT_FILE_IO audit-file-io.mjs
+          REVIEW_REQUIRED_AUDIT_PREP audit-prep-launcher.mjs
+          REVIEW_REQUIRED_BASELINE offline-baseline.mjs
+          REVIEW_REQUIRED_SUPPORT offline-host-support.mjs
+          REVIEW_REQUIRED_SOURCE offline-host-source.mjs
+          REVIEW_REQUIRED_RUNTIME offline-host-runtime.mjs
+          REVIEW_REQUIRED_DOCKER offline-host-docker.mjs
+          REVIEW_REQUIRED_COMMON offline-sandbox-common.mjs
+          REVIEW_REQUIRED_DOCKERFILE offline-app.Dockerfile
+          REVIEWED_CLOSURE
+          # The registry may receive the complete public lock dependency graph
+          # plus Node/npm version, platform and architecture despite omit=dev.
+          # No server key, checkout app code, npmrc or GitHub token is provided.
+          # No artifact/cache upload, install/fix, app command or deployment.
+          /usr/bin/env -i PATH=/usr/bin:/bin TZ=UTC \
+            "$node_real" --no-addons "$scratch/trusted/audit-host-controller.mjs" \
+            "$workspace" "$EXPECTED_SHA" "$scratch" "$node_real" "$npm_real" "$APPROVED"
+          # Exact-owned cleanup precedes summary. Runner disposal owns private
+          # scratch/image removal; never broad rm, Docker prune or reset.
