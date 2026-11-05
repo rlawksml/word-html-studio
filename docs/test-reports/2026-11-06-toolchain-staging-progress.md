@@ -46,6 +46,8 @@ Sites에서 운영 프로젝트 `bookstore-news-studio`가 active/public임을 �
 
 ## 현재 실행 대기/미완료
 
+- 실패 source 위치/고정 counter만 남기는 진단 local `01ef66a6845c727a9e3ff06f98127e73a8801ccd`를 보존했다. Git push가 같은 ref 두 번·새 codex ref 한 번 모두 `fatal error in commit_refs_rules`로 거부됐다. 실제 원격은 a02cb39 그대로이며 조회된 branch rules/rulesets는 비어 있었다.
+- 공식 GitHub connector의 정상 create-tree 대안도 `403 Resource not accessible by integration`으로 거부됐다. 설정·권한을 바꾸거나 강제 ref/API 갱신으로 우회하지 않았으며 현재 진단 CI를 실행하지 못했다. 일반 GitHub 전체 장애로 단정하지 않는다.
 - 새 배포 파일의 GitHub→Cloudflare Staging 전달은 기존 JSON2개 승인과 달라 별도 범위 확인 중이다. 아직 앱 artifact 업로드/배포하지 않았다.
 - 실제 QA는 최신 후보 배포와 역할 로그인이 선행되어야 한다. 기존 QA를 재사용/수정하지 않는다.
 - 실제 운영 자료 백업은 별도 읽기 승인·새 private 목적지·독립 보관·쓰기 없는 시간, 복원은 별도 새 빈 대상이 필요하다. 기존 Staging/운영 DB에 복원하지 않는다.

@@ -4,13 +4,13 @@
 
 운영 반영 전까지 아래5묶음을 이어서 진행한다. 한 묶음이 끝나도 요청을 다시 받기 위해 멈추지 않는다. 실제 권한·로그인·비용·데이터 위험의 선택이 필요한 때만 해당 경로를 대기하고 다른 병렬 작업은 계속한다.
 
-- [ ] 1. 잔여 보안/도구 체인: React/RSC19.2.9는 exact7e52fc08의 type/lint/build·277TC·정리 PASS. vinext/Cloudflare 최소 후보 진행 중
-- [ ] 2. Staging #86 SQL1건·최신 후보 배포: 사용자 승인 확인, 아직 실행 전
+- [ ] 1. 잔여 보안/도구 체인: React/RSC19.2.9는 exact7e52fc08의277/type/lint/build PASS. vinext/Cloudflare 후보의 type/lint/build PASS, unit exit1 원인 조사. 진단01ef66a 원격 반영은 GitHub ref 오류로 BLOCKED
+- [ ] 2. Staging #86 SQL1건·최신 후보 배포: SQL 설치·버전/객체/RLS/익명 접근 차단 PASS. 후보 배포는 아직 실행 전, 배포 파일 전달 범위 확인 대기
 - [ ] 3. 실제 사용자 흐름: 새 QA2책방·미사용 월·사진·두 세션 승인 확인. 기존 자료 불변·성공 QA 보관
 - [ ] 4. 최신 독립 백업·새 빈 대상 복원: 실제 실행 위치/독립 보관/대상/쓰기 없는 시간 확인 필요
 - [ ] 5. 호환 fallback 불변 배포물·환경·최종 판정: exact82f79b6 순수 보존10TC/정리 PASS. 전체 앱·실DB·배포물은 미검증
 
-현재 **운영 NO-GO**. [이번 실제 결과](docs/test-reports/2026-11-06-react-rsc-fallback.md). 과거 수치는 별도 실행 이력이며 합산하지 않는다. main merge·운영 배포/SQL·유료 전환·기존 데이터 변경은 승인되지 않았다.
+현재 **운영 NO-GO**. [React/fallback 결과](docs/test-reports/2026-11-06-react-rsc-fallback.md), [최신 통합 진행표](docs/test-reports/2026-11-06-toolchain-staging-progress.md). 과거 수치는 별도 실행 이력이며 합산하지 않는다. main merge·운영 배포/SQL·유료 전환·기존 데이터 변경은 승인되지 않았다.
 
 ## 2026-11-05 현재 릴리스 게이트 (아래 과거 단계 기록보다 우선)
 
