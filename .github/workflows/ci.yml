@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       validation_mode:
-        description: No-key isolated policy tests only, never app install or deployment
+        description: Isolated no-key policy tests or reviewed offline app validation, never deployment
         type: choice
-        options: [rollback_preparation, source_policy]
+        options: [rollback_preparation, source_policy, offline_app]
         default: rollback_preparation
         required: true
       expected_commit:
@@ -120,6 +120,9 @@ jobs:
             source_policy)
               [[ "$GITHUB_REF" == refs/heads/codex/* && ( "$SOURCE_SUITE" == restore || "$SOURCE_SUITE" == photo || "$SOURCE_SUITE" == preservation || "$SOURCE_SUITE" == evidence ) ]] || { echo '::error::SOURCE_POLICY_DISPATCH_BLOCKED'; exit 1; }
               ;;
+            offline_app)
+              [[ "$GITHUB_REF" == refs/heads/codex/* ]] || { echo '::error::OFFLINE_APP_DISPATCH_BLOCKED'; exit 1; }
+              ;;
             *) echo '::error::ISOLATED_MODE_NOT_ALLOWLISTED'; exit 1 ;;
           esac
 
@@ -134,3 +137,10 @@ jobs:
     uses: ./.github/workflows/source-policy-validation.yml
     with:
       suite: ${{ inputs.source_suite }}
+
+  isolated-offline-app:
+    needs: rollback-dispatch-guard
+    if: github.event_name == 'workflow_dispatch' && inputs.validation_mode == 'offline_app' && needs.rollback-dispatch-guard.result == 'success'
+    uses: ./.github/workflows/offline-app-validation.yml
+    with:
+      expected_commit: ${{ inputs.expected_commit }}

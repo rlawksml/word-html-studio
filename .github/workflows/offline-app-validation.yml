@@ -1,0 +1,81 @@
+name: Bounded offline app validation
+
+on:
+  workflow_call:
+    inputs:
+      expected_commit:
+        description: Exact reviewed codex feature commit; not a deployment target
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  offline-app:
+    # Standard public-repository Linux only: no paid runner, cache, artifact,
+    # registry/image upload, environment, secret, deploy or integration adapter.
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Review-gated dependency preparation and offline build/unit tests
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_commit }}
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          set -euo pipefail
+          umask 077
+          fail() { printf '::error::%s\n' "$1"; exit 1; }
+          [[ "$REPOSITORY_PRIVATE" == false && "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" == refs/heads/codex/* ]] || fail OFFLINE_PUBLIC_FEATURE_DISPATCH_REQUIRED
+          [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ && "$EXPECTED_SHA" == "$GITHUB_SHA" ]] || fail OFFLINE_EXACT_COMMIT_REQUIRED
+          for tool in /usr/bin/env /usr/bin/realpath /usr/bin/sha256sum /usr/bin/docker /usr/bin/git /usr/bin/ldd /usr/bin/mktemp /usr/bin/cp /usr/bin/mkdir; do
+            [[ -f "$tool" && -x "$tool" ]] || fail OFFLINE_TRUSTED_HOST_TOOL_MISSING
+          done
+          workspace="$(/usr/bin/realpath -e -- "$GITHUB_WORKSPACE")" || fail OFFLINE_WORKSPACE_UNRESOLVED
+          [[ "$workspace" == "$GITHUB_WORKSPACE" ]] || fail OFFLINE_WORKSPACE_SYMLINK
+          node_source="$(command -v node)" || fail OFFLINE_NODE_MISSING
+          npm_source="$(command -v npm)" || fail OFFLINE_NPM_MISSING
+          node_real="$(/usr/bin/realpath -e -- "$node_source")" || fail OFFLINE_NODE_UNRESOLVED
+          npm_real="$(/usr/bin/realpath -e -- "$npm_source")" || fail OFFLINE_NPM_UNRESOLVED
+          case "$node_real" in /usr/*|/opt/*) ;; *) fail OFFLINE_NODE_UNTRUSTED ;; esac
+          case "$npm_real" in /usr/*/npm/bin/npm-cli.js|/opt/*/npm/bin/npm-cli.js) ;; *) fail OFFLINE_NPM_UNTRUSTED ;; esac
+          [[ -f "$node_real" && -x "$node_real" && -f "$npm_real" ]] || fail OFFLINE_RUNTIME_NOT_REGULAR
+          scratch="$(/usr/bin/mktemp -d /tmp/bookstore-offline-qa.XXXXXXXXXX)" || fail OFFLINE_SCRATCH_FAILED
+          /usr/bin/mkdir -p "$scratch/trusted"
+
+          # Explicit import closure, reviewed as ONE unit before pinning. Invalid
+          # placeholders deliberately block every host helper before execution.
+          # Hash checking itself executes only runner-owned native programs.
+          while read -r expected relative; do
+            [[ "$expected" =~ ^[a-f0-9]{64}$ ]] || fail OFFLINE_SOURCE_REVIEW_REQUIRED
+            source_file="$workspace/.github/validation/$relative"
+            [[ -f "$source_file" && ! -L "$source_file" && "$(/usr/bin/realpath -e -- "$source_file")" == "$source_file" ]] || fail OFFLINE_REVIEW_SOURCE_NOT_REGULAR
+            actual="$(/usr/bin/sha256sum -- "$source_file")" || fail OFFLINE_REVIEW_HASH_FAILED
+            [[ "${actual%% *}" == "$expected" ]] || fail OFFLINE_REVIEW_HASH_MISMATCH
+            /usr/bin/cp -- "$source_file" "$scratch/trusted/$relative"
+          done <<'REVIEWED_CLOSURE'
+          f2e8c4e5decc0d497a6736ab81121fd7ff5926a53350bd95583d44a3a6c2f136 offline-host-controller.mjs
+          abe01b3a84116e30cea9d85ae71f292f23d7611c1b3ac3dcce42e8c2ea013c51 offline-host-support.mjs
+          1a78595f1ea6e2944d6047cea1411835a7c15b802e0d55718464e10524915ef5 offline-host-source.mjs
+          51b4d73cf78b451b543bcd60f685c2d6adedf6b4b90c326d321769fe86171845 offline-host-runtime.mjs
+          ef5bc3c7404a393c9633862676abbe56287abbc293e7dacc169dad885a6c978a offline-host-docker.mjs
+          21e5432e9b3b3cddd132df571ac669dfac11637ecc7bc7ffe154919efe47aec9 offline-baseline.mjs
+          6261e176a05fb2cb0523fccfd727aabc8255a5bad129bbfc25b0f455d907190c offline-sandbox-common.mjs
+          1d362dbeca858dce2a2628f0c37a5bfa5611d50ec3689e3085004ed8a20d0b35 offline-prep-launcher.mjs
+          53f8e2c6015d4acba19e6c2fd7dee8cf9db160be6965492865096bbddf47faaa offline-app-launcher.mjs
+          499ed0e6a76ded0ba21350c381107651eb6cb0cf73e5160102050236f7315cd5 offline-app.Dockerfile
+          REVIEWED_CLOSURE
+          # No npm/SDK/app code on the host; the copied reviewed closure imports
+          # native Node builtins and these pinned siblings ONLY. No NODE_OPTIONS,
+          # user config, token, cloud credential, home or Docker config is passed.
+          /usr/bin/env -i PATH=/usr/bin:/bin TZ=UTC \
+            "$node_real" --no-addons "$scratch/trusted/offline-host-controller.mjs" \
+            "$workspace" "$EXPECTED_SHA" "$scratch" "$node_real" "$npm_real"
+          # Exact-owned containers/volume are cleaned by the controller. Private
+          # scratch and local images are discarded with this ephemeral runner;
+          # no broad recursive deletion or Docker prune is used.
