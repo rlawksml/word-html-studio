@@ -4,7 +4,7 @@
 
 운영 반영 전까지 아래5묶음을 이어서 진행한다. 한 묶음이 끝나도 요청을 다시 받기 위해 멈추지 않는다. 실제 권한·로그인·비용·데이터 위험의 선택이 필요한 때만 해당 경로를 대기하고 다른 병렬 작업은 계속한다.
 
-- [ ] 1. 잔여 보안/도구 체인: Git 전송 회복. 최신 exact1d5a07f의 type/lint/build·앱277·Worker36 모두 PASS. 종료 후 esbuild zombie1의 엄격 정리 실패만 최소 수정 중(전체 COMPLETE 아님). 새 manifest 실제 보안 재검사 범위는 별도 확인
+- [ ] 1. 잔여 보안/도구 체인: Git 전송·CLI 소유 종료 수정 완료. exacted6bf0d의 type/lint/build·앱277·Worker36·엄격 정리 후 COMPLETE PASS. 새 pair dev 포함 metadata audit는 SCHEMA로 판정 불가라 고정 단계 진단 중. bundle 내부 parser를 lock 제거만으로 해결 처리하지 않음
 - [ ] 2. Staging #86 SQL1건·최신 후보 배포: SQL 설치·버전/객체/RLS/익명 접근 차단 PASS. 후보 배포는 아직 실행 전, 배포 파일 전달 범위 확인 대기
 - [ ] 3. 실제 사용자 흐름: 새 QA2책방·미사용 월·사진·두 세션 승인 확인. 기존 자료 불변·성공 QA 보관
 - [ ] 4. 최신 독립 백업·새 빈 대상 복원: 운영 자료 읽기 백업 승인 대기. 활성 무료 프로젝트2개 한도 확인, QA 뒤 Staging만 일시정지하는 별도 빈 복원 대상 방안의 선택 대기. 아직 pause/create/restore 없음

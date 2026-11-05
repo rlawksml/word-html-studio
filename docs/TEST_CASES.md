@@ -6,6 +6,8 @@
 
 ### 2026-11-06 도구 체인·Worker 종료 진단 (최신)
 
+후속 exacted6bf0db80e4cb8cf10fecee12c552c0bec0385c/[42076842796](https://github.com/rlawksml/word-html-studio/actions/runs/42076842796)은 type/lint/build·앱277·Worker36 PASS/나머지0, 엄격 정리 후 COMPLETE다. `STAGE-UPLOAD-01`은 실제 published CLI dry-run·생성물 import를 유지하며 동일 모듈의 정확한 esbuild 자식만 실제 close까지 기다리고 marker1회를 확인한다. 단독 upload1도 exact3d4f3e4/[42076842047](https://github.com/rlawksml/word-html-studio/actions/runs/42076842047)에서 strict 정리를 통과했다. 아래 실패는 수정 전 이력이며 두 실행 수는 합산하지 않는다. 실제 원격 사용자·DB/사진 검증으로 확대하지 않는다.
+
 [통합 기록](test-reports/2026-11-06-toolchain-staging-progress.md): exact1d5a07f에서 type/lint/build·앱277·Worker36 모두 PASS지만 종료 esbuild zombie1로 전체 FAIL이다. 진단 분리 결과 runtime9/strict 정리는 exact5bcb9d5에서 PASS, upload1은 exact5547fc4에서 기능 PASS 뒤 같은 정리 실패였다. 진단 수치를 전체36 회귀 성공으로 대신하거나 합산하지 않는다. `STAGE-UPLOAD-01`의 실제 dry-run 산출물 import 검증은 유지하고 해당 CLI의 자식 종료 소유권만 최소 수정한다. 후보 전체36의 엄격 정리 재검증 전 운영 GO로 처리하지 않는다.
 
 호환 fallback exact1f3fb0b는 type/lint/build·앱30과 별도 보존10·엄격 정리를 각각 통과했다. [fallback 보고서](https://github.com/rlawksml/word-html-studio/blob/49bcafab2d7f2f5b523149b48a6d3af847143a57/docs/test-reports/2026-11-06-compatible-fallback-runtime.md). 실제 배포물·DB/복원·환경 보존 검증과 구분한다.
