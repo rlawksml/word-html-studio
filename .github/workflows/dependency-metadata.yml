@@ -56,8 +56,8 @@ jobs:
           [[ -f "$node_real" && -x "$node_real" && -f "$npm_real" ]] || fail METADATA_RUNTIME_NOT_REGULAR
           scratch="$(/usr/bin/mktemp -d /tmp/bookstore-metadata-qa.XXXXXXXXXX)" || fail METADATA_SCRATCH_FAILED
           /usr/bin/mkdir -p "$scratch/trusted"
-          # Invalid pins intentionally block ALL host helpers until the parent
-          # independently reviews the complete new and reused import closure.
+          # Complete native-only closure, reviewed independently and pinned
+          # after isolated policy tests. A changed helper blocks execution.
           while read -r expected relative; do
             [[ "$expected" =~ ^[a-f0-9]{64}$ ]] || fail METADATA_SOURCE_REVIEW_REQUIRED
             source_file="$workspace/.github/validation/$relative"
@@ -66,22 +66,22 @@ jobs:
             [[ "${actual%% *}" == "$expected" ]] || fail METADATA_REVIEW_HASH_MISMATCH
             /usr/bin/cp -- "$source_file" "$scratch/trusted/$relative"
           done <<'REVIEWED_CLOSURE'
-          UNREVIEWED_METADATA_CONTROLLER metadata-host-controller.mjs
-          UNREVIEWED_METADATA_DOCKER metadata-export-docker.mjs
-          UNREVIEWED_METADATA_POLICY metadata-policy.mjs
-          UNREVIEWED_METADATA_PACKET metadata-packet.mjs
-          UNREVIEWED_METADATA_FILE_IO metadata-file-io.mjs
-          UNREVIEWED_METADATA_APPROVAL metadata-approval.mjs
-          UNREVIEWED_METADATA_RETAINED metadata-retained-check.mjs
-          UNREVIEWED_METADATA_PREP metadata-prep-launcher.mjs
-          UNREVIEWED_METADATA_CONSUMER metadata-consumer-launcher.mjs
-          UNREVIEWED_REUSED_BASELINE offline-baseline.mjs
-          UNREVIEWED_REUSED_SUPPORT offline-host-support.mjs
-          UNREVIEWED_REUSED_SOURCE offline-host-source.mjs
-          UNREVIEWED_REUSED_RUNTIME offline-host-runtime.mjs
-          UNREVIEWED_REUSED_DOCKER offline-host-docker.mjs
-          UNREVIEWED_REUSED_PREFLIGHT offline-sandbox-common.mjs
-          UNREVIEWED_REUSED_DOCKERFILE offline-app.Dockerfile
+          0c29b7508eed61b5982fcfc9536caef139b225e07b0b349d1a91ec1d7e76d288 metadata-host-controller.mjs
+          d2970c4d04af26edfc15a3ca8c4af55c29823f0779ef1430fcf6233a85da8161 metadata-export-docker.mjs
+          4f6c2e00d5d5cd70d5abb3a97f8ed3bdbb0c3e031b27bc8ca06d0de5ab111fbf metadata-policy.mjs
+          b1505216dbc552cb9ddd284fb4dc7dda4a406064c8226a7bde9a328c91859ed7 metadata-packet.mjs
+          2dc411d48560f24ae474a212dcc281cc28267049b6f2d63aacc6a11854a1f402 metadata-file-io.mjs
+          a91ca42fead820a5ad11b9b97a7ec4184b798c69b75b0b0860ba848c94114211 metadata-approval.mjs
+          1cb4bda22a59d27c186d4995541b0829c812103591581944d1a0160246753002 metadata-retained-check.mjs
+          b0b8997a34dc50b1f48e886d82eefb0d17d785eb5a2bb277a37d2c2667fa0151 metadata-prep-launcher.mjs
+          fe02d40205938dab085852e264fcd1486648f8bd63a0f3a43111f1776a57958a metadata-consumer-launcher.mjs
+          df94847c6bd89ed5656e0e5c107fccb059d898851fa1873523718c9586ca9723 offline-baseline.mjs
+          abe01b3a84116e30cea9d85ae71f292f23d7611c1b3ac3dcce42e8c2ea013c51 offline-host-support.mjs
+          f7e596086f32463a9a98421acf3d3c963fc1844d56cd0762d224a87e71fc67b1 offline-host-source.mjs
+          9fc295a1ea304d7cfb4075168f169bad4b484dea787426a8d05e5199eced9023 offline-host-runtime.mjs
+          f08f44f8407f481356dd921647850d8a874b9eb9315c7207e0fedd872bc04476 offline-host-docker.mjs
+          18e576e8d2f0123a38ce28d76ea939099b1ae98705115868f860cf5cca72861b offline-sandbox-common.mjs
+          499ed0e6a76ded0ba21350c381107651eb6cb0cf73e5160102050236f7315cd5 offline-app.Dockerfile
           REVIEWED_CLOSURE
           /usr/bin/env -i PATH=/usr/bin:/bin TZ=UTC \
             "$node_real" --no-addons "$scratch/trusted/metadata-host-controller.mjs" \
@@ -96,6 +96,7 @@ jobs:
           printf 'package_file=%s\n' "$scratch/exported/package.json" >> "$GITHUB_OUTPUT"
           printf 'lock_file=%s\n' "$scratch/exported/package-lock.json" >> "$GITHUB_OUTPUT"
       - name: Transfer exactly the two verified public manifests for one day
+        if: success()
         # Official v7.0.2 immutable commit, reviewed separately by the parent.
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
