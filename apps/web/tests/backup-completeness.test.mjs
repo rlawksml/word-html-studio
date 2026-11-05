@@ -42,6 +42,17 @@ async function arrangeRetainedPhotos(fixture, retainedBuckets) {
   await fixture.writeManifest();
 }
 
+async function snapshotPhotoState(fixture) {
+  return Promise.all(PHOTO_BUCKETS.map(async (bucket) => {
+    const file = path.join(fixture.root, "storage", bucket, FIXTURE_PHOTO_PATH);
+    try { return await readFile(file); }
+    catch (error) {
+      if (error?.code === "ENOENT") return null;
+      throw error;
+    }
+  }));
+}
+
 test("BACKUP-COMPLETE-01 empty manifest lists cannot certify an empty restore", async () => {
   await withBackupFixture({}, async (fixture) => {
     fixture.manifest.database = {};
@@ -222,9 +233,22 @@ test("BACKUP-COMPLETE-19 accurate reporting of a missing referenced photo still 
 
 test("BACKUP-COMPLETE-20 retained unreferenced photos pass with warnings, never an instruction to delete", async () => {
   const rejected = [];
-  for (const retainedBuckets of [[ORIGINAL_BUCKET], [PREVIEW_BUCKET], PHOTO_BUCKETS]) {
+  const cases = [
+    ["original", [ORIGINAL_BUCKET], false],
+    ["preview", [PREVIEW_BUCKET], false],
+    ["both", PHOTO_BUCKETS, false],
+    ["empty-submissions", PHOTO_BUCKETS, true],
+  ];
+  for (const [caseId, retainedBuckets, emptySubmissions] of cases) {
     await withBackupFixture({ images: true }, async (fixture) => {
       await arrangeRetainedPhotos(fixture, retainedBuckets);
+      if (emptySubmissions) {
+        // Preserve the original no-news/no-images case as well as the cases
+        // above. All DB reference counts are zero; retained inventories stay.
+        await fixture.writeTable("submissions", []);
+        Object.assign(fixture.manifest.references, { newsItems: 0, images: 0 });
+        await fixture.writeManifest();
+      }
       const before = await fixture.snapshot();
       const photoFiles = PHOTO_BUCKETS.map((bucket) => path.join(fixture.root, "storage", bucket, FIXTURE_PHOTO_PATH));
       const photosBefore = await Promise.all(photoFiles.map((file) => readFile(file)));
@@ -242,7 +266,7 @@ test("BACKUP-COMPLETE-20 retained unreferenced photos pass with warnings, never 
         assert.deepEqual(result.failures, []);
         assert.deepEqual(result.warnings, PHOTO_BUCKETS.flatMap((bucket, index) => retainedBuckets.includes(bucket) ? [RETAINED_WARNINGS[index]] : []));
       } catch {
-        rejected.push(retainedBuckets === PHOTO_BUCKETS ? "both" : retainedBuckets[0] === ORIGINAL_BUCKET ? "original" : "preview");
+        rejected.push(caseId);
       }
     });
   }
@@ -364,8 +388,16 @@ test("BACKUP-COMPLETE-30 invalid retained-photo backups fail and CLI summaries e
       await arrange(fixture);
       await fixture.writeManifest();
       const before = await fixture.snapshot();
-      const result = await verifyBackupDirectory(fixture.root);
-      assert.deepEqual(await fixture.snapshot(), before);
+      const photosBefore = await snapshotPhotoState(fixture);
+      let result;
+      try {
+        result = await verifyBackupDirectory(fixture.root);
+      } finally {
+        // Even the intentionally missing file must remain missing. A verifier
+        // must not recreate it, repair tampering, or remove the other photo.
+        assert.deepEqual(await snapshotPhotoState(fixture), photosBefore);
+        assert.deepEqual(await fixture.snapshot(), before);
+      }
       assert.equal(result.status, "FAIL");
       assert.ok(result.failures.includes(failureCode));
       assert.deepEqual(result.warnings, [], "failed verification must not claim verified retention");
