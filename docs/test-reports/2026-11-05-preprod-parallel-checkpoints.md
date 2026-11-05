@@ -41,20 +41,17 @@
 
 기존 526줄 gate test와 528줄 legacy test는 보존 정확성을 위해 이번에는 분리하지 않았다. 새 정책·runner는 책임별 파일과 500줄 이하를 유지했다.
 
-## 아직 원래 dirty 폴더에만 남은 자료
+## 후속: 남은 소스·과거 증거 보존
 
-- retain-only mock Stage2의 ledger/SDK mock/adapter/TC5파일
-- HTML-copy browser/fixture observer/단위TC3파일
-- 당시 실제 UAT·역할·줄바꿈·실패/재시도 증거와 합성 캡처
-- 이 자료들을 설명하는 과거 README/TODO/Setup/TC 요약 일부
+`codex/m1-preprod-source-completion`의16b7558에서 Stage2 ledger/SDK mock5파일과 HTML-copy/observer3파일을 원본과8/8 hash가 같은 상태로 보존했다. exact16b7558의 evidence17TC도 실제 격리 CI와 독립 증거 검토를 통과했다. SDK12/browser5·전체 앱 검증은 별도다. [후속 보고서](2026-11-05-source-completion.md)를 따른다.
 
-삭제·일괄 커밋하지 않았다. 이후 경계별 검토와 공개 범위 정리 후 보존한다. 과거 QA ID/Storage prefix·로컬 경로는 필요한 근거만 남기며 사용자 원문·실사진·ZIP·환경파일/비밀값은 공개하지 않는다. 이 브랜치를 그 미커밋 변경 전체의 대체물로 사용하지 않는다.
+원래 dirty36개의 관련 코드는 경계별 Git 보존했고, 현재 README/TODO/Cloudflare/Supabase/TC 문서는 새 정책으로 정합화했다. 보고서11개·캡처1개의 원문은 식별자/로컬 경로 때문에 비공개 checkpoint에 그대로 보관하고 [공개 역사 색인](2026-11-05-historical-evidence-index.md)에 요약·hash만 남겼다. 원래 폴더는 변경·정리하지 않았다. 참조된 외부 ZIP·개인 manifest·당시 source/dist까지 보존됐다는 뜻은 아니며 이 checkpoint도 DB 백업을 대체하지 않는다.
 
 ## 다음 순서와 승인 경계
 
 1. 완료: 합본 exact SHA의 restore25/photo12/preservation30 병렬 재확인·독립 증거 대조. 결과를 각 이슈에 연결.
-2. 남은 Stage2/HTML-copy·과거 증거를 경계별 보존하고 문서 최신 상태와 역사 기록 분리.
-3. #87 Next와 #66 vinext는 별도 의존성 변경으로 검증. 공식 최신 후보를 기록했지만 새 package 설치·lock 변경·audit 재실행은 하지 않았다. 보안 실행 조건을 갖춘 준비된 toolchain이 필요하다.
+2. 완료: Stage2/HTML-copy 소스 보존·evidence17 검증, 현재 문서와 비공개 과거 증거 색인 분리.
+3. #87 Next와 #66 vinext는 별도 의존성 변경으로 검증. 사용자 승인에 따라 무료 Linux의 무스크립트/무비밀 의존성 준비와 이후 오프라인 앱 검증 경로를 별도 구현·리뷰 중이다. 아직 설치·lock 변경·audit 재실행 결과는 없으며 준비 성공을 추측하지 않는다.
 4. #91 빈 월의 실제 UI 재현·수정·검증, 같은 후보 커밋의 전체 type/lint/build/browser 회귀.
 5. 별도 승인 후 #86 추가형 SQL과 신규 QA·두 작업자·사진·대용량/HEIC·응답유실 실제 통합 검증. 기존 자료를 실패 주입/삭제 대상으로 사용하지 않음.
 6. #47 복원은 현재 운영/보관 Staging이 아닌 승인된 새 빈 환경에서만 검증. 최신 일관성 있는 독립 백업, count/hash/사진 참조·권한 확인.

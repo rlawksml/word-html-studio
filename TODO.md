@@ -7,7 +7,8 @@
 - [x] 원래 dirty36개 보존·분류, source 복구 사본의 hash/bundle 검증 및 로컬 `.git` 비공개 보관 (DB 백업 아님)
 - [x] #47 marker 무쓰기/대상 hash 보존·#88 무삭제 방어·기존 gate/실연결 hardblock 보존
 - [x] exact `3ccb429`에서 무키 격리 restore25/photo12/preservation30 = **67PASS**, 실패/외부 TC skip0·독립 확인
-- [ ] Stage2 retain-only mock·HTML-copy observer·과거 UAT 증거의 남은 미커밋 자료를 경계별 보존
+- [x] Stage2/HTML-copy8파일 원본 해시 보존·현재 문서 정합화·과거 보고서11+캡처1 비공개 보존/공개 색인. exact16b7558 evidence17PASS ([후속 기록](docs/test-reports/2026-11-05-source-completion.md))
+- [ ] 사용자 승인된 무료 Linux 의존성 준비→오프라인 전체 앱 검증 경로 구현·독립 리뷰·실행 (설치스크립트/운영키/DB 없음, 현재 아직 실행 전)
 - [ ] #87 Next audit·#66 vinext 호환 업그레이드: 준비된 격리 의존성 환경 확보 후 별도 변경·검증 (현재 설치/lock 변경 없음)
 - [ ] #91 빈 발행 월 실제 UI 재현/수정/검증, 동일 후보의 전체 type/lint/build/browser 회귀
 - [ ] 별도 승인 후 #86 SQL·신규 QA·두 작업자/사진의 실제 Staging P0 검증
@@ -27,7 +28,7 @@
 - [x] #77 Cloudflare 10021 진입점 경로 수정 및 실제 dry-run 업로드 파일 구조 회귀 검증
 
 - [x] #82 HTML 본문 줄바꿈을 명시적 `<br>`로 출력: 빈 줄·이모티콘·escaping·원본 불변 회귀 테스트
-- [ ] #82 배포 후 실제 사용 HTML 편집기 붙여넣기 검증 (현재 미배포)
+- [x] #82 과거 독립 staging에서 사용자 줄바꿈·빈 줄 유지 확인(2026-11-04). 현재 후보의 재검증·전체 편집기 호환으로 일반화하지 않음 ([역사 색인](docs/test-reports/2026-11-05-historical-evidence-index.md))
 
 - [x] 독립 Cloudflare staging 설정 추가: 공개 URL 비활성, 테스트 DB 고정, dry-run 검증 명령
 - [ ] 무료 플랜·접근 보호·비밀키 설정 후 독립 staging 배포 및 P0 검증
