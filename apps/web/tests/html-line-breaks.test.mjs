@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { build } from "esbuild";
+import { bundleWithOwnedService } from "./helpers/esbuild-owned-bundle.mjs";
 
 // Bundle the actual generator, resolving its production aliases without changing runtime imports.
-const bundled = await build({
+const { result: bundled, lifecycle } = await bundleWithOwnedService({
   stdin: { contents: 'export * from "./lib/html-generators.ts"; export * from "./lib/workspace-formatters.ts";', resolveDir: fileURLToPath(new URL("../", import.meta.url)), loader: "ts" },
   tsconfig: fileURLToPath(new URL("../tsconfig.json", import.meta.url)),
   bundle: true, write: false, platform: "node", format: "esm",
@@ -79,4 +79,8 @@ test("HTML-LINES-05 generation never mutates source and digest remains title-onl
   assert.ok(digest.includes("제목\n보존"));
   assert.ok(!digest.includes("원본"));
   assert.ok(!digest.includes("<br>"));
+});
+
+test("HTML-LINES-06 the owned native bundler closes before test registration", () => {
+  assert.deepEqual(lifecycle, { services: 1, closed: 1 });
 });
