@@ -11,6 +11,7 @@ const reviewedSuites = [
   ["tests/test-owned-ledger.test.mjs", "tests/fixture-response-observer.test.mjs"],
   ["tests/publication-month.test.mjs"],
   ["tests/backup-completeness.test.mjs"],
+  [".github/validation/metadata-policy.test.mjs"],
 ];
 const allowedTests = process.argv.slice(2);
 const allowedEnvironment = ["HOME", "PATH", "TMPDIR", "TZ", "UV_THREADPOOL_SIZE", "XDG_CACHE_HOME"];

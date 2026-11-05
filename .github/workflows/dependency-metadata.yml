@@ -1,0 +1,110 @@
+name: Bounded public dependency metadata preparation
+
+on:
+  workflow_call:
+    inputs:
+      expected_commit:
+        required: true
+        type: string
+      artifact_transfer_approved:
+        required: true
+        type: boolean
+      storage_checked_at:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  metadata:
+    # A manually approved exception for two public JSON files only. No cache,
+    # app source in containers, secrets/environment, DB, deployment or audit.
+    if: github.event.repository.private == false && inputs.artifact_transfer_approved == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Resolve metadata in bounded prep and promote only after exact cleanup
+        id: metadata
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_commit }}
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+          ARTIFACT_TRANSFER_APPROVED: ${{ inputs.artifact_transfer_approved }}
+          STORAGE_CHECKED_AT: ${{ inputs.storage_checked_at }}
+        run: |
+          set -euo pipefail
+          umask 077
+          fail() { printf '::error::%s\n' "$1"; exit 1; }
+          [[ "$REPOSITORY_PRIVATE" == false && "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" == refs/heads/codex/* ]] || fail METADATA_PUBLIC_FEATURE_DISPATCH_REQUIRED
+          [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ && "$EXPECTED_SHA" == "$GITHUB_SHA" ]] || fail METADATA_EXACT_COMMIT_REQUIRED
+          [[ "$ARTIFACT_TRANSFER_APPROVED" == true && "$STORAGE_CHECKED_AT" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$ ]] || fail METADATA_USER_AND_STORAGE_CHECK_REQUIRED
+          for tool in /usr/bin/env /usr/bin/realpath /usr/bin/sha256sum /usr/bin/docker /usr/bin/git /usr/bin/ldd /usr/bin/mktemp /usr/bin/cp /usr/bin/mkdir; do
+            [[ -f "$tool" && -x "$tool" ]] || fail METADATA_TRUSTED_OS_TOOL_MISSING
+          done
+          workspace="$(/usr/bin/realpath -e -- "$GITHUB_WORKSPACE")" || fail METADATA_WORKSPACE_UNRESOLVED
+          [[ "$workspace" == "$GITHUB_WORKSPACE" ]] || fail METADATA_WORKSPACE_SYMLINK
+          node_source="$(command -v node)" || fail METADATA_NODE_MISSING
+          npm_source="$(command -v npm)" || fail METADATA_NPM_MISSING
+          node_real="$(/usr/bin/realpath -e -- "$node_source")" || fail METADATA_NODE_UNRESOLVED
+          npm_real="$(/usr/bin/realpath -e -- "$npm_source")" || fail METADATA_NPM_UNRESOLVED
+          case "$node_real" in /usr/*|/opt/*) ;; *) fail METADATA_NODE_UNTRUSTED ;; esac
+          case "$npm_real" in /usr/*/npm/bin/npm-cli.js|/opt/*/npm/bin/npm-cli.js) ;; *) fail METADATA_NPM_UNTRUSTED ;; esac
+          [[ -f "$node_real" && -x "$node_real" && -f "$npm_real" ]] || fail METADATA_RUNTIME_NOT_REGULAR
+          scratch="$(/usr/bin/mktemp -d /tmp/bookstore-metadata-qa.XXXXXXXXXX)" || fail METADATA_SCRATCH_FAILED
+          /usr/bin/mkdir -p "$scratch/trusted"
+          # Invalid pins intentionally block ALL host helpers until the parent
+          # independently reviews the complete new and reused import closure.
+          while read -r expected relative; do
+            [[ "$expected" =~ ^[a-f0-9]{64}$ ]] || fail METADATA_SOURCE_REVIEW_REQUIRED
+            source_file="$workspace/.github/validation/$relative"
+            [[ -f "$source_file" && ! -L "$source_file" && "$(/usr/bin/realpath -e -- "$source_file")" == "$source_file" ]] || fail METADATA_REVIEW_SOURCE_NOT_REGULAR
+            actual="$(/usr/bin/sha256sum -- "$source_file")" || fail METADATA_REVIEW_HASH_FAILED
+            [[ "${actual%% *}" == "$expected" ]] || fail METADATA_REVIEW_HASH_MISMATCH
+            /usr/bin/cp -- "$source_file" "$scratch/trusted/$relative"
+          done <<'REVIEWED_CLOSURE'
+          UNREVIEWED_METADATA_CONTROLLER metadata-host-controller.mjs
+          UNREVIEWED_METADATA_DOCKER metadata-export-docker.mjs
+          UNREVIEWED_METADATA_POLICY metadata-policy.mjs
+          UNREVIEWED_METADATA_PACKET metadata-packet.mjs
+          UNREVIEWED_METADATA_FILE_IO metadata-file-io.mjs
+          UNREVIEWED_METADATA_APPROVAL metadata-approval.mjs
+          UNREVIEWED_METADATA_RETAINED metadata-retained-check.mjs
+          UNREVIEWED_METADATA_PREP metadata-prep-launcher.mjs
+          UNREVIEWED_METADATA_CONSUMER metadata-consumer-launcher.mjs
+          UNREVIEWED_REUSED_BASELINE offline-baseline.mjs
+          UNREVIEWED_REUSED_SUPPORT offline-host-support.mjs
+          UNREVIEWED_REUSED_SOURCE offline-host-source.mjs
+          UNREVIEWED_REUSED_RUNTIME offline-host-runtime.mjs
+          UNREVIEWED_REUSED_DOCKER offline-host-docker.mjs
+          UNREVIEWED_REUSED_PREFLIGHT offline-sandbox-common.mjs
+          UNREVIEWED_REUSED_DOCKERFILE offline-app.Dockerfile
+          REVIEWED_CLOSURE
+          /usr/bin/env -i PATH=/usr/bin:/bin TZ=UTC \
+            "$node_real" --no-addons "$scratch/trusted/metadata-host-controller.mjs" \
+            "$workspace" "$EXPECTED_SHA" "$scratch" "$node_real" "$npm_real" \
+            "$ARTIFACT_TRANSFER_APPROVED" "$STORAGE_CHECKED_AT"
+          # Source/toolchain consumers have all terminated. The parent-private
+          # directory contains exactly these two no-follow regular single-link
+          # files. Check again immediately before handing paths to the official
+          # uploader, whose own glob/symlink behavior is NOT a safety boundary.
+          /usr/bin/env -i PATH=/usr/bin:/bin TZ=UTC \
+            "$node_real" --no-addons "$scratch/trusted/metadata-retained-check.mjs" "$scratch"
+          printf 'package_file=%s\n' "$scratch/exported/package.json" >> "$GITHUB_OUTPUT"
+          printf 'lock_file=%s\n' "$scratch/exported/package-lock.json" >> "$GITHUB_OUTPUT"
+      - name: Transfer exactly the two verified public manifests for one day
+        # Official v7.0.2 immutable commit, reviewed separately by the parent.
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: dependency-manifests-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ steps.metadata.outputs.package_file }}
+            ${{ steps.metadata.outputs.lock_file }}
+          if-no-files-found: error
+          overwrite: false
+          include-hidden-files: false
+          retention-days: 1
+          compression-level: 9

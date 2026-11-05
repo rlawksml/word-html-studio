@@ -9,7 +9,7 @@ on:
       validation_mode:
         description: Isolated no-key policy tests or reviewed offline app validation, never deployment
         type: choice
-        options: [rollback_preparation, source_policy, offline_app]
+        options: [rollback_preparation, source_policy, offline_app, dependency_metadata]
         default: rollback_preparation
         required: true
       expected_commit:
@@ -19,8 +19,18 @@ on:
       source_suite:
         description: Reviewed source-policy suite, ignored by rollback mode
         type: choice
-        options: [restore, photo, preservation, evidence, publication, backup_completeness]
+        options: [restore, photo, preservation, evidence, publication, backup_completeness, metadata]
         default: restore
+        required: false
+      artifact_transfer_approved:
+        description: Parent confirms current user approval for exactly two public metadata JSON files, never a general upload permission
+        type: boolean
+        default: false
+        required: false
+      storage_checked_at:
+        description: Parent's recent free-storage check in UTC ISO milliseconds; no billing/account values
+        type: string
+        default: ""
         required: false
 
 permissions:
@@ -109,6 +119,8 @@ jobs:
           EXPECTED_SHA: ${{ inputs.expected_commit }}
           VALIDATION_MODE: ${{ inputs.validation_mode }}
           SOURCE_SUITE: ${{ inputs.source_suite }}
+          ARTIFACT_TRANSFER_APPROVED: ${{ inputs.artifact_transfer_approved }}
+          STORAGE_CHECKED_AT: ${{ inputs.storage_checked_at }}
         run: |
           set -euo pipefail
           if [[ ! "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]] || [[ "$GITHUB_SHA" != "$EXPECTED_SHA" ]]; then
@@ -118,10 +130,13 @@ jobs:
           case "$VALIDATION_MODE" in
             rollback_preparation) ;;
             source_policy)
-              [[ "$GITHUB_REF" == refs/heads/codex/* && ( "$SOURCE_SUITE" == restore || "$SOURCE_SUITE" == photo || "$SOURCE_SUITE" == preservation || "$SOURCE_SUITE" == evidence || "$SOURCE_SUITE" == publication || "$SOURCE_SUITE" == backup_completeness ) ]] || { echo '::error::SOURCE_POLICY_DISPATCH_BLOCKED'; exit 1; }
+              [[ "$GITHUB_REF" == refs/heads/codex/* && ( "$SOURCE_SUITE" == restore || "$SOURCE_SUITE" == photo || "$SOURCE_SUITE" == preservation || "$SOURCE_SUITE" == evidence || "$SOURCE_SUITE" == publication || "$SOURCE_SUITE" == backup_completeness || "$SOURCE_SUITE" == metadata ) ]] || { echo '::error::SOURCE_POLICY_DISPATCH_BLOCKED'; exit 1; }
               ;;
             offline_app)
               [[ "$GITHUB_REF" == refs/heads/codex/* ]] || { echo '::error::OFFLINE_APP_DISPATCH_BLOCKED'; exit 1; }
+              ;;
+            dependency_metadata)
+              [[ "$GITHUB_REF" == refs/heads/codex/* && "$ARTIFACT_TRANSFER_APPROVED" == true && "$STORAGE_CHECKED_AT" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$ ]] || { echo '::error::METADATA_DISPATCH_BLOCKED'; exit 1; }
               ;;
             *) echo '::error::ISOLATED_MODE_NOT_ALLOWLISTED'; exit 1 ;;
           esac
@@ -144,3 +159,12 @@ jobs:
     uses: ./.github/workflows/offline-app-validation.yml
     with:
       expected_commit: ${{ inputs.expected_commit }}
+
+  isolated-dependency-metadata:
+    needs: rollback-dispatch-guard
+    if: github.event_name == 'workflow_dispatch' && inputs.validation_mode == 'dependency_metadata' && needs.rollback-dispatch-guard.result == 'success'
+    uses: ./.github/workflows/dependency-metadata.yml
+    with:
+      expected_commit: ${{ inputs.expected_commit }}
+      artifact_transfer_approved: ${{ inputs.artifact_transfer_approved }}
+      storage_checked_at: ${{ inputs.storage_checked_at }}

@@ -166,7 +166,7 @@ jobs:
           [[ -f "$launcher_source" && ! -L "$launcher_source" && "$(/usr/bin/realpath -e -- "$launcher_source")" == "$launcher_source" ]] || fail LAUNCHER_NOT_REGULAR
           [[ "$(wc -c < "$launcher_source")" -le 16384 ]] || fail LAUNCHER_SIZE_EXCEEDED
           launcher_sha256="$(sha256sum -- "$launcher_source")"
-          [[ "${launcher_sha256%% *}" == 'b9017e5d2db1ecfbec16c2a869aa7e050bbc5b740443b6f6d682f7ce8fb8851b' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
+          [[ "${launcher_sha256%% *}" == '7924140f9bc6b7ec3a1b9022ccf2b5d9c89b9d5ad802baeca68de1459bd1d60d' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
           cp -- "$launcher_source" "$rootfs/usr/bin/source-policy-launcher.mjs"
 
           # Suite names never become paths/commands. No npm, SDK, key or app build.
@@ -245,6 +245,18 @@ jobs:
                 apps/web/tests/backup-completeness.test.mjs
               )
               test_argv=(tests/backup-completeness.test.mjs)
+              ;;
+            metadata)
+              expected_tests=24
+              source_files=(
+                .github/validation/metadata-policy.test.mjs
+                .github/validation/metadata-policy.mjs
+                .github/validation/metadata-packet.mjs
+                .github/validation/metadata-file-io.mjs
+                .github/validation/metadata-approval.mjs
+                .github/validation/metadata-retained-check.mjs
+              )
+              test_argv=(.github/validation/metadata-policy.test.mjs)
               ;;
             *) fail SOURCE_SUITE_NOT_ALLOWLISTED ;;
           esac
