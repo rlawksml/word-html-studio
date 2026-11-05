@@ -39,6 +39,11 @@ export async function copyRuntime(rootfs, node, npmCli, trusted, role, step) {
   copy(node, join(rootfs, "usr/bin/node"), 256 * 1024 * 1024, 0o555);
   step("ENV_COPY");
   const env = realpathSync("/usr/bin/env");
+  const envInfo = lstatSync(env);
+  assert.ok(Number.isSafeInteger(envInfo.size) && envInfo.size >= 0);
+  // Runner-owned /usr/bin/env metadata only, not an application file/path.
+  const prefix = env.startsWith("/usr/") ? "USR" : "OTHER";
+  console.log(`OFFLINE_TRUSTED_ENV bytes=${envInfo.size} prefix=${prefix} regular=${envInfo.isFile() ? 1 : 0}`);
   assert.ok(env.startsWith("/usr/"));
   copy(env, join(rootfs, "usr/bin/env"), 1024 * 1024, 0o555);
   let runtimeBytes = 0, runtimeFiles = 0;
