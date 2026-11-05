@@ -37,7 +37,8 @@ export const metadata: Metadata = {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
   },
-  manifest: "/manifest.webmanifest",
+  // manifest는 프레임워크별 상대 URL 처리에 의존하지 않도록 주소를 명시합니다.
+  manifest: new URL("/manifest.webmanifest", SITE_URL).href,
 };
 
 export const viewport: Viewport = {

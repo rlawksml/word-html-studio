@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
 import test, { after } from "node:test";
 import { installCloudflareTracingFixture } from "./cloudflare-tracing-fixture.mjs";
+import { assertCanonicalUrl } from "./fixtures/metadata-assertions.mjs";
 
 const tracingFixture = installCloudflareTracingFixture(new URL("../dist/server/", import.meta.url));
 after(() => tracingFixture.deregister());
@@ -210,10 +211,7 @@ test("publishes complete SEO metadata, discovery routes, and a social preview", 
   ]);
 
   const home = await homeResponse.text();
-  // Diagnose the exact URL independently of HTML attribute order; keep the
-  // historical assertion below until the failing contract is distinguished.
-  assert.match(home, /<link\b(?=[^>]*\srel="canonical")(?=[^>]*\shref="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/")[^>]*>/);
-  assert.match(home, /rel="canonical" href="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/"/);
+  assertCanonicalUrl(home, "https://bookstore-news-studio.rlawksml.chatgpt.site/");
   assert.match(home, /property="og:title" content="지관서가 동네책방 소식"/);
   assert.match(home, /property="og:image" content="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/og-bookstore-news\.png"/);
   assert.match(home, /name="twitter:card" content="summary_large_image"/);
@@ -222,7 +220,7 @@ test("publishes complete SEO metadata, discovery routes, and a social preview", 
   assert.match(home, /CollectionPage/);
 
   const help = await helpResponse.text();
-  assert.match(help, /rel="canonical" href="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/help"/);
+  assertCanonicalUrl(help, "https://bookstore-news-studio.rlawksml.chatgpt.site/help");
   const improvements = await improvementsResponse.text();
   assert.match(improvements, /name="robots" content="noindex, nofollow"/);
 
