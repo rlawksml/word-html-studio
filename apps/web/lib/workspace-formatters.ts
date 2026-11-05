@@ -1,4 +1,5 @@
 import type { Bookstore, LabeledLink, LabeledValue, NewsItem, Submission } from "@/lib/workspace-types";
+import { isDigestOrderMonth } from "./digest-order.ts";
 
 // 네트워크나 React 상태에 의존하지 않는 생성·표시·검증 함수만 두는 도메인 유틸리티입니다.
 export type Role = "visitor" | "input" | "html";
@@ -18,6 +19,20 @@ export function currentKstMonth(date = new Date()) {
   const month = parts.find((part) => part.type === "month")?.value;
   if (!year || !month) throw new Error("현재 발행 월을 계산하지 못했습니다.");
   return `${year}-${month}`;
+}
+
+// 월 입력의 삭제·부분 연도는 확정하지 않습니다. 자동 보정 없이 직전 화면 월을 유지합니다.
+export function keepValidPublicationMonth(previous: string, candidate: unknown): string {
+  return isDigestOrderMonth(candidate) ? candidate : previous;
+}
+
+// 기존 Date(year, ...)의 0000~0099 → 1900~1999 해석도 유지합니다. 고대력 지원은 별도 변경입니다.
+export function publicationCalendarDays(month: unknown): (string | null)[] {
+  if (!isDigestOrderMonth(month)) return [];
+  const [year, numericMonth] = month.split("-").map(Number);
+  const first = new Date(year, numericMonth - 1, 1).getDay();
+  const count = new Date(year, numericMonth, 0).getDate();
+  return [...Array(first).fill(null), ...Array.from({ length: count }, (_, index) => `${month}-${String(index + 1).padStart(2, "0")}`)];
 }
 
 // 새 책방과 소식을 만들 때 선택 필드까지 빠짐없이 초기화하는 팩토리입니다.
