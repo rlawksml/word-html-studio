@@ -12,15 +12,22 @@ import { promotePair, verifyRetained } from "./metadata-retained-check.mjs";
 
 const bytes = (value) => Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
 const NONCE = "a".repeat(32), COMMIT = "b".repeat(40);
-const FROM = Object.freeze({ vinext: "0.0.50", "@vitejs/plugin-rsc": "0.5.26", "@cloudflare/vite-plugin": "1.54.5",
-  wrangler: "4.129.1", "@cloudflare/workers-types": "5.20260921.1" });
-const TO = Object.freeze({ vinext: "1.2.0", "@vitejs/plugin-rsc": "0.5.37", "@cloudflare/vite-plugin": "1.63.1",
-  wrangler: "4.149.0", "@cloudflare/workers-types": "5.20261006.1" });
+const FROM = Object.freeze({ vite: "8.2.2" }), TO = Object.freeze({ vite: "8.2.4" });
+const OVERRIDES = Object.freeze({ "undici@7.29.1": "7.30.1", "zod@4.4.3": "4.6.6",
+  "brace-expansion@1.1.18": "1.1.21", "brace-expansion@5.0.9": "5.0.12" });
+const PATCH_RECORDS = [
+  ["undici", "7.29.1", "7.30.1", "node_modules/undici"],
+  ["zod", "4.4.3", "4.6.6", "node_modules/zod"],
+  ["brace-expansion", "1.1.18", "1.1.21", "node_modules/brace-expansion"],
+  ["brace-expansion", "5.0.9", "5.0.12", "node_modules/minimatch/node_modules/brace-expansion"],
+];
 function synthetic() {
   const manifest = { name: "synthetic-metadata-only", version: "1.1.0-rc.1", private: true,
     engines: { node: ">=22.13.0" }, scripts: { test: "never evaluated" },
     dependencies: { next: "16.4.5", react: "19.2.9", "react-dom": "19.2.9" },
-    devDependencies: { ...FROM, "eslint-config-next": "16.4.5", "react-server-dom-webpack": "19.2.9", vite: "8.2.2" } };
+    devDependencies: { ...FROM, "eslint-config-next": "16.4.5", "react-server-dom-webpack": "19.2.9", vinext: "1.2.0",
+      "@vitejs/plugin-rsc": "0.5.37", "@cloudflare/vite-plugin": "1.63.1", wrangler: "4.149.0",
+      "@cloudflare/workers-types": "5.20261006.1" } };
   const pkg = (name, version) => ({ version, resolved: `https://registry.npmjs.org/${name}/-/${name.split("/").at(-1)}-${version}.tgz`,
     integrity: `sha512-${Buffer.alloc(64).toString("base64")}` });
   const bundled = { "@emnapi/core": "1.8.1", "@emnapi/runtime": "1.8.1", "@emnapi/wasi-threads": "1.1.0",
@@ -34,11 +41,14 @@ function synthetic() {
     lock.packages[`node_modules/${name}`] = pkg(name, version);
   }
   for (const [name, version] of Object.entries(bundled)) lock.packages[`${parent}/node_modules/${name}`] = { version, inBundle: true };
+  lock.packages["node_modules/minimatch"] = { ...pkg("minimatch", "10.2.5"), dependencies: { "brace-expansion": "^5.0.5" } };
+  for (const [name, from, , path] of PATCH_RECORDS) lock.packages[path] = pkg(name, from);
   const candidatePackage = toolchainManifest(manifest), candidateLock = structuredClone(lock);
   for (const [name, version] of Object.entries(TO)) {
     candidateLock.packages[""].devDependencies[name] = version;
     candidateLock.packages[`node_modules/${name}`] = pkg(name, version);
   }
+  for (const [name, , to, path] of PATCH_RECORDS) candidateLock.packages[path] = pkg(name, to);
   return { manifest, lock, candidatePackage, candidateLock };
 }
 function validate(value) { return validateCandidate(bytes(value.manifest), bytes(value.lock), bytes(value.candidatePackage), bytes(value.candidateLock)); }
@@ -53,11 +63,13 @@ function withScratch(run) {
 }
 const evidence = () => ({ cleaned: true, commit: COMMIT, nonce: NONCE });
 
-test("META-01 candidate changes only the exact five toolchain version fields", () => {
+test("META-01 candidate changes only exact Vite and four selector-scoped overrides", () => {
   const value = synthetic(), before = JSON.stringify(value.manifest);
-  assert.deepEqual(value.candidatePackage, { ...value.manifest, devDependencies: { ...value.manifest.devDependencies, ...TO } });
+  assert.deepEqual(value.candidatePackage, { ...value.manifest, devDependencies: { ...value.manifest.devDependencies, ...TO },
+    overrides: OVERRIDES });
   assert.equal(JSON.stringify(value.manifest), before);
   assert.throws(() => toolchainManifest(value.candidatePackage));
+  for (const overrides of [{}, OVERRIDES]) assert.throws(() => toolchainManifest({ ...value.manifest, overrides }));
   for (const name of Object.keys(FROM)) {
     for (const wrong of [undefined, "0.0.0"]) {
       const original = structuredClone(value.manifest);
@@ -74,11 +86,20 @@ test("META-02 a complete synthetic graph is accepted as shape, not actual regist
   const summary = validate(value);
   assert.equal(summary.packageSha256, sha256(bytes(value.candidatePackage)));
   assert.equal(summary.lockSha256, sha256(bytes(value.candidateLock)));
-  assert.equal(summary.graph.changed, 6); // one root plus the five synthetic records
+  assert.equal(summary.graph.changed, 6); // one root, Vite and four selected transitive records
   assert.equal(JSON.stringify(value), before);
   for (const name of Object.keys(TO)) {
     const wrong = synthetic(); wrong.candidateLock.packages[`node_modules/${name}`].version = FROM[name];
     assert.throws(() => validate(wrong));
+  }
+  for (const [name, from, , path] of PATCH_RECORDS) {
+    const old = synthetic(); old.candidateLock.packages[path].version = from;
+    assert.throws(() => validate(old));
+    const missing = synthetic(); delete missing.candidateLock.packages[path];
+    assert.throws(() => validate(missing));
+    const retained = synthetic();
+    retained.candidateLock.packages[`node_modules/old-target/node_modules/${name}`] = structuredClone(retained.lock.packages[path]);
+    assert.throws(() => validate(retained));
   }
 });
 test("META-03 scripts changes cannot be smuggled into a version update", () => {
@@ -88,20 +109,41 @@ test("META-03 scripts changes cannot be smuggled into a version update", () => {
 test("META-04 other direct dependencies remain fixed", () => {
   for (const [field, name, version] of [["dependencies", "react", "19.3.1"], ["dependencies", "next", "16.4.6"],
     ["dependencies", "react-dom", "19.2.8"], ["devDependencies", "react-server-dom-webpack", "19.2.8"],
-    ["devDependencies", "eslint-config-next", "16.4.6"], ["devDependencies", "vite", "8.2.3"]]) {
+    ["devDependencies", "eslint-config-next", "16.4.6"], ["devDependencies", "vite", "8.2.3"],
+    ["devDependencies", "vinext", "1.2.1"], ["devDependencies", "@vitejs/plugin-rsc", "0.5.38"],
+    ["devDependencies", "@cloudflare/vite-plugin", "1.63.2"], ["devDependencies", "wrangler", "4.150.0"],
+    ["devDependencies", "@cloudflare/workers-types", "5.20261007.1"]]) {
     const value = synthetic(); value.candidatePackage[field][name] = version;
     assert.throws(() => validate(value));
   }
 });
-test("META-05 private engines peer optional and overrides cannot change", () => {
+test("META-05 private engines peer optional and exact override boundary stay fixed", () => {
   for (const patch of [{ private: false }, { engines: { node: "*" } }, { workspaces: [] }, { overrides: {} },
     { peerDependencies: { react: "^19.0.0" } }, { optionalDependencies: { sharp: "0.35.5" } }]) {
     const value = synthetic(); Object.assign(value.candidatePackage, patch); assert.throws(() => validate(value));
   }
+  const missing = synthetic(); delete missing.candidatePackage.overrides;
+  assert.throws(() => validate(missing));
+  for (const selector of Object.keys(OVERRIDES)) {
+    const partial = synthetic(); delete partial.candidatePackage.overrides[selector];
+    assert.throws(() => validate(partial));
+  }
+  for (const overrides of [
+    { ...OVERRIDES, "unrelated@1.0.0": "1.0.1" },
+    { ...OVERRIDES, undici: "7.30.1" },
+    { ...OVERRIDES, "undici@7.29.1": "^7.30.1" },
+    { ...OVERRIDES, "zod@4.4.3": "file:../outside" },
+    { ...OVERRIDES, "zod@4.4.3": { ".": "4.6.6" } },
+  ]) {
+    const value = synthetic(); value.candidatePackage.overrides = overrides;
+    assert.throws(() => validate(value));
+  }
 });
-test("META-06 lock root metadata outside the five declarations stays fixed", () => {
+test("META-06 lock root metadata outside the Vite declaration stays fixed", () => {
   const value = synthetic(); value.candidateLock.packages[""].engines.node = "*";
   assert.throws(() => validate(value));
+  const rootOverrides = synthetic(); rootOverrides.candidateLock.packages[""].overrides = { ...OVERRIDES };
+  assert.throws(() => validate(rootOverrides));
 });
 test("META-07 lock format and top-level metadata cannot change", () => {
   for (const patch of [{ lockfileVersion: 2 }, { version: "2.0.0" }, { newKey: true }]) {

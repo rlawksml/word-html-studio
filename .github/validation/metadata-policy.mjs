@@ -1,14 +1,16 @@
-// Data-only contract for exactly five fixed toolchain version changes. This
+// Data-only contract for one fixed Vite update and four exact overrides. This
 // does not approve transitive changes or weaken the offline app validator.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 
 const TOOLCHAIN_UPDATES = Object.freeze({
-  vinext: Object.freeze(["0.0.50", "1.2.0"]),
-  "@vitejs/plugin-rsc": Object.freeze(["0.5.26", "0.5.37"]),
-  "@cloudflare/vite-plugin": Object.freeze(["1.54.5", "1.63.1"]),
-  wrangler: Object.freeze(["4.129.1", "4.149.0"]),
-  "@cloudflare/workers-types": Object.freeze(["5.20260921.1", "5.20261006.1"]),
+  vite: Object.freeze(["8.2.2", "8.2.4"]),
+});
+const PATCH_OVERRIDES = Object.freeze({
+  "undici@7.29.1": "7.30.1",
+  "zod@4.4.3": "4.6.6",
+  "brace-expansion@1.1.18": "1.1.21",
+  "brace-expansion@5.0.9": "5.0.12",
 });
 export const METADATA_LIMITS = Object.freeze({ package: 65536, lock: 2 * 1024 * 1024 });
 export const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -46,7 +48,8 @@ function dependencySpecs(value, root) {
 }
 function validateGraph(manifest, lock) {
   assert.equal(manifest.private, true);
-  for (const key of ["workspaces", "overrides", "bundleDependencies", "bundledDependencies"]) assert.ok(!manifest[key]);
+  for (const key of ["workspaces", "bundleDependencies", "bundledDependencies"]) assert.ok(!manifest[key]);
+  assert.deepEqual(manifest.overrides, PATCH_OVERRIDES);
   assert.equal(lock.lockfileVersion, 3);
   assert.ok(record(lock.packages) && Object.keys(lock.packages).length > 0 && Object.keys(lock.packages).length <= 4000);
   assert.ok(record(lock.packages[""]));
@@ -94,11 +97,13 @@ function validateGraph(manifest, lock) {
 }
 export function toolchainManifest(original) {
   assert.ok(record(original) && record(original.dependencies) && record(original.devDependencies));
+  assert.ok(!Object.hasOwn(original, "overrides"));
   const candidate = structuredClone(original);
   for (const [name, [from, to]] of Object.entries(TOOLCHAIN_UPDATES)) {
     assert.equal(original.devDependencies[name], from);
     candidate.devDependencies[name] = to;
   }
+  candidate.overrides = structuredClone(PATCH_OVERRIDES);
   return candidate;
 }
 export function validateCandidate(originalPackageBytes, originalLockBytes, packageBytes, lockBytes) {
@@ -108,11 +113,20 @@ export function validateCandidate(originalPackageBytes, originalLockBytes, packa
   assert.deepEqual(manifest, toolchainManifest(original));
   assert.deepEqual({ ...lock, packages: null }, { ...originalLock, packages: null });
   const root = structuredClone(originalLock.packages[""]);
+  // The candidate lock root may change only Vite; no overrides field is added.
   for (const [name, [, to]] of Object.entries(TOOLCHAIN_UPDATES)) root.devDependencies[name] = to;
   assert.deepEqual(lock.packages[""], root);
   validateGraph(manifest, lock);
   for (const [name, [, to]] of Object.entries(TOOLCHAIN_UPDATES)) {
     assert.equal(lock.packages[`node_modules/${name}`]?.version, to);
+  }
+  for (const [selector, to] of Object.entries(PATCH_OVERRIDES)) {
+    const split = selector.lastIndexOf("@"), name = selector.slice(0, split), from = selector.slice(split + 1);
+    const versions = Object.entries(lock.packages)
+      .filter(([path]) => path === `node_modules/${name}` || path.endsWith(`/node_modules/${name}`))
+      .map(([, item]) => item.version);
+    assert.ok(versions.includes(to));
+    assert.ok(!versions.includes(from));
   }
   const keys = new Set([...Object.keys(originalLock.packages), ...Object.keys(lock.packages)]);
   const graph = { added: 0, removed: 0, changed: 0, unchanged: 0 };
@@ -123,7 +137,7 @@ export function validateCandidate(originalPackageBytes, originalLockBytes, packa
     else graph.unchanged++;
   }
   // These counters identify review work. They are NOT automatic approval of
-  // every transitive change, an audit result, or proof that sharp is patched.
+  // every transitive change, an audit result, or proof of runtime safety.
   return Object.freeze({ packageSha256: sha256(packageBytes), lockSha256: sha256(lockBytes),
     packageBytes: packageBytes.length, lockBytes: lockBytes.length, graph: Object.freeze(graph) });
 }
