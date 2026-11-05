@@ -33,6 +33,8 @@
 
 ## 실행과 알려진 제약
 
-root의 GitHub 동기화가 commit_refs_rules 내부 오류, 공식 connector도 create-tree403으로 차단됐다. CI 실행이 가능해지면 기존25+사진5의 전체30과 기존 source10을 같은 exact 후보에서 실행한다. 타입/빌드 실패가 있으면 실제 진단으로 최소 수정한다. 실행하지 않은 결과는 PASS가 아니다.
+280c291의 [실제 native10](https://github.com/rlawksml/word-html-studio/actions/runs/42063266741)은10PASS/실패·skip0·소유 정리였다. [실제 full 실행](https://github.com/rlawksml/word-html-studio/actions/runs/42063260362)은 typecheck exit2/15진단으로 중단됐으며 lint/build/30TC는 실행하지 않았다. 이후 기존 후보와 같은 header 반환 타입·경로 type predicate·설치된 Cloudflare 타입 연결만 보완했다. 런타임 본문/분기·경로 검증·client 동작은 유지하며 이 후속의 재검증은 별도다.
+
+앞서 GitHub 동기화가 commit_refs_rules 내부 오류, 공식 connector는 create-tree403으로 차단됐다. 이후 정상 Git 전송이 회복되어280c291을 push하고 위 실제 CI를 실행했다. 세 타입 선언 보완 후 기존25+사진5의 전체30과 기존 source10을 같은 exact 후보로 재실행한다. 실행하지 않은 결과는 PASS가 아니다.
 
 old 월 입력(#91)·로컬 통합 순서(#86)·HTML white-space 의존(#82)은 알려진 old UI 동작으로 남는다. 최신 기능 전체를 backport하지 않았다. 아직 불변 배포물/실제 롤백 가능성의 증거는 아니며, 실제 기간/사진/API/최신 데이터/환경 보존 확인이 필요하다. 긴급 앱 롤백에 과거 DB 덮어쓰기·down migration·Storage 삭제를 포함하지 않는다.

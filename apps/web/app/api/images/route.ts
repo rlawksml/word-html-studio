@@ -31,7 +31,7 @@ function safeSegment(value: string) {
   return value.replace(/[^0-9A-Za-z._-]/g, "-").replace(/-+/g, "-").slice(0, 80) || "image";
 }
 
-function validStoragePath(value: unknown, prefix: "originals/" | "previews/") {
+function validStoragePath(value: unknown, prefix: "originals/" | "previews/"): value is string {
   return typeof value === "string" && value.startsWith(prefix) && value.length <= 500 && !value.includes("..") && !value.includes("\\");
 }
 
