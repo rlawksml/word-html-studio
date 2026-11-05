@@ -181,6 +181,9 @@ async function runStages() {
     summaries.push(summary);
     if (stage === "unit" && !result.limited && !result.signal && !result.error) {
       summary.unitDiagnostics = unitFailureLocations(result.stdout);
+      const knownCodes = ["ERR_MODULE_NOT_FOUND", "ERR_UNKNOWN_BUILTIN_MODULE", "ERR_UNKNOWN_FILE_EXTENSION", "ERR_UNSUPPORTED_ESM_URL_SCHEME", "ERR_REQUIRE_ESM", "ERR_INVALID_ARG_TYPE", "ERR_ASSERTION", "ENOENT"];
+      const output = result.stdout.toString("utf8");
+      summary.unitRuntimeErrors = knownCodes.filter((code) => new RegExp(`\\b${code}\\b`).test(output));
       // Observe the footer even on exit1; a failed assertion below still blocks.
       summary.tap = verifySpec(result.stdout, (counters) => { summary.tap = counters; });
     }

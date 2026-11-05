@@ -243,6 +243,12 @@ async function main() {
         }
         console.log(`OFFLINE_UNIT_FAILURE_LOCATIONS ${JSON.stringify(summary.unitDiagnostics)}`);
       }
+      if (summary.stage === "unit" && summary.unitRuntimeErrors !== undefined) {
+        const knownCodes = ["ERR_MODULE_NOT_FOUND", "ERR_UNKNOWN_BUILTIN_MODULE", "ERR_UNKNOWN_FILE_EXTENSION", "ERR_UNSUPPORTED_ESM_URL_SCHEME", "ERR_REQUIRE_ESM", "ERR_INVALID_ARG_TYPE", "ERR_ASSERTION", "ENOENT"];
+        assert.ok(Array.isArray(summary.unitRuntimeErrors) && summary.unitRuntimeErrors.length <= knownCodes.length);
+        assert.deepEqual(summary.unitRuntimeErrors, knownCodes.filter((code) => summary.unitRuntimeErrors.includes(code)));
+        console.log(`OFFLINE_UNIT_RUNTIME_ERRORS ${JSON.stringify(summary.unitRuntimeErrors)}`);
+      }
       if (summary.stage === "unit" && summary.tap !== undefined) {
         const keys = ["tests", "pass", "fail", "cancelled", "skipped", "todo"];
         assert.deepEqual(Object.keys(summary.tap).sort(), [...keys].sort());
