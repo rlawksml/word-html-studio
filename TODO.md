@@ -2,7 +2,7 @@
 
 ## 2026-11-05 현재 릴리스 게이트 (아래 과거 단계 기록보다 우선)
 
-현재 **운영 NO-GO**. 최신 source-map-js1.2.2 후보 exact83fed46의 [전체277TC·type/lint/build·엄격 정리](docs/test-reports/2026-11-05-issue87-source-map-candidate.md)는 통과했습니다. 이전 lock의 실제 audit high1과 새 후보의 **재audit BLOCKED/전송 승인 대기**를 구분합니다. [#94의277TC](docs/test-reports/2026-11-05-issue94-retained-photo-warnings.md)·[이전 #92의276TC](docs/test-reports/2026-11-05-issue92-backup-completeness.md)·[과거 후보247](docs/test-reports/2026-11-05-preprod-candidate-offline.md)과 합산하지 않습니다. 브라우저·실DB·복원/롤백 전체 게이트와 보안 재검증이 남습니다. 아래 과거 체크 표시는 당시 범위이며 현재 배포 완료가 아닙니다.
+현재 **운영 NO-GO**. 최신 source-map-js1.2.2 후보 exact83fed46의 [전체277TC·type/lint/build·엄격 정리](docs/test-reports/2026-11-05-issue87-source-map-candidate.md)는 통과했습니다. 이후 명시 승인 후 동일 pair의 exact3fdb1d1에서 [production 재audit: 취약점 0건·엄격 정리 PASS](docs/test-reports/2026-11-05-issue87-source-map-audit.md)를 확인했습니다. 이전 lock의 high1·당시 전송 승인 차단 이력과 새 실제 결과를 구분합니다. [#94의277TC](docs/test-reports/2026-11-05-issue94-retained-photo-warnings.md)·[이전 #92의276TC](docs/test-reports/2026-11-05-issue92-backup-completeness.md)·[과거 후보247](docs/test-reports/2026-11-05-preprod-candidate-offline.md)과 합산하지 않습니다. 브라우저·실DB·복원/롤백 전체 게이트와 별도 잔여 보안 범위는 남습니다. 아래 과거 체크 표시는 당시 범위이며 현재 배포 완료가 아닙니다.
 
 - [x] #92 별도 분석→수정 전29TC 중19FAIL 재현→최소 수정→같은29/기존복원25/전체276 및 type/lint/build·엄격 정리 PASS, exact9497d1b·독립 검토 (실제 백업/복원 성공 아님)
 - [ ] #93 백업 목적지의 ancestor symlink/TOCTOU 방어와 격리 재현·회귀 (기존 백업을 자동 이동/수정하지 않음)
@@ -20,7 +20,8 @@
 - [x] HTML fixture의 소유 esbuild 실제 close 대기·자동 HTML-LINES-07 한 개 추가. 수동 외부편집기06과 구분
 - [x] #87 최소 Next/eslint-config-next16.4.5 후보·검토한 새 lock 적용, exactbae02fb의 무스크립트 설치/type/lint/build/276TC·엄격 정리 PASS ([보고서](docs/test-reports/2026-11-05-issue87-next-candidate.md)); 보안 완료/배포 아님
 - [x] #87 source-map-js1.2.2의 승인된2JSON 전달·최소 lock3필드 변경·다른734레코드/제품/277TC 보존·정책29/전체277 및 type/lint/build·엄격 정리 PASS ([보고서](docs/test-reports/2026-11-05-issue87-source-map-candidate.md))
-- [ ] #87 새 lock의 실제 production 재audit: public graph·실행환경 정보의 공식 npm registry 전송에 대한 별도 승인 대기. 자동 검토 차단 후 미실행·우회 없음. 이전 high1 결과로 대체 금지. #66 vinext/React·개발 Miniflare/sharp는 별도
+- [x] #87 새 lock의 실제 production 재audit: public graph·실행환경 정보의 공식 npm registry 전송 명시 승인 후 exact3fdb1d1/run42032239269의 전 등급/총합0·SEAL/FINAL/엄격 정리 PASS·artifact0. 이전 차단/발견 결과와 구분 ([보고서](docs/test-reports/2026-11-05-issue87-source-map-audit.md))
+- [ ] #66 vinext/React·개발 Miniflare/sharp 등 별도 잔여 보안 검증. 이번 production metadata 결과를 full dev audit/실행 경로 전체 안전성으로 확대하지 않음
 - [ ] #91 실제 DOM 부분 월 편집/IME 및 로그인·사진·통합본 브라우저/Network·자원 P0
 - [ ] npm/build 각각 관측 warning2의 분류·필요한 조치 (경고 부재나 안전성으로 일반화하지 않음)
 - [ ] 별도 승인 후 #86 SQL·신규 QA·두 작업자/사진의 실제 Staging P0 검증

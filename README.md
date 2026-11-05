@@ -6,7 +6,7 @@
 
 ## 2026-11-05 운영 반영 전 상태
 
-최신 제품 기준에 source-map-js1.2.2만 적용한 exact `83fed46`에서 **전체277TC·typecheck·lint·build·엄격 정리 PASS**를 확인했습니다. 승인된 두JSON 전달·독립 파일 검증도 완료했고 package와 다른734개 lock 레코드는 불변입니다. [최신 보안 후보 보고서](docs/test-reports/2026-11-05-issue87-source-map-candidate.md)를 보세요. **실제 재audit는 별도 registry 전송 승인 대기라 BLOCKED/미실행**이며 보안 전체 완료나 배포 GO가 아닙니다.
+최신 제품 기준에 source-map-js1.2.2만 적용한 exact `83fed46`에서 **전체277TC·typecheck·lint·build·엄격 정리 PASS**를 확인했습니다. 승인된 두JSON 전달·독립 파일 검증도 완료했고 package와 다른734개 lock 레코드는 불변입니다. 이후 별도 registry 전송을 명시 승인받아 같은 manifest pair의 exact `3fdb1d1`에서 **실제 production 재audit: 취약점 0건·엄격 정리 PASS**를 확인했습니다. [앱 후보 보고서](docs/test-reports/2026-11-05-issue87-source-map-candidate.md)와 [실제 재audit 보고서](docs/test-reports/2026-11-05-issue87-source-map-audit.md)를 구분해 보세요. 전체 보안 완료나 배포 GO가 아닙니다.
 
 사용자의 재개 요청에 따라 #94의 **모든 사진 보관·미참조 경고** 정책을 구현하고 exact1f9c605에서 목표30/복원정책25/전체277TC·type/lint/build와 엄격 정리를 검증했습니다. [#94 보고서](docs/test-reports/2026-11-05-issue94-retained-photo-warnings.md)를 보세요. 이전 [중단 기록](docs/test-reports/2026-11-05-pause-resume-checkpoint.md)은 당시 checkpoint이며 현재 중단 상태를 뜻하지 않습니다.
 
@@ -16,7 +16,7 @@
 
 후속 #92의 exact `9497d1b`에서 **typecheck·lint·build·276TC와 자식 종료/임시 자원 정리**를 무료 Linux 격리 CI로 검증했습니다. 수정 전29TC 중19FAIL을 재현한 뒤 같은29개와 기존복원25개도 별도 통과했습니다. [백업 완전성 RED/GREEN 보고서](docs/test-reports/2026-11-05-issue92-backup-completeness.md)를 확인하세요. 과거 후보의 [247TC](docs/test-reports/2026-11-05-preprod-candidate-offline.md)·[native99](docs/test-reports/2026-11-05-candidate99-native-regression.md)는 다른 exact 증거이며 중복 합산하지 않습니다.
 
-**운영 NO-GO**는 유지합니다. #93 백업 경로와 #94 정책의 실제 백업/복원 검증, 잔여 보안 업데이트·재audit, 브라우저·실DB P0, 최신 독립 백업과 exact fallback 호환이 남습니다. 이번에는 main merge·운영/Staging 배포·SQL·기존 DB/사진·유료 설정을 변경하지 않았습니다. 실제 긴급 롤백 가능을 아직 확정하지 않으며 남은 게이트는 [TODO](TODO.md)를 따릅니다.
+**운영 NO-GO**는 유지합니다. #93 백업 경로와 #94 정책의 실제 백업/복원 검증, #66 등 잔여 보안 범위, 브라우저·실DB P0, 최신 독립 백업과 exact fallback 호환이 남습니다. 이번에는 main merge·운영/Staging 배포·SQL·기존 DB/사진·유료 설정을 변경하지 않았습니다. 실제 긴급 롤백 가능을 아직 확정하지 않으며 남은 게이트는 [TODO](TODO.md)를 따릅니다.
 
 ## 현재 구현된 프로토타입
 

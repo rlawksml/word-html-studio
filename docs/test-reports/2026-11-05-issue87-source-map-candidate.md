@@ -3,11 +3,11 @@
 ## 판정과 범위
 
 - **후보 생성·파일 검증·앱 회귀 PASS / 운영 NO-GO**.
-- 실제 보안 재audit는 외부 전송의 별도 승인 확인에서 **BLOCKED**되어 실행하지 않았다. 이전 high1 결과를 새 lock의 결과로 복사하거나, 수정 버전만 보고 취약점 0건으로 판단하지 않는다.
+- 이 후보 보고서 최초 작성 시 보안 재audit는 외부 전송 승인 단계에서 **BLOCKED**되어 미실행이었다. 이후 명시 승인과 실제 재검사 PASS는 [별도 후속 보고서](2026-11-05-issue87-source-map-audit.md)에 기록했다. 아래 차단 이력은 당시 사실로 보존하며 이전 high1이나 수정 버전만으로 새 audit PASS를 추정한 것이 아니다.
 - 최신 제품 기준 `1eed9cb7752b9ade0091d9a9c5af6a72477f0cc9`의 #94 사진 보관 정책과 기존 27파일·277TC를 보존했다.
 - 제품 검증 commit: `83fed460aa51ea62ef746ad1268c79da0fe53b92`, branch `codex/m1-source-map-security`.
 - metadata 도구 commit: `661b6fba2512ca512b2d37f3299c2eea58e27a79`, branch `codex/m1-source-map-metadata`.
-- 미실행 audit 준비 commit: `3fdb1d1b4159484c45182e77a285d5f827ef5d5e`, branch `codex/m1-source-map-audit`. 이 도구의 옛 앱 기준276을 최신 제품277 실행 증거로 쓰지 않는다.
+- 당시 미실행 audit 준비 commit: `3fdb1d1b4159484c45182e77a285d5f827ef5d5e`, branch `codex/m1-source-map-audit`(이후 실행은 후속 보고서 참조). 이 도구의 옛 앱 기준276을 최신 제품277 실행 증거로 쓰지 않는다.
 - main merge·운영/Staging 배포·공유 SQL·기존 DB/Storage/QA·환경·유료 설정 변경 없음. 원래 dirty 작업 공간과 이전 checkpoint는 보존했다.
 
 ## 원인과 최소 변경
@@ -40,7 +40,7 @@
 | 제품 typecheck/lint/build | [run42030911635/job127256881741](https://github.com/rlawksml/word-html-studio/actions/runs/42030911635/job/127256881741), exact83fed46,3단계 모두 exit0·signal null·limited/error false·blockedReason null |
 | 제품 전체 unit | 같은 run, 기존27파일277PASS/실패·취소·TC skip·todo0,12:54:28.4622424Z |
 | 최종 종료/정리 | 같은 run의 엄격 종료·실효 OS 검사·소유 리소스 정리 후12:54:29.0023251Z `OFFLINE_APP_COMPLETE` |
-| 새 lock production audit | **BLOCKED / 미실행**. 자동 승인 검토에서 public graph·실행환경 metadata의 registry 전송에 대한 명시적 승인 부족으로 차단됨. 구체 payload/목적지에 대한 사용자 답변 대기. 우회·재시도하지 않음 |
+| 새 lock production audit 최초 승인 단계 | **당시 BLOCKED / 미실행**. public graph·실행환경 metadata 전송 승인 부족으로 차단, 사용자 답변 전 우회·재시도 없음. 이후 명시 승인 후 실제 PASS는 후속 보고서 참조 |
 | 실제 브라우저·DB/사진·fallback/복원 | 이번 패키지 검증에 포함하지 않음. 전체 운영 게이트에서는 여전히 BLOCKED |
 
 최종 META 테스트 SHA는 `5dd1e316953348ecade3096d15062633c21b6b850c4b535127bf352283a31c53`이다. 기존 META12~24를 유지하고, 단일 target 외 변경/추가/삭제·root/scripts/directdeps·잘못된 canonical SRI·no-op·중첩 target·package byte 변경·원본 pin 오류를 거부한다. META29는 읽기 전용 공개 package fixture로 첫 hash를 통과한 뒤 잘못된 lock의 실제/기대 hash까지 확인한다. metadata 도구의 기존 offline276 기준은 그대로 두고 전용 입력 검증을 분리했다. 제품277 기준에는 승인된 새 lock hash와 대응 pin만 반영했다.
@@ -63,6 +63,6 @@ resolver는 고정 `npm update source-map-js --package-lock-only --ignore-script
 
 - npm prep 관측 warning2(stdout27/stderr166B), build 관측 warning2(stdout1590/stderr722B)는 별도 분류가 필요하다. raw text가 없어 경고 부재나 안전성을 일반화하지 않는다.
 - unit stdout64,970B/stderr0, 공유64KiB cap 여유566B. 관측 warning 일치4개를 런타임 경고4건으로 단정하지 않는다(테스트 제목 포함 가능). 출력 요약 개선 전 상한 완화·TC 삭제·제목 축약을 하지 않는다.
-- 새 audit는 아직 실행하지 않았고 기존 high1 해결 여부의 검사 결과를 확정하지 않는다. 승인 시 준비된 audit exact3fdb1d1의 public graph/실행환경 정보만 공식 registry에 보내 plain audit를 실행한다. 설치·fix·앱·키·DB·사진·artifact·배포는 하지 않는다.
+- 당시에는 새 audit를 실행하지 않아 기존 high1 해결 여부를 확정하지 않았다. 이후 명시 승인 후 exact3fdb1d1의 public graph/실행환경 정보만 공식 registry에 전송한 실제 결과는 후속 보고서를 따른다. 설치·fix·앱·키·DB·사진·artifact·배포는 하지 않았다.
 - #66 vinext/React·개발 Miniflare/sharp, #93 경로/TOCTOU, 실제 P0/사진·동시 작업·통합본·#86 SQL, 최신 독립 백업·새 빈 대상 복원·호환 exact fallback은 별도다.
 - 실제 운영 장애 확인·새 배포·복구 가능 확정이나 이슈 종료를 하지 않았다. 앱 롤백에도 최신 DB/사진을 유지한다.

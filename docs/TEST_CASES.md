@@ -4,9 +4,13 @@
 
 ## 문서 정보
 
+### 2026-11-05 #87 명시 승인 후 실제 재audit
+
+[실제 재audit 보고서](test-reports/2026-11-05-issue87-source-map-audit.md): 전송에 대한 사용자 명시 승인 후 exact3fdb1d1/run42032239269의 plain production audit가 PASS/reasonNONE, 모든 등급/총합0·npm11.19.1·SEAL/FINAL/엄격 정리 후 COMPLETE·artifact0이었다. 아래 이전 후보 보고서의 승인 차단은 당시 기록으로 보존한다. AUDIT-LIVE01과 종료 제어는 같은1회 실행에서 확인했으며 별도 앱 exact83fed46의277·type/lint/build와 같은4b79/6829 pair로 연결한다. 전체 TC-SEC-001의 실제 브라우저/DB·배포 후 검증은 미완료이고 #66/full dev 보안·운영 GO로 확대하지 않는다.
+
 ### 2026-11-05 #87 source-map-js 최소 후보
 
-[최신 보고서](test-reports/2026-11-05-issue87-source-map-candidate.md): metadata exact661b6fb의 최종META01~29 PASS와 승인된2JSON 회수/파일 검증, 제품 exact83fed46의 기존27파일277TC/type/lint/build·엄격 정리 PASS. package 불변·lock735개 중 target3필드만 변경·기타734개 불변을 확인했다. 새 실제 audit는 public graph/실행환경 metadata 전송 승인 단계에서 BLOCKED/미실행이다. 이전 high1 audit와 혼동하지 않으며 TC-SEC-001 전체 PASS나 운영 GO로 처리하지 않는다. 두29 실행 및29/277·이전 결과를 합산하지 않는다. unit 출력64970B/공유cap여유566B·warning 분류 미완료와 실제 브라우저/DB/fallback 게이트를 유지한다.
+[당시 후보 보고서](test-reports/2026-11-05-issue87-source-map-candidate.md): metadata exact661b6fb의 최종META01~29 PASS와 승인된2JSON 회수/파일 검증, 제품 exact83fed46의 기존27파일277TC/type/lint/build·엄격 정리 PASS. package 불변·lock735개 중 target3필드만 변경·기타734개 불변을 확인했다. 당시 actual audit는 전송 승인 단계에서 BLOCKED/미실행이었고, 이후 실제 결과는 위 후속 기록을 따른다. 이전 high1 audit와 혼동하지 않으며 TC-SEC-001 전체 PASS나 운영 GO로 처리하지 않는다. 두29 실행 및29/277·이전 결과를 합산하지 않는다. unit 출력64970B/공유cap여유566B·warning 분류 미완료와 실제 브라우저/DB/fallback 게이트를 유지한다.
 
 ### 2026-11-05 #94 사진 보관 정책 후속
 
