@@ -42,7 +42,8 @@ jobs:
           [[ -f "$env_real" && -x "$env_real" ]] || fail HOST_ENV_NOT_REGULAR_EXECUTABLE
           node_version="$(/usr/bin/timeout --kill-after=5s 5s /usr/bin/env -i PATH=/usr/bin:/bin "$node_real" --version)" || fail HOST_NODE_VERSION_FAILED
           [[ "$node_version" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] || fail HOST_NODE_VERSION_INVALID
-          (( BASH_REMATCH[1] > 22 || (BASH_REMATCH[1] == 22 && BASH_REMATCH[2] >= 13) )) || fail HOST_NODE_TOO_OLD
+          # Native TS stripping without experimental warnings is required by the photo suite.
+          (( BASH_REMATCH[1] > 22 || (BASH_REMATCH[1] == 22 && BASH_REMATCH[2] >= 18) )) || fail HOST_NODE_TOO_OLD
 
           workspace="$(/usr/bin/realpath -e -- "$GITHUB_WORKSPACE")" || fail WORKSPACE_UNRESOLVED
           [[ "$workspace" == "$GITHUB_WORKSPACE" ]] || fail WORKSPACE_SYMLINK_FORBIDDEN
@@ -162,7 +163,7 @@ jobs:
           [[ -f "$launcher_source" && ! -L "$launcher_source" && "$(/usr/bin/realpath -e -- "$launcher_source")" == "$launcher_source" ]] || fail LAUNCHER_NOT_REGULAR
           [[ "$(wc -c < "$launcher_source")" -le 16384 ]] || fail LAUNCHER_SIZE_EXCEEDED
           launcher_sha256="$(sha256sum -- "$launcher_source")"
-          [[ "${launcher_sha256%% *}" == '4f788fe9e466b5a842c131de85ccf49271795ee2224a8bad039093fdd986c68c' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
+          [[ "${launcher_sha256%% *}" == '5a5707e57df7eaf6458ac0936b73fc3fa81442f20eeb23df720856d999984b01' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
           cp -- "$launcher_source" "$rootfs/usr/bin/source-policy-launcher.mjs"
 
           # Suite names never become paths/commands. No npm, SDK, key or app build.
@@ -178,6 +179,19 @@ jobs:
                 apps/web/tests/backup-safety.test.mjs
               )
               test_argv=(tests/schema-marker-restore-policy.test.mjs tests/backup-safety.test.mjs)
+              ;;
+            photo)
+              expected_tests=12
+              source_files=(
+                apps/web/package.json
+                apps/web/lib/image-retention-policy.mjs
+                apps/web/lib/workspace-client.ts
+                apps/web/tests/image-retention-policy.test.mjs
+                apps/web/hooks/use-studio-controller.ts
+                apps/web/app/api/images/route.ts
+                apps/web/components/molecules/NewsEditorCard.tsx
+              )
+              test_argv=(tests/image-retention-policy.test.mjs)
               ;;
             *) fail SOURCE_SUITE_NOT_ALLOWLISTED ;;
           esac
