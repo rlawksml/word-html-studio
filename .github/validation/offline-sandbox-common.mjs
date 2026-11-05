@@ -88,6 +88,11 @@ export function preflight(role, { preparing = false } = {}) {
 }
 export function summarize(stage, result) {
   const output = Buffer.concat([result.stdout, result.stderr]).toString("utf8");
+  const nativeLibraryTokens = result.code === 0 ? [] : [
+    "libstdc++.so.6", "libgcc_s.so.1", "libatomic.so.1", "libz.so.1", "libzstd.so.1",
+    "libssl.so.3", "libcrypto.so.3", "libc.so.6", "libm.so.6", "libpthread.so.0",
+    "libdl.so.2", "librt.so.1", "libresolv.so.2", "libnss_dns.so.2", "libc++.so.1", "libc++abi.so.1",
+  ].filter((name) => output.includes(`${name}: cannot open shared object file`));
   const warningLines = output.split("\n").filter((line) => /\b(?:warn|warning|warnings)\b/i.test(line)).length;
   let blockedReason = result.reason ?? null;
   if (!blockedReason && result.code !== 0 && /double-loading config/i.test(output)) blockedReason = "DUPLICATE_NPM_CONFIG_PATH";
@@ -99,7 +104,7 @@ export function summarize(stage, result) {
     blockedReason, stdoutBytes: result.stdout.length, stderrBytes: result.stderr.length,
     stdoutSha256: sha256(result.stdout), stderrSha256: sha256(result.stderr),
     // Observed matching lines, NOT a claim that unmatched warnings do not exist.
-    observedWarningLines: warningLines,
+    observedWarningLines: warningLines, nativeLibraryTokens,
   };
 }
 export function emit(value) { process.stdout.write(`${JSON.stringify(value)}\n`); }

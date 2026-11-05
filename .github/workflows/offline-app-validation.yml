@@ -59,13 +59,13 @@ jobs:
             [[ "${actual%% *}" == "$expected" ]] || fail OFFLINE_REVIEW_HASH_MISMATCH
             /usr/bin/cp -- "$source_file" "$scratch/trusted/$relative"
           done <<'REVIEWED_CLOSURE'
-          82b71bef3f8980e9d5c197654600f2f1dae2f55fc0665c76bc346b8a40c9b1a4 offline-host-controller.mjs
+          46066b70266183bf66dae3da37a1cf538252a4ef2baf7095a9b4aadc2112712c offline-host-controller.mjs
           abe01b3a84116e30cea9d85ae71f292f23d7611c1b3ac3dcce42e8c2ea013c51 offline-host-support.mjs
           f7e596086f32463a9a98421acf3d3c963fc1844d56cd0762d224a87e71fc67b1 offline-host-source.mjs
           461eb450c6f9a5e830b48a79094a38aa41748d977dee0bd269ea111f8a4f478b offline-host-runtime.mjs
           f08f44f8407f481356dd921647850d8a874b9eb9315c7207e0fedd872bc04476 offline-host-docker.mjs
           4503d2631ababbbd1c3ddf15f12c3d06058e1528f7631e58148521f58c53f035 offline-baseline.mjs
-          25158bcdfc23df73facce95aafecde8b78c82a4edc2427b1d50fa637b729cc7d offline-sandbox-common.mjs
+          18e576e8d2f0123a38ce28d76ea939099b1ae98705115868f860cf5cca72861b offline-sandbox-common.mjs
           11df609cae4121782f2a3e2ad977aa12d891c9914451c7a95bfc4153e6b2ae58 offline-prep-launcher.mjs
           884d034f865da1035543515d031a1f9973592065bffd13166cfcceeb1dcca8a9 offline-app-launcher.mjs
           499ed0e6a76ded0ba21350c381107651eb6cb0cf73e5160102050236f7315cd5 offline-app.Dockerfile

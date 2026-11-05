@@ -87,6 +87,15 @@ function publishSummary(value) {
   for (const field of ["stdoutSha256", "stderrSha256"]) assert.match(value[field], /^[a-f0-9]{64}$/);
   const selected = Object.fromEntries(["stage", "exit", "signal", "limited", "error", "blockedReason", "stdoutBytes", "stderrBytes", "stdoutSha256", "stderrSha256", "observedWarningLines"].map((key) => [key, value[key]]));
   console.log(`OFFLINE_STAGE_SUMMARY ${JSON.stringify(selected)}`);
+  const knownLibraries = new Set([
+    "libstdc++.so.6", "libgcc_s.so.1", "libatomic.so.1", "libz.so.1", "libzstd.so.1",
+    "libssl.so.3", "libcrypto.so.3", "libc.so.6", "libm.so.6", "libpthread.so.0",
+    "libdl.so.2", "librt.so.1", "libresolv.so.2", "libnss_dns.so.2", "libc++.so.1", "libc++abi.so.1",
+  ]);
+  assert.ok(Array.isArray(value.nativeLibraryTokens) && value.nativeLibraryTokens.length <= knownLibraries.size);
+  assert.ok(value.nativeLibraryTokens.every((name) => knownLibraries.has(name)));
+  assert.equal(new Set(value.nativeLibraryTokens).size, value.nativeLibraryTokens.length);
+  if (value.nativeLibraryTokens.length) console.log(`OFFLINE_NATIVE_LIBRARY_TOKENS stage=${value.stage} tokens=${JSON.stringify(value.nativeLibraryTokens)}`);
 }
 function publishTypeDiagnostics(value, sourcePaths) {
   if (value.stage !== "typecheck" || value.typeDiagnostics === undefined) return;
