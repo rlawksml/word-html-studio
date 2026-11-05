@@ -140,6 +140,9 @@ jobs:
               printf '::error::CONTAINER_CLEANUP_UNCONFIRMED\n'
               exit 1
             fi
+            if [[ "$run_attempted" == 1 ]]; then
+              printf 'SOURCE_POLICY_OWNED_CLEANUP_CONFIRMED\n'
+            fi
             exit "$original_status"
           }
           trap cleanup EXIT
@@ -163,7 +166,7 @@ jobs:
           [[ -f "$launcher_source" && ! -L "$launcher_source" && "$(/usr/bin/realpath -e -- "$launcher_source")" == "$launcher_source" ]] || fail LAUNCHER_NOT_REGULAR
           [[ "$(wc -c < "$launcher_source")" -le 16384 ]] || fail LAUNCHER_SIZE_EXCEEDED
           launcher_sha256="$(sha256sum -- "$launcher_source")"
-          [[ "${launcher_sha256%% *}" == '463dd25ddacb738cf75d7fcb2446374b3180a4960d99a4e89e3dc48f1ec5eeaf' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
+          [[ "${launcher_sha256%% *}" == '16ed6700014bb42f80fde68007c45760fd55fa81c291a522a61e750d9235e024' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
           cp -- "$launcher_source" "$rootfs/usr/bin/source-policy-launcher.mjs"
 
           # Suite names never become paths/commands. No npm, SDK, key or app build.
@@ -229,6 +232,16 @@ jobs:
                 apps/web/tests/publication-month.test.mjs
               )
               test_argv=(tests/publication-month.test.mjs)
+              ;;
+            exact_fallback)
+              expected_tests=6
+              source_files=(
+                apps/web/tests/exact-fallback-preservation.test.mjs
+                apps/web/tests/fixtures/exact-fallback-28efad2/workspace-validation.ts.txt
+                apps/web/tests/fixtures/exact-fallback-28efad2/workspace-records.ts.txt
+                apps/web/tests/fixtures/exact-fallback-28efad2/submission-route.ts.txt
+              )
+              test_argv=(tests/exact-fallback-preservation.test.mjs)
               ;;
             *) fail SOURCE_SUITE_NOT_ALLOWLISTED ;;
           esac
@@ -307,6 +320,16 @@ jobs:
             --label "bookstore.source-policy-qa=$nonce" "$image_id" "${test_argv[@]}" || { \
               # Report only test indices, never target-controlled messages/files.
               grep -E '^not ok [0-9]+ ' "$run_log" | sed -E 's/^not ok ([0-9]+) .*/Isolated test index failed: \1/' || true
+              printf 'Source policy failure exit=%s\n' "$bounded_exit"
+              if [[ "$(grep -Fxc 'SOURCE_SANDBOX_PREFLIGHT_PASS' "$run_log")" == 1 ]]; then
+                printf 'Source policy failure preflight=confirmed\n'
+              fi
+              for counter in tests pass fail cancelled skipped todo; do
+                count="$(sed -nE "s/^# $counter ([0-9]{1,5})$/\\1/p" "$run_log")"
+                if [[ "$count" =~ ^[0-9]{1,5}$ ]]; then
+                  printf 'Source policy failure counter=%s value=%s\n' "$counter" "$count"
+                fi
+              done
               fail SANDBOX_TEST_FAILED_OR_OUTPUT_CAPPED
             }
 
