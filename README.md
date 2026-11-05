@@ -137,7 +137,9 @@ npm run backup:verify -- /absolute/path/to/backup
 
 로딩의 브라우저 회귀는 빌드 후 `npm run test:browser-loading`으로 실행합니다. Playwright가 별도 도구 환경에 설치돼 있다면 `PLAYWRIGHT_MODULE_PATH`에 해당 `playwright/index.mjs` 절대 경로를 지정합니다. 이 검증은 임시 로컬 서버와 메모리 fixture만 사용하고 모든 API를 mock 처리하므로 Supabase 키·실제 암호가 필요 없습니다. 보고서: [로딩·세션 통합 검증](docs/test-reports/2026-09-22-issue-75-local-browser.md).
 
-`test:integration:local`은 `.env.local`의 Supabase에 테스트 전용 책방·소식·사진을 잠시 만들고 저장 충돌과 파일 정리를 확인한 뒤 모두 삭제합니다. 격리 Staging 연결인지 반드시 확인하며 운영 연결에서는 실행하지 않습니다. GitHub Actions에서는 기본 lint·typecheck·build·회귀 테스트를 자동 실행하고, 저장소 Secret이 설정된 수동 실행에서 같은 Supabase 통합 테스트를 수행합니다.
+`test:integration:local`은 현재 **안전 차단 확인용**입니다. 환경파일·SDK·Worker를 읽거나 DB/Storage에 연결하기 전에 종료합니다. 기존 실연결 통합 suite도 활성화 flag와 무관하게 쓰기/정리를 차단하고, CI의 해당 job은 하드 비활성화했습니다. caller가 만든 cleanup evidence는 실제 ownership/원자성 증거가 아니므로, 별도 검토·승인한 adapter 없이 이를 해제하지 않습니다. 운영·보관 Staging의 기존 자료와 성공 QA를 삭제하지 않습니다.
+
+현재 수동 CI는 exact feature SHA에 대한 무키·무외부네트워크·읽기전용·OS 자원 제한 **source-policy 검증**만 수행합니다. 일반 PR/main의 audit·lint·typecheck·build·회귀 gate는 유지하지만 이번 수동 source 검증 성공이 그 전체 통과를 의미하지 않습니다. [운영 전 병렬 체크포인트](docs/test-reports/2026-11-05-preprod-parallel-checkpoints.md)에서 원래 미커밋 변경의 보존 범위와 미검증 항목을 확인하세요.
 
 Vite 빌드는 TypeScript 문법을 변환하지만 전체 타입 검사를 대신하지 않습니다. 배포 전 `npm run typecheck` 통과가 필수입니다. Cloudflare 타입은 개발 의존성으로만 제공하며 `cloudflare-env.d.ts`의 선택적 D1 선언은 DB를 생성하거나 Supabase 연결을 바꾸지 않습니다.
 
