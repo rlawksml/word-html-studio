@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
-import test from "node:test";
+import test, { after } from "node:test";
+import { installCloudflareTracingFixture } from "./cloudflare-tracing-fixture.mjs";
+
+const tracingFixture = installCloudflareTracingFixture(new URL("../dist/server/", import.meta.url));
+after(() => tracingFixture.deregister());
 
 const applicationSourceFiles = [
   "../hooks/use-studio-controller.ts",
