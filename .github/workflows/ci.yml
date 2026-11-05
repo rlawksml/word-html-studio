@@ -19,7 +19,7 @@ on:
       source_suite:
         description: Reviewed source-policy suite, ignored by rollback mode
         type: choice
-        options: [restore, photo, preservation, evidence]
+        options: [restore, photo, preservation, evidence, publication]
         default: restore
         required: false
 
@@ -118,7 +118,7 @@ jobs:
           case "$VALIDATION_MODE" in
             rollback_preparation) ;;
             source_policy)
-              [[ "$GITHUB_REF" == refs/heads/codex/* && ( "$SOURCE_SUITE" == restore || "$SOURCE_SUITE" == photo || "$SOURCE_SUITE" == preservation || "$SOURCE_SUITE" == evidence ) ]] || { echo '::error::SOURCE_POLICY_DISPATCH_BLOCKED'; exit 1; }
+              [[ "$GITHUB_REF" == refs/heads/codex/* && ( "$SOURCE_SUITE" == restore || "$SOURCE_SUITE" == photo || "$SOURCE_SUITE" == preservation || "$SOURCE_SUITE" == evidence || "$SOURCE_SUITE" == publication ) ]] || { echo '::error::SOURCE_POLICY_DISPATCH_BLOCKED'; exit 1; }
               ;;
             *) echo '::error::ISOLATED_MODE_NOT_ALLOWLISTED'; exit 1 ;;
           esac
