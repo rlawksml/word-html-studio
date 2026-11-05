@@ -166,7 +166,7 @@ jobs:
           [[ -f "$launcher_source" && ! -L "$launcher_source" && "$(/usr/bin/realpath -e -- "$launcher_source")" == "$launcher_source" ]] || fail LAUNCHER_NOT_REGULAR
           [[ "$(wc -c < "$launcher_source")" -le 16384 ]] || fail LAUNCHER_SIZE_EXCEEDED
           launcher_sha256="$(sha256sum -- "$launcher_source")"
-          [[ "${launcher_sha256%% *}" == '3167b7611ca6cdf08d548ec616b5244d7c264e1cdb3da28908569ea4e6998343' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
+          [[ "${launcher_sha256%% *}" == '2b4a012a965fcac118c961011625b414ccc77545bfbd08092d3ffd20dc947795' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
           cp -- "$launcher_source" "$rootfs/usr/bin/source-policy-launcher.mjs"
 
           # Suite names never become paths/commands. No npm, SDK, key or app build.
@@ -247,12 +247,16 @@ jobs:
               test_argv=(tests/backup-completeness.test.mjs)
               ;;
             dependency_audit)
-              expected_tests=19
+              expected_tests=27
               source_files=(
                 .github/validation/audit-policy.mjs
                 .github/validation/audit-policy.test.mjs
+                .github/validation/audit-runtime.test.mjs
+                .github/validation/audit-file-io.mjs
+                .github/validation/offline-baseline.mjs
+                .github/validation/offline-host-support.mjs
               )
-              test_argv=(.github/validation/audit-policy.test.mjs)
+              test_argv=(.github/validation/audit-policy.test.mjs .github/validation/audit-runtime.test.mjs)
               ;;
             *) fail SOURCE_SUITE_NOT_ALLOWLISTED ;;
           esac

@@ -6,7 +6,7 @@ import { chmodSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { LOCK_SHA256, PACKAGE_SHA256 } from "./offline-baseline.mjs";
-import { OwnedDocker } from "./offline-host-docker.mjs";
+import { AuditDocker } from "./audit-host-docker.mjs";
 import { copyRuntime } from "./offline-host-runtime.mjs";
 import { validateManifests } from "./offline-host-source.mjs";
 import { bounded, readRegular, requireSuccess } from "./offline-host-support.mjs";
@@ -93,7 +93,7 @@ async function main() {
   assert.equal(npmMetadata.name, "npm");
   const version = npmVersion(npmMetadata.version);
   const nonce = randomBytes(16).toString("hex");
-  docker = new OwnedDocker(scratch, nonce);
+  docker = new AuditDocker(scratch, nonce);
   docker.abortSignal = abort.signal;
   checkpoint();
   stage("LIMITS");
@@ -109,7 +109,7 @@ async function main() {
   stage("RUNTIME");
   const runtime = await copyRuntime(rootfs, node, npmCli, aliases, "prep", runtimeStep);
   let added = pair.package.length + pair.lock.length;
-  for (const name of ["audit-policy.mjs", "audit-file-io.mjs"]) added += copyTrusted(join(trusted, name), join(rootfs, "trusted", name));
+  for (const name of ["audit-policy.mjs", "audit-file-io.mjs", "audit-sandbox-preflight.mjs"]) added += copyTrusted(join(trusted, name), join(rootfs, "trusted", name));
   assert.ok(runtime.totalBytes + added <= 448 * 1024 * 1024);
   for (const [kind, name] of [["package", "package.json"], ["lock", "package-lock.json"]]) {
     writeFileSync(join(rootfs, "input", name), pair[kind], { flag: "wx", mode: 0o444 });
@@ -117,7 +117,6 @@ async function main() {
   checkpoint();
   stage("BUILD");
   const image = await docker.build(context);
-  await docker.createVolume(); // empty tmpfs required by unchanged preflight
   stage("AUDIT");
   await docker.create("prep", image);
   await docker.start("prep");
@@ -135,10 +134,9 @@ async function main() {
   stage("FINAL");
   // After sealing, repeat leaf hashes, process quiescence and effective OS
   // preflight; do not trust only an HTTP response or the audit process exit.
-  assert.deepEqual(decodeStatus(await docker.exec("prep", "status"), nonce, version), prepared);
+  assert.deepEqual(decodeStatus(await docker.sealedStatus(), nonce, version), prepared);
   const final = await docker.inspect("prep");
   assert.ok(final.State.Running && !final.State.OOMKilled && docker.prepSealed);
-  await docker.inspectVolume();
   checkpoint();
   completion = { summary: prepared.summary, version, evidence: { ...prepared.evidence,
     networkSealed: docker.prepSealed, running: final.State.Running, oomKilled: final.State.OOMKilled, cleaned: false } };

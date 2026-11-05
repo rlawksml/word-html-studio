@@ -67,17 +67,19 @@ jobs:
             [[ "${actual%% *}" == "$expected" ]] || fail DEPENDENCY_AUDIT_HASH_MISMATCH
             /usr/bin/cp -- "$source_file" "$scratch/trusted/$relative"
           done <<'REVIEWED_CLOSURE'
-          REVIEW_REQUIRED_AUDIT_CONTROLLER audit-host-controller.mjs
-          REVIEW_REQUIRED_AUDIT_POLICY audit-policy.mjs
-          REVIEW_REQUIRED_AUDIT_FILE_IO audit-file-io.mjs
-          REVIEW_REQUIRED_AUDIT_PREP audit-prep-launcher.mjs
-          REVIEW_REQUIRED_BASELINE offline-baseline.mjs
-          REVIEW_REQUIRED_SUPPORT offline-host-support.mjs
-          REVIEW_REQUIRED_SOURCE offline-host-source.mjs
-          REVIEW_REQUIRED_RUNTIME offline-host-runtime.mjs
-          REVIEW_REQUIRED_DOCKER offline-host-docker.mjs
-          REVIEW_REQUIRED_COMMON offline-sandbox-common.mjs
-          REVIEW_REQUIRED_DOCKERFILE offline-app.Dockerfile
+          69ebaf9283d1aedcef0319a971a5a060d3c9bddc568c32f80c249b62533291a8 audit-host-controller.mjs
+          ef25747676fb35fafcac5afe8550f20490df9eb07a3b59f5b1c589663eefcdaf audit-host-docker.mjs
+          9292eff6336b448e995722a7791479deac421ac816e057a2d85a5ba5bcbd6ec3 audit-sandbox-preflight.mjs
+          578f457e86297df01c3025e3b834333202f8bd2e6105eeb5da76d7a1fad051da audit-policy.mjs
+          251ced3998bdb9a30f3e86fa6af5670ab377c790bb4d9815de56d2479ba0966b audit-file-io.mjs
+          89f9db20736d4f14c271ecd10bdf31d4363cdfef5af9c77f5d61ab281a293174 audit-prep-launcher.mjs
+          75d3223b3d0e0932fdbeb798f424f00b3fd656777c28e812acb8868fd35d6ce1 offline-baseline.mjs
+          abe01b3a84116e30cea9d85ae71f292f23d7611c1b3ac3dcce42e8c2ea013c51 offline-host-support.mjs
+          f7e596086f32463a9a98421acf3d3c963fc1844d56cd0762d224a87e71fc67b1 offline-host-source.mjs
+          9fc295a1ea304d7cfb4075168f169bad4b484dea787426a8d05e5199eced9023 offline-host-runtime.mjs
+          f08f44f8407f481356dd921647850d8a874b9eb9315c7207e0fedd872bc04476 offline-host-docker.mjs
+          18e576e8d2f0123a38ce28d76ea939099b1ae98705115868f860cf5cca72861b offline-sandbox-common.mjs
+          499ed0e6a76ded0ba21350c381107651eb6cb0cf73e5160102050236f7315cd5 offline-app.Dockerfile
           REVIEWED_CLOSURE
           # The registry may receive the complete public lock dependency graph
           # plus Node/npm version, platform and architecture despite omit=dev.

@@ -5,15 +5,16 @@ import assert from "node:assert/strict";
 import { lstatSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { PREP_ENV, PACKAGE_SHA256, LOCK_SHA256 } from "./offline-baseline.mjs";
 import { bounded } from "./offline-host-support.mjs";
-import { emit, jsonFile, noOtherProcesses, preflight, validNonce } from "./offline-sandbox-common.mjs";
+import { emit, jsonFile, noOtherProcesses, validNonce } from "./offline-sandbox-common.mjs";
+import { auditPreflight } from "./audit-sandbox-preflight.mjs";
 import { AUDIT_WALL_MS, classifyAudit, lockInventory, npmVersion, validateSummary } from "./audit-policy.mjs";
 import { readInputPair, readStableFile } from "./audit-file-io.mjs";
 
 const statePath = "/scratch/dependency-audited.json";
-function inputEvidence() {
+function inputEvidence({ sealed = false } = {}) {
   readInputPair(); // descriptor identity/size and pinned SHA-256 rechecked
   assert.equal(readFileSync("/proc/1/task/1/children", "utf8").trim(), "");
-  preflight("prep");
+  auditPreflight({ sealed });
   return { packageSha256: PACKAGE_SHA256, lockSha256: LOCK_SHA256, children: 0, preflight: true };
 }
 function version() {
@@ -24,8 +25,8 @@ function version() {
 async function main() {
   const [action, rawNonce, ...extra] = process.argv.slice(2);
   const nonce = validNonce(rawNonce);
-  assert.ok(!extra.length && ["prepare", "status"].includes(action));
-  if (action === "status") {
+  assert.ok(!extra.length && ["prepare", "status", "sealed-status"].includes(action));
+  if (action !== "prepare") {
     let state;
     try { state = jsonFile(statePath); }
     catch (error) {
@@ -38,13 +39,13 @@ async function main() {
     assert.equal(state.nonce, nonce);
     assert.equal(state.done, true);
     validateSummary(state.summary, version());
-    assert.deepEqual(state.evidence, inputEvidence());
+    assert.deepEqual(state.evidence, inputEvidence({ sealed: action === "sealed-status" }));
     noOtherProcesses();
     emit(state); // only fixed counters/official advisory IDs, never raw audit
     return;
   }
   assert.equal(process.pid, 1);
-  preflight("prep", { preparing: true });
+  auditPreflight({ preparing: true });
   assert.notEqual(PREP_ENV.NPM_CONFIG_USERCONFIG, PREP_ENV.NPM_CONFIG_GLOBALCONFIG);
   for (const path of [PREP_ENV.NPM_CONFIG_USERCONFIG, PREP_ENV.NPM_CONFIG_GLOBALCONFIG]) {
     const info = lstatSync(path);
