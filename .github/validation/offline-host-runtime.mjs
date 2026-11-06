@@ -132,6 +132,7 @@ export async function copyRuntime(rootfs, node, npmCli, trusted, role, step) {
     assert.equal(relative(trusted, resolve(trusted, name)), name);
     copy(join(trusted, name), join(rootfs, "trusted", name), 32768);
   }
+  if (role === "app") copy(join(trusted, "staging-compiled-artifact.mjs"), join(rootfs, "trusted/staging-compiled-artifact.mjs"), 32768);
   if (role === "prep") {
     // Two distinct empty, readonly configs: npm rejects loading one pathname
     // for both user and global scopes. Never copy real host configuration.

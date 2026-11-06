@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { APP_ENV, LABEL, PREP_ENV, VOLUME_OPTIONS } from "./offline-baseline.mjs";
-import { bounded, fixedError, requireSuccess } from "./offline-host-support.mjs";
+import { bounded, boundedCompiledOutput, fixedError, requireSuccess } from "./offline-host-support.mjs";
 
 const ID = /^[a-f0-9]{64}$/;
 const IMAGE = /^sha256:[a-f0-9]{64}$/;
@@ -177,13 +177,25 @@ export class OwnedDocker {
     assert.ok(after.State.Running && !after.State.OOMKilled);
   }
   async exec(role, action, ms = 10_000) {
-    assert.ok(role === "prep" ? action === "status" : ["status", "run"].includes(action));
-    if (action === "run") assert.ok(this.prepSealed && this.prepRemoved && await this.absentContainer(this.containers.get("prep").id));
+    assert.ok(role === "prep" ? action === "status" : ["status", "run", "run-artifact"].includes(action));
+    if (action !== "status") assert.ok(this.prepSealed && this.prepRemoved && await this.absentContainer(this.containers.get("prep").id));
     const value = await this.inspect(role);
     assert.ok(value.State.Running && !value.State.OOMKilled);
     const args = this.argv(role);
     args[args.length - 2] = action;
     return this.command(["container", "exec", value.Id, "/usr/bin/env", ...args], ms);
+  }
+  async extractCompiledArtifact() {
+    assert.ok(!this.cleaning && this.prepSealed && this.prepRemoved && await this.absentContainer(this.containers.get("prep").id));
+    const app = await this.inspect("app");
+    assert.ok(app.State.Running && !app.State.OOMKilled);
+    const args = this.argv("app");
+    args[args.length - 2] = "export-artifact";
+    // The larger binary bound is available only for this fixed, already
+    // reviewed application artifact action; normal logs keep their 64KiB cap.
+    return boundedCompiledOutput("/usr/bin/docker", ["--config", this.config, "container", "exec", app.Id, "/usr/bin/env", ...args], {
+      env: { PATH: "/usr/bin:/bin" }, ms: 25_000, signal: this.abortSignal,
+    });
   }
   async sealPrepNetwork() {
     assert.equal(this.prepSealed, false);

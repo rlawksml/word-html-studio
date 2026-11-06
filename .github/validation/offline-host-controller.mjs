@@ -9,7 +9,8 @@ import { EXPECTED_TESTS, EXPECTED_WORKER_TESTS, LOCK_SHA256, PACKAGE_SHA256, TES
 import { OwnedDocker } from "./offline-host-docker.mjs";
 import { copyRuntime } from "./offline-host-runtime.mjs";
 import { copyReviewedSources } from "./offline-host-source.mjs";
-import { fixedError, readRegular, requireSuccess } from "./offline-host-support.mjs";
+import { fixedError, readRegular, requireSuccess, sha256 } from "./offline-host-support.mjs";
+import { STAGING_ARTIFACT_FILE, readArtifactFile, validateStagingTransfer, verifyCompiledArtifact } from "./staging-compiled-artifact.mjs";
 
 const abort = new AbortController();
 let interrupted = false;
@@ -21,11 +22,12 @@ const deadline = setTimeout(interrupt, 13 * 60_000);
 let docker;
 let failed = null;
 let completion = null;
+let pendingTransfer = null;
 const CONTROL_STAGES = new Set([
   "START", "DAEMON_LIMITS", "RUNTIME_PREP", "RUNTIME_APP", "SOURCE_VALIDATION",
   "IMAGE_BUILD_PREP", "IMAGE_BUILD_APP", "VOLUME", "PREP_CREATE", "PREP_START",
   "PREP_STATUS", "SEAL_PREP", "CONSUMER_CREATE", "CONSUMER_START",
-  "CONSUMER_READY", "HANDOFF", "APP_RUN", "FINAL_CHECK",
+  "CONSUMER_READY", "HANDOFF", "APP_RUN", "FINAL_CHECK", "COMPILED_ARTIFACT",
 ]);
 const TRUSTED_FAILURES = new Set([
   "OFFLINE_HOST_DEADLINE_OR_SIGNAL", "TRUSTED_NODE_VERSION_UNCONFIRMED", "TRUSTED_RUNTIME_LDD_FAILED",
@@ -36,6 +38,7 @@ const TRUSTED_FAILURES = new Set([
   "PREP_STATUS_UNCONFIRMED", "PREP_WALL_LIMIT_EXCEEDED", "PREP_NETWORK_DISCONNECT_UNCONFIRMED",
   "OFFLINE_CONSUMER_MOUNT_UNCONFIRMED", "PREP_QUIESCENCE_UNCONFIRMED",
   "OWNED_CONTAINER_REMOVE_UNCONFIRMED", "OFFLINE_TRUSTED_SUMMARY_UNCONFIRMED", "OFFLINE_APP_FAILED_OR_LIMITED",
+  "OFFLINE_COMPILED_ARTIFACT_UNCONFIRMED",
 ]);
 const ERROR_CLASSES = new Set(["ERR_ASSERTION", "ENOENT", "EACCES", "EPERM", "ENOSPC", "EMFILE"]);
 const RUNTIME_STEPS = new Set([
@@ -114,8 +117,9 @@ function publishTypeDiagnostics(value, sourcePaths) {
 }
 async function main() {
   assert.equal(process.platform, "linux");
-  const [workspace, commit, scratch, node, npmCli, ...extra] = process.argv.slice(2);
+  const [workspace, commit, scratch, node, npmCli, approved, storageCheckedAt, ...extra] = process.argv.slice(2);
   assert.ok(!extra.length);
+  const transfer = validateStagingTransfer(approved, storageCheckedAt);
   assert.match(commit, /^[a-f0-9]{40}$/);
   assert.equal(realpathSync(workspace), workspace);
   assert.equal(realpathSync(scratch), scratch);
@@ -207,7 +211,7 @@ async function main() {
   assert.equal(docker.prepRemoved, true);
   checkpoint();
   controlStage("APP_RUN");
-  const execution = await docker.exec("app", "run", 500_000);
+  const execution = await docker.exec("app", transfer ? "run-artifact" : "run", 500_000);
   // Failed runs still publish ONLY validated stage metadata, never target text.
   let result;
   try {
@@ -216,7 +220,7 @@ async function main() {
     assert.equal(result.protocol, "offline-app-v1");
     assert.equal(result.nonce, nonce);
     if (result.ok === false) {
-      assert.ok(["START", "PREFLIGHT", "READINESS", "SOURCE_CLONE", "TOOLCHAIN_LINK", "TYPECHECK", "LINT", "BUILD", "UNIT", "STAGING_WORKER", "POST_STAGE"].includes(result.controlPhase));
+      assert.ok(["START", "PREFLIGHT", "READINESS", "SOURCE_CLONE", "TOOLCHAIN_LINK", "TYPECHECK", "LINT", "BUILD", "UNIT", "STAGING_WORKER", "POST_STAGE", "ARTIFACT"].includes(result.controlPhase));
       assert.ok([...ERROR_CLASSES, "OTHER"].includes(result.category));
       assert.ok(["UNEXPECTED_PROCESS_REMAINS", "STAGE_FAILED_OR_LIMITED", "OTHER"].includes(result.failureKind));
       console.log(`OFFLINE_APP_CONTROL phase=${result.controlPhase} category=${result.category} kind=${result.failureKind}`);
@@ -272,7 +276,30 @@ async function main() {
   const final = await docker.inspect("app");
   assert.ok(final.State.Running && !final.State.OOMKilled);
   checkpoint();
+  if (transfer) {
+    controlStage("COMPILED_ARTIFACT");
+    assert.match(result.artifactSha256, /^[a-f0-9]{64}$/);
+    const exported = await docker.extractCompiledArtifact();
+    if (exported.code !== 0 || exported.signal || exported.limited || exported.error || exported.stderr.length) throw fixedError("OFFLINE_COMPILED_ARTIFACT_UNCONFIRMED");
+    const provenance = {
+      commit, sourceSha256: source.digest, packageSha256: PACKAGE_SHA256,
+      lockSha256: LOCK_SHA256, tests: EXPECTED_TESTS, workerTests: EXPECTED_WORKER_TESTS,
+    };
+    const receipt = verifyCompiledArtifact(exported.stdout, provenance);
+    assert.equal(receipt.sha256, result.artifactSha256); // exact tested build bytes
+    pendingTransfer = { archive: exported.stdout, scratch, receipt, approved, storageCheckedAt };
+    checkpoint();
+  } else assert.equal(result.artifactSha256, undefined);
   completion = `OFFLINE_APP_COMPLETE commit=${commit} source_sha256=${source.digest} package_sha256=${PACKAGE_SHA256} lock_sha256=${LOCK_SHA256} tests=${EXPECTED_TESTS} worker_tests=${EXPECTED_WORKER_TESTS}`;
+}
+function retainCompiledArtifact({ archive, scratch, receipt, approved, storageCheckedAt }) {
+  assert.equal(validateStagingTransfer(approved, storageCheckedAt), true);
+  const directory = join(scratch, "exported");
+  mkdirSync(directory, { mode: 0o700 });
+  const file = join(directory, STAGING_ARTIFACT_FILE);
+  writeFileSync(file, archive, { flag: "wx", mode: 0o400 });
+  assert.equal(sha256(readArtifactFile(file, receipt.bytes)), receipt.sha256);
+  console.log(`STAGING_COMPILED_COMPLETE sha256=${receipt.sha256} files=${receipt.files.length} bytes=${receipt.bytes}`);
 }
 try { await main(); }
 catch (error) {
@@ -291,5 +318,10 @@ finally {
   process.removeListener("SIGINT", interrupt);
 }
 if (interrupted && !failed) failed = "OFFLINE_HOST_DEADLINE_OR_SIGNAL";
+// Only the private in-memory bytes survive until *after* exact-owned cleanup.
+if (!failed && completion && pendingTransfer) {
+  try { retainCompiledArtifact(pendingTransfer); }
+  catch { failed = "OFFLINE_COMPILED_ARTIFACT_UNCONFIRMED"; }
+}
 if (failed) { console.error(`::error::${failed}`); process.exitCode = 1; }
 else if (completion) console.log(completion);

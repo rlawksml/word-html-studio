@@ -2,9 +2,40 @@
 
 ## 최신 결과 — 아래 초기 실패·차단 이력보다 우선
 
+- **보안 패치 적용·재검사 PASS:** 고정 [42143032769](https://github.com/rlawksml/word-html-studio/actions/runs/42143032769)에서 공개 JSON 2개만 전달, 소유 정리 후 완료했다. package `8ac1094010fc4add604508dbf88acd4b5c28f72a5dbed655bb621fe7e7b0c916` / lock `622d7d230167de6c8abb929441b5104c9a1a9910ab7ccaa2621963c798149e7a`. 주·독립 검토에서 루트+대상 5개 lock record만 변경·701개 불변·추가/삭제 0을 확인했다. [동일 pair의 실제 npm 재검사 42143497355](https://github.com/rlawksml/word-html-studio/actions/runs/42143497355)에서 high/critical 0, moderate 17, 엄격 정리 뒤 COMPLETE다. 전체 취약점 0이나 운영 배포 판정은 아니다.
+- **호환 롤백 코드 회귀 PASS:** 보안 패치 이식 exact `873a4dda3e87775d5b5c24623342023f7dc4e32a`에서 [type/lint/build·앱30·엄격 정리 42143543021](https://github.com/rlawksml/word-html-studio/actions/runs/42143543021)와 [별도 JSON 보존 검증 42143546067](https://github.com/rlawksml/word-html-studio/actions/runs/42143546067)을 통과했다. 실제 Sites 불변 롤백 배포물이 아니다. v34는 미래 JSON 보존 실패로 안전한 쓰기 롤백 대상에서 제외한다.
+- **스테이징 DB 읽기 PASS:** `kriyjyyudngtibrtkylf`의 실제 marker 쿼리에서 workspace `202609070002`와 digest_order `202611040001` 일치를 확인했다. 단순 HTTP 성공과 구분하며 사용자 QA는 아직 실행 전이다.
+- **운영 NO-GO 유지:** 아래는 격리 회귀와 공개 의존성 metadata audit의 결과다. 실제 운영 공격 도달성은 미확정이며, 최신 Staging 사용자 QA·독립 백업/복원·불변 fallback 배포물 검증 완료를 뜻하지 않는다. 이번 후속으로 기존 운영 DB/사진/환경·원본 제출파일을 변경하지 않았다.
+- **실제 dev 포함 audit는 FINDINGS:** exact `3cc96076a6e26d8c189d4c10cd85356ee45de5a3`의 [42079906669](https://github.com/rlawksml/word-html-studio/actions/runs/42079906669)은 npm11.19.1, SEAL/FINAL/엄격 정리 뒤 **18:00:44.5871584Z COMPLETE**, high4·moderate20·critical0·total24다. 검사 대상은 아래 기록의 동일 package `01017394…` / lock `2e16cace…` pair다. COMPLETE는 실행·정리 완료이며 보안 PASS나 취약점0을 뜻하지 않는다. 원문 audit와 비밀값은 보관하지 않았다.
+- 수정한 기존 정책19+runtime8의 [27TC / 42079903075](https://github.com/rlawksml/word-html-studio/actions/runs/42079903075)는 PASS다. 이 합성 정책 검증과 위 실제 registry audit는 별도 증거이며 합산하지 않는다.
+
+### high4개 package family의 최소 패치 선정 및 적용
+
+| 대상 family | 현재 설치 버전 | 선정 패치 |
+|---|---|---|
+| Vite | 8.2.2 | 8.2.4 |
+| undici | 7.29.1 | 7.30.1 |
+| zod | 4.4.3 | 4.6.6 |
+| brace-expansion | 1.1.18 / nested 5.0.9 | 1.1.21 / 5.0.12 |
+
+선정안은 Vite 직접 버전1개와 설치 버전에 한정한 exact override4개다. 새 pair의 실제 audit 결과는 위에 기록했다. 최종 앱·Worker 회귀와 컴파일 배포 파일 전달 검증은 별도다. high4는 package family/record 집계이며 관련 high advisory8건과 다른 단위다. moderate20도 독립된 고유 취약점20개를 뜻하지 않는다. 이 최소 패치 밖의 나머지 moderate는 해결했다고 표시하지 않는다.
+
+### npm 집계 계약과 검사 정책 수정
+
+공식 [npm11.19.1 Vuln 직렬화](https://github.com/npm/cli/blob/v11.19.1/workspaces/arborist/lib/vuln.js)는 metavuln의 via를 dependency 이름 문자열로 내보낸다. [audit-report의 advisory별 metavuln 계산](https://github.com/npm/cli/blob/v11.19.1/workspaces/arborist/lib/audit-report.js)과 [metavuln-calculator의 버전/spec별 판정](https://github.com/npm/cli/blob/v11.19.1/node_modules/@npmcli/metavuln-calculator/lib/advisory.js)을 보면, 그 문자열이 가리키는 다른 record의 전체 최고 severity가 부모 record 이하라는 보장은 없다. 이를 일률 비교했던 **우리 parser 정책의 가정 오류**를 수정했으며 provider가 잘못된 보고를 했다고 단정하지 않는다.
+
+string via의 knownName·참조 존재·대상 severity enum은 유지하고, 직접 advisory 객체는 `부모 record severity >= advisory severity` 검사를 유지했다. 모든 필드·ID/URL·record별 카운터/metadata 일치·global high 판정·상한·실패 폐쇄도 유지했다. 수정 뒤 실제 audit가 구조 검사를 통과해 FINDINGS까지 도달했다. 과거 원문은 읽지 않았으므로 아래 실패 당시 개별 record를 재구성하거나 특정 string 사례였다고 추가 단정하지 않는다.
+
+### 앱/Worker 격리 회귀
+
 - **앱/Worker 격리 회귀 최종 PASS:** exact `ed6bf0db80e4cb8cf10fecee12c552c0bec0385c`의 [42076842796](https://github.com/rlawksml/word-html-studio/actions/runs/42076842796)은 type/lint/build0·앱277PASS·Worker36PASS/실패·취소·skip·todo0, 엄격 정리 뒤17:41:16.2922191Z COMPLETE다. sourceSHA=`dc8b62e8c64976a4dac02d4934565d8e942d02b1388208d89253f8e41a6bb356`, package/lock은 같은01017394/2e16cace다. 단독 upload1 수정 exact3d4f3e44100e99f70fb801aa19da295449c54b9b/[42076842047](https://github.com/rlawksml/word-html-studio/actions/runs/42076842047)도 엄격 정리 뒤17:41:03.6746406Z COMPLETE였다. 아래 zombie 실패는 이제 수정 전 이력이다.
 - 종료 수정은 테스트2파일뿐이다. published Wrangler CLI를 직접 실행하고, CLI 내부 같은 esbuild0.28.2 모듈의 정확한 binary/argv 자식을 포착해 ref→stop→실제 close를5초 안에 기다린다. explicit exit와 자연 종료를1개 promise로 합치고 원 exit code를 보존하며 정리 실패는1이다. 기존 실제 dry-run·산출물 import 기대/36TC·상한/strict 검사를 유지했다. 테스트 파일51줄·새 helper102줄이며 제품 실행 코드는 바꾸지 않았다.
-- 별도 dev 포함 metadata audit exactcc9797853e0c04ec0f46df4ca558bcaa791d0eb6/[42076053307](https://github.com/rlawksml/word-html-studio/actions/runs/42076053307)은 SEAL/FINAL/소유 정리 후 `BLOCKED/SCHEMA`, npm11.19.1이다. 카운터null·공식ID빈배열이므로 취약점0이나 발견으로 해석하지 않는다. 동일 승인 전송 범위의 공개 pair만 검사했고 원문/키/DB/사진·artifact 전달은 없다. 기존 schema의 고정 단계만 좁혀 진단한다.
+
+## 아직 실행하지 않은 승인 경계
+
+사용자가 승인한 Staging 배포/SQL/새 QA 범위를 운영 권한으로 확대하지 않는다. 새 컴파일 배포 파일의 GitHub 최대 1일 전달, 쓰기 없는 시간의 운영 읽기 전용 Mac 백업, QA 뒤 기존 Staging 일시정지→새 빈 무료 복원 대상→기존 Staging 재가동은 각각 사용자 승인을 받았다. 아직 앱 artifact 전달·새 후보 원격 배포·새 QA 생성·운영 자료 조회/백업·프로젝트 pause/create/restore를 하지 않았다. 무료 활성 프로젝트2개 한도는 임의 삭제나 유료 전환으로 우회하지 않는다. Mac 보관용 운영 원문은 복원 프로젝트로 전송하지 않는다.
+
+아래 나열은 이전 실행 이력이다. 현재 source/app 검증 완료와 실제 원격·데이터 검증 미완료를 구분한다.
 - 최신 exact `1d5a07f7c130d5bd8c39b4bb5439bbe9fddef842`의 [42073321530](https://github.com/rlawksml/word-html-studio/actions/runs/42073321530)은 type/lint/build0·앱277PASS·Worker36PASS/실패·skip 등0이었다. static 경로와 config 정합화 뒤 실제 Worker TC가 통과했다. 다만 `POST_STAGE / UNEXPECTED_PROCESS_REMAINS`: live0/zombie1/parent1/esbuild1이 남아 엄격 정리·전체 COMPLETE는 실패다. 종료 소유권만 조사하며 실패 조건을 완화하지 않는다.
 - 기존 profile의 두 진단 branch는 제품 코드를 바꾸지 않고 고정 Worker 파일만 분리했다. runtime9 exact5bcb9d512328358f140c883845cd2acb32bc0ed4/[42074865221](https://github.com/rlawksml/word-html-studio/actions/runs/42074865221)은 앱277·runtime9·엄격 정리 뒤17:29:20.9704276Z COMPLETE다. upload1 exact5547fc494ed0df5455d1fe8884c82c662388d260/[42074865318](https://github.com/rlawksml/word-html-studio/actions/runs/42074865318)은 앱277·upload1 기능 PASS 뒤 같은 zombie1로 FAIL이다. 실제 owner를 외부 Wrangler dry-run CLI로 좁혔으며 이 진단을 전체36의 최종 통과로 확대하지 않는다. primary의36목록·상한·실패 조건은 그대로다.
 - Git 전송은 회복됐다. 공식 connector 권한을 넓히지 않고 정상 Git 경로로 후속 커밋을 보존/동기화했다.
@@ -42,7 +73,7 @@ SQL은 전용 새 테이블·함수·component marker만 추가한다. 기존 su
 
 **PASS는 설치·권한 확인 범위뿐이다.** 실제 RPC CAS/임대·통합본 순서 저장/새로고침/두 사용자 QA는 아직 실행 전이다. API version의 workspace marker만으로 #86 설치를 증명하지 않았다.
 
-## #66 도구 체인 최소 후보
+## #66 도구 체인 최소 후보 — 초기 준비·회귀 이력
 
 - 공식 npm lock-only 준비 exact `9213f6a21818137afb99faca2c959fd12f7a67dd`.
 - 기존 native 정책 [24TC](https://github.com/rlawksml/word-html-studio/actions/runs/42057777914): PASS·실패/skip0·소유 정리.
@@ -51,11 +82,16 @@ SQL은 전용 새 테이블·함수·component marker만 추가한다. 기존 su
 - lock `2e16cace634e4091992673b4cd1dd9a04327a09d73be4774e1c399ac2794f34b` / 375163B.
 - manifest는 vinext1.2.0, plugin-rsc0.5.37, Cloudflare plugin1.63.1, Wrangler4.149.0, workers-types5.20261006.1의5개만 변경했다. React/DOM/RSC19.2.9·Next16.4.5·Vite8.2.2는 유지한다.
 - 독립 비교: 추가5/삭제33/변경78/불변624, 비대상 직접 lock record 불변, peer/engine/필수 경로와 Miniflare/Workerd 정렬 확인. sharp0.35.5로 호이스팅되어 중복이 줄었다.
-- lock의 image-size 제거를 vinext 내부 bundle 수정으로 과장하지 않는다. 새 pair 실제 audit는 미실행이다.
+- lock의 image-size 제거를 vinext 내부 bundle 수정으로 과장하지 않는다. 이 최초 준비 시점에는 새 pair 실제 audit가 미실행이었으며, 후속 실제 결과는 맨 위의 FINDINGS 기록을 따른다.
 
 제품 exact `2884fb6a7797a60e9a43ec21affceb5f93ad49a3`의 [첫 전체 실행](https://github.com/rlawksml/word-html-studio/actions/runs/42059329343)은 type/lint/build PASS지만 unit OUTPUT_CAP·SIGKILL로 미완료였다. 65470B는 보관량이며 다음 chunk가64KiB를 넘자 종료했다. 이 로그만으로 assertion 실패나277완료를 판정하지 않는다.
 
-표준 Node spec reporter로 출력만 바꾼 exact `a02cb39ab840d7ca60c3877171cdfda423982034`의 [재실행](https://github.com/rlawksml/word-html-studio/actions/runs/42060465106)은 type/lint/build PASS, unit36200B·제한 이내지만 exit1이었다. TC목록27파일/277개·제목·64KiB·실패 조건은 유지했다. **실제 전체 회귀는 아직 FAIL/조사 중**이며 성공으로 표시하지 않는다. 후속은 원문 로그 대신 허용된 source 위치와 고정 counter만 확인한다.
+표준 Node spec reporter로 출력만 바꾼 exact `a02cb39ab840d7ca60c3877171cdfda423982034`의 [재실행](https://github.com/rlawksml/word-html-studio/actions/runs/42060465106)은 type/lint/build PASS, unit36200B·제한 이내지만 exit1이었다. TC목록27파일/277개·제목·64KiB·실패 조건은 유지했다. **당시 실제 전체 회귀는 FAIL/조사 중**이었으며 이 실행을 성공으로 표시하지 않는다. 이후 원문 로그 대신 허용된 source 위치와 고정 counter만 확인했고, 후속 통과는 맨 위의 별도 exact 증거를 따른다.
+
+## metadata audit 이전 schema 차단 이력
+
+- dev 포함 metadata audit exactcc9797853e0c04ec0f46df4ca558bcaa791d0eb6/[42076053307](https://github.com/rlawksml/word-html-studio/actions/runs/42076053307)은 SEAL/FINAL/소유 정리 후 `BLOCKED/SCHEMA`, npm11.19.1이었다. 카운터null·공식ID빈배열이므로 취약점0이나 발견으로 해석하지 않는다. 동일 승인 전송 범위의 공개 pair만 검사했고 원문/키/DB/사진·artifact 전달은 없었다. 당시 기존 schema의 고정 단계만 좁혀 진단했다.
+- 후속 고정 진단 exacta81195312c8482f61facbe4b71d479fe98fc90b6의 [기존 정책27](https://github.com/rlawksml/word-html-studio/actions/runs/42078648397)은 PASS/실패·skip0·소유 정리였다. [실제 audit](https://github.com/rlawksml/word-html-studio/actions/runs/42078649063)은 SEAL/FINAL/정리 뒤17:52:22.1272665Z `BLOCKED/SCHEMA_RECORD_AGGREGATE`였다. 당시에는 record/via 등급 관계 검사 위치만 확인됐고 provider와 정책 중 어느 쪽 문제인지 미확정이었다. 카운터null·ID빈배열을 유지해0/PASS로 바꾸지 않았으며, 추가 진단 enum을 늘리는 대신 위 공식 npm 계약을 읽어 정책 가정을 바로잡았다. 당시 BLOCKED 이력과 수정 뒤 실제 FINDINGS를 구분한다.
 
 ## 운영 기준 배포물 읽기 조회
 

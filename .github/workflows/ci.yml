@@ -22,6 +22,16 @@ on:
         options: [restore, photo, preservation, evidence, publication, backup_completeness, backup_paths, backup_protocol]
         default: restore
         required: false
+      staging_artifact_approved:
+        description: Explicit approval to transfer compiled Staging dist only; offline_app only
+        type: boolean
+        default: false
+        required: false
+      staging_storage_checked_at:
+        description: Confirmed free artifact headroom timestamp (UTC ISO milliseconds); offline_app only
+        type: string
+        default: ''
+        required: false
 
 permissions:
   contents: read
@@ -109,11 +119,16 @@ jobs:
           EXPECTED_SHA: ${{ inputs.expected_commit }}
           VALIDATION_MODE: ${{ inputs.validation_mode }}
           SOURCE_SUITE: ${{ inputs.source_suite }}
+          STAGING_ARTIFACT_APPROVED: ${{ inputs.staging_artifact_approved }}
+          STAGING_STORAGE_CHECKED_AT: ${{ inputs.staging_storage_checked_at }}
         run: |
           set -euo pipefail
           if [[ ! "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]] || [[ "$GITHUB_SHA" != "$EXPECTED_SHA" ]]; then
             echo '::error::ROLLBACK_DISPATCH_BLOCKED_COMMIT_OR_MODE_MISMATCH'
             exit 1
+          fi
+          if [[ "$STAGING_ARTIFACT_APPROVED" != false || -n "$STAGING_STORAGE_CHECKED_AT" ]]; then
+            [[ "$VALIDATION_MODE" == offline_app && "$STAGING_ARTIFACT_APPROVED" == true && "$STAGING_STORAGE_CHECKED_AT" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$ ]] || { echo '::error::STAGING_ARTIFACT_DISPATCH_BLOCKED'; exit 1; }
           fi
           case "$VALIDATION_MODE" in
             rollback_preparation) ;;
@@ -144,3 +159,5 @@ jobs:
     uses: ./.github/workflows/offline-app-validation.yml
     with:
       expected_commit: ${{ inputs.expected_commit }}
+      staging_artifact_approved: ${{ inputs.staging_artifact_approved }}
+      staging_storage_checked_at: ${{ inputs.staging_storage_checked_at }}

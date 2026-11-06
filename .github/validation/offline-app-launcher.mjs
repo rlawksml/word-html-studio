@@ -7,10 +7,11 @@ import { dirname, join } from "node:path";
 import { APP_ENV, EXPECTED_TESTS, EXPECTED_WORKER_TESTS, LOCK_SHA256, PACKAGE_SHA256, TESTS, WORKER_TESTS } from "./offline-baseline.mjs";
 import { bounded, fixedError, readRegular, sha256 } from "./offline-host-support.mjs";
 import { delay, emit, jsonFile, noOtherProcesses, preflight, summarize, validNonce } from "./offline-sandbox-common.mjs";
+import { collectCompiledArtifact, verifyCompiledArtifact } from "./staging-compiled-artifact.mjs";
 
 const summaries = [];
 const readiness = "/scratch/consumer-ready.json";
-const PHASES = new Set(["START", "PREFLIGHT", "READINESS", "SOURCE_CLONE", "TOOLCHAIN_LINK", "TYPECHECK", "LINT", "BUILD", "UNIT", "STAGING_WORKER", "POST_STAGE"]);
+const PHASES = new Set(["START", "PREFLIGHT", "READINESS", "SOURCE_CLONE", "TOOLCHAIN_LINK", "TYPECHECK", "LINT", "BUILD", "UNIT", "STAGING_WORKER", "POST_STAGE", "ARTIFACT"]);
 const ERROR_CLASSES = new Set(["ERR_ASSERTION", "ENOENT", "EACCES", "EPERM", "ENOSPC", "EMFILE"]);
 let phase = "START", executionNonce = null;
 let processSnapshot = null;
@@ -167,9 +168,20 @@ async function quiescent() {
   processSnapshot = summarizeRemainingProcesses();
   throw fixedError("OFFLINE_UNEXPECTED_PROCESS_REMAINS");
 }
-async function runStages() {
+function compiled(metadata) {
+  const provenance = {
+    commit: metadata.commit, sourceSha256: metadata.sourceDigest, packageSha256: PACKAGE_SHA256,
+    lockSha256: LOCK_SHA256, tests: EXPECTED_TESTS, workerTests: EXPECTED_WORKER_TESTS,
+  };
+  const archive = collectCompiledArtifact("/scratch/repo/apps/web", provenance, "/source/apps/web/public");
+  verifyCompiledArtifact(archive, provenance);
+  return archive;
+}
+
+async function runStages(transfer) {
   phase = "SOURCE_CLONE";
   const metadata = cloneSource();
+  let artifactSha256;
   phase = "TOOLCHAIN_LINK";
   linkPackages();
   const stages = [
@@ -204,14 +216,18 @@ async function runStages() {
     phase = "POST_STAGE";
     await quiescent();
     preflight("app"); // also rejects actual cgroup OOM, not just exit codes
+    if (transfer && stage === "build") {
+      phase = "ARTIFACT";
+      artifactSha256 = sha256(compiled(metadata));
+    }
   }
-  return metadata;
+  return { metadata, artifactSha256 };
 }
 async function main() {
   const [action, rawNonce, ...extra] = process.argv.slice(2);
   const nonce = validNonce(rawNonce);
   executionNonce = nonce;
-  assert.ok(!extra.length && ["idle", "status", "run"].includes(action));
+  assert.ok(!extra.length && ["idle", "status", "run", "run-artifact", "export-artifact"].includes(action));
   phase = "PREFLIGHT";
   preflight("app");
   if (action === "idle") {
@@ -233,9 +249,18 @@ async function main() {
   assert.equal(readFileSync("/proc/1/task/1/children", "utf8").trim(), "");
   if (action === "status") { emit(state); return; }
   noOtherProcesses();
+  if (action === "export-artifact") {
+    phase = "ARTIFACT";
+    assert.equal(readRegular("/scratch/app-started", 4).toString("utf8"), "once");
+    const archive = compiled(jsonFile("/metadata/review.json"));
+    noOtherProcesses();
+    preflight("app");
+    await new Promise((resolve, reject) => process.stdout.write(archive, (error) => error ? reject(error) : resolve()));
+    return;
+  }
   writeFileSync("/scratch/app-started", "once", { flag: "wx", mode: 0o600 });
-  const metadata = await runStages();
-  emit({ protocol: "offline-app-v1", nonce, ok: true, commit: metadata.commit, sourceDigest: metadata.sourceDigest, stages: summaries });
+  const { metadata, artifactSha256 } = await runStages(action === "run-artifact");
+  emit({ protocol: "offline-app-v1", nonce, ok: true, commit: metadata.commit, sourceDigest: metadata.sourceDigest, stages: summaries, artifactSha256 });
 }
 try { await main(); }
 catch (error) {

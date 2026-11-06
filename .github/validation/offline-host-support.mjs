@@ -29,13 +29,16 @@ export function requireSuccess(result, code) {
 }
 // Never publishes target bytes. stdout + stderr SHARE the 64KiB bound; hitting
 // a cap/timeout is failure. No shell, no inherited stdin/environment/config.
-export async function bounded(file, args, { cwd, env = {}, ms = 10_000, signal: abortSignal } = {}) {
+export const COMPILED_OUTPUT_LIMIT = 66 * 1024 * 1024;
+export const bounded = (file, args, options) => boundedOutput(file, args, options, 65536);
+export const boundedCompiledOutput = (file, args, options) => boundedOutput(file, args, options, COMPILED_OUTPUT_LIMIT);
+async function boundedOutput(file, args, { cwd, env = {}, ms = 10_000, signal: abortSignal } = {}, maxBytes) {
   return new Promise((resolve) => {
     if (abortSignal?.aborted) {
       resolve({ code: null, signal: null, limited: true, reason: "ABORTED", error: false, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0) });
       return;
     }
-    let child, timer, limited = false, reason = null, error = false, bytes = 0;
+    let child, timer, limited = false, reason = null, error = false, bytes = 0, errorBytes = 0;
     const stdout = [], stderr = [];
     const stop = (why) => {
       limited = true;
@@ -55,7 +58,8 @@ export async function bounded(file, args, { cwd, env = {}, ms = 10_000, signal: 
     abortSignal?.addEventListener("abort", abort, { once: true });
     const collect = (target) => (part) => {
       bytes += part.length;
-      if (bytes > 65536) { stop("OUTPUT_CAP"); return; }
+      if (target === stderr) errorBytes += part.length;
+      if (bytes > maxBytes || errorBytes > 65536) { stop("OUTPUT_CAP"); return; }
       target.push(part);
     };
     child.stdout.on("data", collect(stdout));

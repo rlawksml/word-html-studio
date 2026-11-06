@@ -962,3 +962,9 @@ exactfb75c62에서 typecheck/lint/build/기본26파일247TC와 엄격 자식 종
 | HTML-LINES-05 | 여러 번 생성 및 통합본 생성 | 원본 객체 불변, 통합본 제목 중심 유지 |
 | HTML-LINES-06 | 실제 사용 편집기에 HTML 복사 및 ZIP TXT 붙여넣기 | 첫 줄·빈 줄·이모티콘 동일 표시; 별도 브라우저 검증 필요 |
 | HTML-LINES-07 | 자동 fixture가 만든 native bundler 종료 | 정확한 소유 서비스1개·실제 close1개, 원래 spawn 복원, timeout은 실패. 전체 runner의 좀비 포함 잔여 프로세스 검사도 계속 필수 |
+
+## 격리 CI의 Staging 컴파일 전달
+
+`STAGE-ARTIFACT-01~13` (P0, native 합성 fixture): `.github/validation/staging-compiled-artifact.test.mjs`. 기본 미전송, 승인/시각, 제한 경로, 공용 asset 원본 일치, 링크/크기, exact 검증 식별자, 바이트 손상/경로 충돌, 필수 파일, 인라인 소스맵 거부, 무실행·새 비공개 목적지 추출을 확인한다. DB/Storage·네트워크는 사용하지 않는다.
+
+`STAGE-ARTIFACT-14` (P0, 승인된 실제 격리 CI): 동일 커밋 `offline_app` 승인 실행 후 type/lint/build·앱/Worker 전체 회귀와 exact 정리 완료를 확인한다. 허용 파일만 담은 1일 아티팩트 1개가 실제 생성되고 로컬에서 전체 SHA 및 테스트 식별자가 일치해야 PASS다. 업로드 승인 없음·만료·실패 시에는 전달하지 않는다. 합성 검증을 이 통합 TC로 대신하지 않는다.

@@ -19,6 +19,16 @@
 
 빌드 → `test:staging-worker`(설정·gate·assets 단위 및 로컬 Miniflare/workerd 통합) → dry-run만 수행한다. 업로드·DB 접속·데이터 쓰기를 하지 않는다. 로컬 통합 검증은 임의 loopback 포트를 사용하고 외부 fetch는 차단한다. 생성된 기본 dist/server/wrangler.json으로 직접 배포하지 않는다.
 
+## 격리 CI에서 검증한 컴파일 산출물 전달
+
+`CI`의 `offline_app`은 기본값으로 산출물을 전송하지 않는다. 동일한 검토 커밋에 대해 사용자가 컴파일 산출물 전달을 승인하고 GitHub Free의 남은 저장량과 과금 차단을 직접 확인한 경우에만 `staging_artifact_approved=true`, `staging_storage_checked_at=<UTC ISO 밀리초 시각>`을 함께 입력한다. 확인 시각은 시작과 최종 보관에서 각각 1시간 이내여야 한다. 입력 자체는 요금제 확인을 대신하지 않는다.
+
+빌드 직후 SHA-256을 계산하고 type/lint/build·전체 단위/Worker 검증·프로세스 무잔존이 확인된 후 같은 바이트만 받아 검증한다. 정확한 소유 컨테이너·볼륨 정리까지 성공해야 `STAGING_COMPILED_COMPLETE`와 `OFFLINE_APP_COMPLETE`가 모두 남는다. 생성되는 `staging-compiled-<run-id>-<attempt>`의 `staging-compiled.bin`은 최대 1일 보관하고, 검증된 `dist/client`·`dist/server` 파일과 검증 식별자만 포함한다. 원본 소스·소스맵(별도 파일 및 JS/CSS의 인라인 data URL)·로그·의존성·키·DB·사진·생성 `wrangler.json`은 전달하지 않는다. 외부에 공유하지 않는 운영 DB 자료의 백업 경로와 별개다.
+
+정확한 성공 실행과 아티팩트 ID·만료를 대조해 새 임시 폴더로 다운로드한다. 다운로드 파일과 추출 목적지의 각 부모는 현재 사용자가 소유한 비공개 디렉터리(예: `mktemp -d`로 만든 0700 폴더)여야 하며, 심볼릭 링크를 포함한 별칭 경로는 허용하지 않는다. 파일을 실행하지 말고 검토한 동일 커밋의 `node scripts/extract-staging-compiled.mjs`로 추출한다. 입력 순서는 **다운로드 파일 절대 경로 / 없는 목적지 절대 경로 / archive SHA / commit / source SHA / package SHA / lock SHA / unit 수 / Worker 수**다. 해시·테스트 수는 완료 마커에서 읽고 아티팩트 자체에서 신뢰하지 않는다. 추출기는 모든 경로·파일 해시를 먼저 검증하고 새 디렉터리에만 기록한다.
+
+이는 Staging에 전달할 산출물의 출처를 검증하는 경로일 뿐 실제 업로드/배포 권한이나 DB 검증 증거가 아니다. 정확한 동일 소스의 `staging-entry.mjs`, 두 `worker/staging-*` adapter 및 별도로 검토된 Staging 설정을 조합한다. 기존 Staging의 URL·무료 상태·접근 보호·비밀값 이름과 연결 대상은 배포 단계에서 재확인한다. 운영 환경과 생성 배포 설정을 사용하지 않는다.
+
 ## 스테이징 입장 보호 (로컬 구현 단계)
 
 기존 Sites 및 역할별 앱 인증은 변경하지 않는다. 별도 Worker 진입점이 화면/API/정적 파일 전에 인증하며 `assets.run_worker_first: true`로 정적 파일 우회를 막는다. 공개 경로는 계속 꺼둔다.
