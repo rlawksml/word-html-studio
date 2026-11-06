@@ -167,7 +167,7 @@ jobs:
           [[ -f "$launcher_source" && ! -L "$launcher_source" && "$(/usr/bin/realpath -e -- "$launcher_source")" == "$launcher_source" ]] || fail LAUNCHER_NOT_REGULAR
           [[ "$(wc -c < "$launcher_source")" -le 16384 ]] || fail LAUNCHER_SIZE_EXCEEDED
           launcher_sha256="$(sha256sum -- "$launcher_source")"
-          [[ "${launcher_sha256%% *}" == 'b4bf3b69352565a7d71ad2528ba6b5653a4f32a7a459f42461ea142bbc8496fa' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
+          [[ "${launcher_sha256%% *}" == '44f7930478bb56ead0471c10edf50db3905d740c630d1f516c8b716274a096db' ]] || fail LAUNCHER_HASH_NOT_REVIEWED
           cp -- "$launcher_source" "$rootfs/usr/bin/source-policy-launcher.mjs"
 
           # Suite names never become paths/commands. No npm, SDK, key or app build.

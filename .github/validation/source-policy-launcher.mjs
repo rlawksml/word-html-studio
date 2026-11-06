@@ -4,6 +4,10 @@ import { lstatSync, readdirSync, readFileSync, statfsSync, writeFileSync } from 
 import { networkInterfaces } from "node:os";
 import { spawnSync } from "node:child_process";
 
+const reviewedBackupWriterSuites = [
+  ["tests/backup-writer-paths.test.mjs", "tests/backup-source-guard.test.mjs"],
+  ["tests/backup-writer-protocol.test.mjs"],
+];
 const reviewedSuites = [
   ["tests/schema-marker-restore-policy.test.mjs", "tests/backup-safety.test.mjs"],
   ["tests/image-retention-policy.test.mjs"],
@@ -11,16 +15,15 @@ const reviewedSuites = [
   ["tests/test-owned-ledger.test.mjs", "tests/fixture-response-observer.test.mjs"],
   ["tests/publication-month.test.mjs"],
   ["tests/backup-completeness.test.mjs"],
-  ["tests/backup-writer-paths.test.mjs"],
-  ["tests/backup-writer-protocol.test.mjs"],
+  ...reviewedBackupWriterSuites,
 ];
 const allowedTests = process.argv.slice(2);
-const backupWriterSuite = ["tests/backup-writer-paths.test.mjs", "tests/backup-writer-protocol.test.mjs"]
-  .some((testFile) => JSON.stringify(allowedTests) === JSON.stringify([testFile]));
+const matchesSuite = (suite) => JSON.stringify(suite) === JSON.stringify(allowedTests);
+const backupWriterSuite = reviewedBackupWriterSuites.some(matchesSuite);
 const allowedEnvironment = ["HOME", "PATH", "TMPDIR", "TZ", "UV_THREADPOOL_SIZE", "XDG_CACHE_HOME"];
 function fail(code) { console.error(code); process.exit(1); }
 try {
-  assert.ok(reviewedSuites.some((tests) => JSON.stringify(tests) === JSON.stringify(allowedTests)));
+  assert.ok(reviewedSuites.some(matchesSuite));
   assert.deepEqual(Object.keys(process.env).sort(), allowedEnvironment);
   assert.equal(process.env.HOME, "/scratch");
   assert.equal(process.env.TMPDIR, "/scratch");
