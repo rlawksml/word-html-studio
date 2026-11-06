@@ -115,7 +115,8 @@ test("STAGE-ARTIFACT-03 copy of a tracked public asset must match its pinned sou
 test("STAGE-ARTIFACT-04 source maps and credential-shaped files do not leave the sandbox", (t) => {
   const { write, archive } = fixture(t);
   assert.equal(stagingArtifactPathHint("dist/client/.vite/new-manifest.json"), "dist/client/.vite/new-manifest.json");
-  for (const path of ["dist/server/.env", "dist/server/api-token.js", "dist/client/../raw.js", "dist/client/asset\n.js"]) {
+  assert.equal(stagingArtifactPathHint("dist/server/ssr/.assetsignore"), "dist/server/ssr/.assetsignore");
+  for (const path of ["dist/server/.env", "dist/server/api-token.js", "dist/client/../raw.js", "dist/client/asset\n.js", `dist/server/${"a".repeat(64)}.js`]) {
     assert.equal(stagingArtifactPathHint(path), null);
   }
   for (const path of ["dist/client/assets/raw.js.map", "dist/server/.env", "dist/server/assets/auth-secret.js", "dist/client/assets/upload/data.js"]) {

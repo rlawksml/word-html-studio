@@ -60,11 +60,11 @@ function allowedDirectory(path) {
   return /^(?:dist\/(?:client|server)|dist\/client\/(?:\.vite|guides|assets|_next(?:\/static(?:\/[A-Za-z0-9._-]+)*)?)|dist\/server\/(?:ssr|(?:ssr\/)?(?:\.vite|assets|_next(?:\/static(?:\/[A-Za-z0-9._-]+)*)?)))$/.test(path);
 }
 
-// Only one sanitized compiled path can be reported from the fixed, secret-free
-// CI build. Never publish a path hint for hidden/sensitive or arbitrary data.
+// A bounded set of sanitized compiled paths can be reported from the fixed CI
+// build. Do not disclose secret-shaped paths, opaque values or file contents.
 export function stagingArtifactPathHint(path) {
-  if (typeof path !== "string" || path.length > 160 || !/^dist\/(?:server|client)\/(?:[A-Za-z0-9_.-]{1,80}\/){0,6}[A-Za-z0-9_.-]{1,80}$/.test(path)) return null;
-  if (path.split("/").some((part) => (part.startsWith(".") && part !== ".vite") || /(?:^|[._-])(?:secret|credential|dotenv|env|vars|backup|upload|token|key|data-export)(?:[._-]|$)/i.test(part))) return null;
+  if (typeof path !== "string" || path.length > 220 || !/^dist\/(?:server|client)\/(?:[A-Za-z0-9_@.+\[\]()-]{1,100}\/){0,6}[A-Za-z0-9_@.+\[\]()-]{1,100}$/.test(path)) return null;
+  if (path.split("/").some((part) => [".", ".."].includes(part) || /[a-f0-9]{40,}|[a-z0-9_-]{48,}/i.test(part) || /(?:^|[._-])(?:secret|credential|dotenv|env|vars|token|key|data-export)(?:[._-]|$)/i.test(part))) return null;
   return path;
 }
 function pathFailure(path) { return Object.assign(fixedError("ARTIFACT_PATH_LAYOUT"), { pathHints: [stagingArtifactPathHint(path)].filter(Boolean) }); }
