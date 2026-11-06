@@ -89,6 +89,8 @@ test("STAGE-ARTIFACT-02 deterministic framing retains only allowlisted files in 
   const { write, archive } = fixture(t);
   write("dist/server/wrangler.json", '{"not-transferred":"configuration"}');
   write("dist/server/.dev.vars", "DUMMY_VALUE=not-transferred");
+  write("dist/client/.dev.vars", "DUMMY_VALUE=not-transferred");
+  write("dist/server/ssr/.dev.vars", "DUMMY_VALUE=not-transferred");
   const privateBuildKey = "f".repeat(64);
   for (const path of ["dist/server/vinext-server.json", "dist/server/ssr/vinext-server.json"]) {
     write(path, JSON.stringify({ prerenderSecret: privateBuildKey }));
@@ -130,7 +132,7 @@ test("STAGE-ARTIFACT-04 source maps and credential-shaped files do not leave the
   write("dist/server/new-manifest.json", "NEVER READ 3");
   assert.throws(archive, (error) => {
     assert.ok(failure("ARTIFACT_PATH_LAYOUT")(error));
-    assert.deepEqual(error.pathHints, ["dist/client/new-manifest.json", "dist/server/new-manifest.json"]);
+    assert.deepEqual(error.pathHints, ["dist/client/new-manifest.json", "dist/server/[masked-hidden]", "dist/server/new-manifest.json"]);
     return true;
   });
 });

@@ -28,7 +28,11 @@ const SHA = /^[a-f0-9]{64}$/;
 const ROOTS = ["dist/client", "dist/server"];
 // The Cloudflare build can emit these runtime/local-dev config sidecars.
 // They are not Worker modules or browser assets: do not read or transfer them.
-const EXCLUDED_CONFIG = new Set(["dist/server/wrangler.json", "dist/server/.dev.vars"]);
+const EXCLUDED_CONFIG = new Set([
+  "dist/client/wrangler.json", "dist/client/.dev.vars",
+  "dist/server/wrangler.json", "dist/server/.dev.vars",
+  "dist/server/ssr/wrangler.json", "dist/server/ssr/.dev.vars",
+]);
 const PRIVATE_BUILD_MANIFEST = new Set(["dist/server/vinext-server.json", "dist/server/ssr/vinext-server.json"]);
 const FORMAT = "bookstore-staging-compiled-v1";
 const NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$/;
@@ -67,7 +71,17 @@ export function stagingArtifactPathHint(path) {
   if (path.split("/").some((part) => [".", ".."].includes(part) || /[a-f0-9]{40,}|[a-z0-9_-]{48,}/i.test(part) || /(?:^|[._-])(?:secret|credential|dotenv|env|vars|token|key|data-export)(?:[._-]|$)/i.test(part))) return null;
   return path;
 }
-function pathFailure(path) { return Object.assign(fixedError("ARTIFACT_PATH_LAYOUT"), { pathHints: [stagingArtifactPathHint(path)].filter(Boolean) }); }
+function pathFailure(path) {
+  let hint = stagingArtifactPathHint(path);
+  if (!hint && typeof path === "string") {
+    const root = /^dist\/(?:client|server)(?=\/)/.exec(path)?.[0];
+    const leaf = path.split("/").at(-1);
+    const kind = leaf.startsWith(".") ? "hidden" : "opaque";
+    const suffix = /\.(?:json|m?js|css|map|txt|html|wasm|bin)$/.exec(leaf)?.[0] ?? "";
+    if (root) hint = `${root}/[masked-${kind}]${suffix}`;
+  }
+  return Object.assign(fixedError("ARTIFACT_PATH_LAYOUT"), { pathHints: [hint].filter(Boolean) });
+}
 function validatePath(path) {
   try { validateAllowedPath(path); }
   catch { throw pathFailure(path); }
