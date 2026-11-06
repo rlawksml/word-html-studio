@@ -40,7 +40,13 @@ export function validateManifests(packageBytes, lockBytes) {
   const manifest = JSON.parse(packageBytes.toString("utf8"));
   const lock = JSON.parse(lockBytes.toString("utf8"));
   assert.equal(manifest.private, true);
-  assert.ok(!manifest.workspaces && !manifest.overrides && !manifest.bundleDependencies && !manifest.bundledDependencies);
+  assert.ok(!manifest.workspaces && !manifest.bundleDependencies && !manifest.bundledDependencies);
+  // Only these version-qualified security patches are permitted; never an
+  // arbitrary override/fork. The complete package/lock hashes are still pinned.
+  if (manifest.overrides !== undefined) assert.deepEqual(manifest.overrides, {
+    "undici@7.29.1": "7.30.1", "zod@4.4.3": "4.6.6",
+    "brace-expansion@1.1.18": "1.1.21", "brace-expansion@5.0.9": "5.0.12",
+  });
   assert.equal(lock.lockfileVersion, 3);
   assert.ok(lock.packages && typeof lock.packages === "object" && !Array.isArray(lock.packages));
   assert.ok(Object.keys(lock.packages).length <= 4000);
