@@ -36,6 +36,7 @@ const EXCLUDED_CONFIG = new Set([
 const PRIVATE_BUILD_MANIFEST = new Set(["dist/server/vinext-server.json", "dist/server/ssr/vinext-server.json"]);
 const FORMAT = "bookstore-staging-compiled-v1";
 const NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$/;
+const GENERATED_SERVER_CHUNK = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,181}-[A-Za-z0-9_-]{8,20}\.m?js$/;
 // Unlike an external map filename, an inline data URL can hide original source
 // inside an otherwise allowlisted JS/CSS build output. Fail closed on directives.
 const INLINE_SOURCE_MAP = /(?:\/\/|\/\*)\s*[#@]\s*sourceMappingURL\s*=\s*["']?data:/i;
@@ -76,7 +77,7 @@ function pathFailure(path) {
   if (!hint && typeof path === "string") {
     const root = /^dist\/(?:client|server)(?=\/)/.exec(path)?.[0];
     const leaf = path.split("/").at(-1);
-    const kind = leaf.startsWith(".") ? "hidden" : "opaque";
+    const kind = leaf.startsWith(".") ? "hidden" : leaf.length > 128 ? "long" : /[^A-Za-z0-9_.-]/.test(leaf) ? "shape" : "opaque";
     const suffix = /\.(?:json|m?js|css|map|txt|html|wasm|bin)$/.exec(leaf)?.[0] ?? "";
     if (root) hint = `${root}/[masked-${kind}]${suffix}`;
   }
@@ -89,12 +90,15 @@ function validatePath(path) {
 function validateAllowedPath(path) {
   assert.equal(typeof path, "string");
   assert.ok(path.length <= 400);
-  assert.ok(path.split("/").length <= 9 && path.split("/").every((part) => [".vite", ".assetsignore"].includes(part) || NAME.test(part)));
+  const parts = path.split("/");
+  const generatedModule = path.startsWith("dist/server/") && GENERATED_SERVER_CHUNK.test(parts.at(-1));
+  assert.ok(parts.length <= 9 && parts.every((part, index) => [".vite", ".assetsignore"].includes(part) || NAME.test(part)
+    || (index === parts.length - 1 && generatedModule)));
   const parent = path.slice(0, path.lastIndexOf("/"));
   assert.ok(allowedDirectory(parent));
   if (GENERATED.has(path) || PUBLIC.has(path)) return;
   const assetName = path.slice(path.lastIndexOf("/") + 1);
-  assert.ok(!/(?:^|[._-])(?:secret|credential|dotenv|env|backup|upload|data-export)(?:[._-]|$)/i.test(assetName));
+  assert.ok(generatedModule || !/(?:^|[._-])(?:secret|credential|dotenv|env|backup|upload|data-export)(?:[._-]|$)/i.test(assetName));
   if (path.startsWith("dist/client/")) {
     assert.match(path, /^dist\/client\/(?:assets\/|_next\/static\/)(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.(?:js|mjs|css|woff2?|svg|png|webp|jpg|jpeg|gif|ico)$/);
   } else {
@@ -165,7 +169,8 @@ function collectBuild(appRoot, provenance, publicRoot) {
       for (const name of check("ARTIFACT_DIRECTORY_LAYOUT", () => readdirSync(absolute))) {
         const relative = `${path}/${name}`;
         try {
-          if (!NAME.test(name) && name !== ".vite" && name !== ".assetsignore" && !EXCLUDED_CONFIG.has(relative)) throw pathFailure(relative);
+          if (!NAME.test(name) && name !== ".vite" && name !== ".assetsignore" && !EXCLUDED_CONFIG.has(relative)
+            && !(relative.startsWith("dist/server/") && GENERATED_SERVER_CHUNK.test(name))) throw pathFailure(relative);
           visit(relative);
         } catch (error) {
           if (error?.safeCode !== "ARTIFACT_PATH_LAYOUT" || entries > ENTRY_LIMIT) throw error;

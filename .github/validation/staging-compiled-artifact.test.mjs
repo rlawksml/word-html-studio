@@ -19,6 +19,7 @@ const assets = Object.freeze({
   "dist/server/RSC_BUILD_ID": "fixture-rsc-build-id",
   "dist/server/ssr/assets/render-xyz.js": "// SYNTHETIC CHUNK",
   "dist/server/_next/static/chunks/server-xyz.css": "body { color: black }",
+  [`dist/server/ssr/assets/${"long-bundled-module-".repeat(7)}Ci91Z_AX.js`]: "// SYNTHETIC HASHED MODULE",
   "dist/client/_next/static/main-xyz.js": "// SYNTHETIC CLIENT",
   "dist/client/_next/static/main-xyz.css": "main { display:block }",
   "dist/client/.assetsignore": "/.vite",
