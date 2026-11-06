@@ -58,7 +58,18 @@ function allowedDirectory(path) {
   return /^(?:dist\/(?:client|server)|dist\/client\/(?:\.vite|guides|assets|_next(?:\/static)?(?:\/[A-Za-z0-9._-]+)*)|dist\/server\/(?:\.vite|assets|ssr(?:\/assets)?))$/.test(path);
 }
 
-function validatePath(path) { return check("ARTIFACT_PATH_LAYOUT", () => validateAllowedPath(path)); }
+// Only one sanitized compiled path can be reported from the fixed, secret-free
+// CI build. Never publish a path hint for hidden/sensitive or arbitrary data.
+export function stagingArtifactPathHint(path) {
+  if (typeof path !== "string" || path.length > 160 || !/^dist\/(?:server|client)\/(?:[A-Za-z0-9_.-]{1,80}\/){0,6}[A-Za-z0-9_.-]{1,80}$/.test(path)) return null;
+  if (path.split("/").some((part) => (part.startsWith(".") && part !== ".vite") || /(?:^|[._-])(?:secret|credential|dotenv|env|vars|backup|upload|token|key|data-export)(?:[._-]|$)/i.test(part))) return null;
+  return path;
+}
+function pathFailure(path) { return Object.assign(fixedError("ARTIFACT_PATH_LAYOUT"), { pathHint: stagingArtifactPathHint(path) }); }
+function validatePath(path) {
+  try { validateAllowedPath(path); }
+  catch { throw pathFailure(path); }
+}
 function validateAllowedPath(path) {
   assert.equal(typeof path, "string");
   assert.ok(path.length <= 400);
@@ -125,7 +136,7 @@ function collectBuild(appRoot, provenance, publicRoot) {
   const selected = [];
   let entries = 0, total = 0;
   const visit = (path) => {
-    if (++entries > ENTRY_LIMIT || path.split("/").length > 9) throw fixedError("ARTIFACT_PATH_LAYOUT");
+    if (++entries > ENTRY_LIMIT || path.split("/").length > 9) throw pathFailure(path);
     const absolute = join(appRoot, path);
     const info = check("ARTIFACT_ENTRY_UNSAFE", () => {
       assert.equal(realpathSync(absolute), absolute);
@@ -136,7 +147,7 @@ function collectBuild(appRoot, provenance, publicRoot) {
       for (const name of check("ARTIFACT_DIRECTORY_LAYOUT", () => readdirSync(absolute))) {
         const relative = `${path}/${name}`;
         if (!NAME.test(name) && name !== ".vite" && name !== ".assetsignore" && !EXCLUDED_CONFIG.has(relative)) {
-          throw fixedError("ARTIFACT_PATH_LAYOUT");
+          throw pathFailure(relative);
         }
         visit(relative);
       }

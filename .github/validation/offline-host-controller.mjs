@@ -10,7 +10,7 @@ import { OwnedDocker } from "./offline-host-docker.mjs";
 import { copyRuntime } from "./offline-host-runtime.mjs";
 import { copyReviewedSources } from "./offline-host-source.mjs";
 import { fixedError, readRegular, requireSuccess, sha256 } from "./offline-host-support.mjs";
-import { ARTIFACT_FAILURES, STAGING_ARTIFACT_FILE, readArtifactFile, validateStagingTransfer, verifyCompiledArtifact } from "./staging-compiled-artifact.mjs";
+import { ARTIFACT_FAILURES, STAGING_ARTIFACT_FILE, readArtifactFile, stagingArtifactPathHint, validateStagingTransfer, verifyCompiledArtifact } from "./staging-compiled-artifact.mjs";
 
 const abort = new AbortController();
 let interrupted = false;
@@ -57,15 +57,17 @@ function runtimeStep(value) {
   console.log(`OFFLINE_RUNTIME_STAGE ${value}`);
 }
 function checkpoint() { if (interrupted) throw fixedError("OFFLINE_HOST_DEADLINE_OR_SIGNAL"); }
-function publishArtifactFailure(label) {
+function publishArtifactFailure(label, pathHint) {
   if (ARTIFACT_FAILURES.includes(label)) console.log(`OFFLINE_ARTIFACT_FAILURE ${label}`);
+  const path = label === "ARTIFACT_PATH_LAYOUT" ? stagingArtifactPathHint(pathHint) : null;
+  if (path) console.log(`OFFLINE_ARTIFACT_LAYOUT_HINT ${path}`);
 }
 function observeExportFailure(result, nonce) {
   if (result.stdout.length > 16384 || result.stderr.length !== 0) return;
   try {
     const value = JSON.parse(result.stdout.toString("utf8"));
     if (value.protocol === "offline-app-v1" && value.nonce === nonce && value.ok === false && value.controlPhase === "ARTIFACT") {
-      publishArtifactFailure(value.artifactFailure);
+      publishArtifactFailure(value.artifactFailure, value.artifactPathHint);
     }
   } catch { /* export still fails with the fixed control code */ }
 }
@@ -237,7 +239,7 @@ async function main() {
       assert.ok(["UNEXPECTED_PROCESS_REMAINS", "STAGE_FAILED_OR_LIMITED", "OTHER"].includes(result.failureKind));
       assert.ok(result.artifactFailure === null || (result.controlPhase === "ARTIFACT" && ARTIFACT_FAILURES.includes(result.artifactFailure)));
       console.log(`OFFLINE_APP_CONTROL phase=${result.controlPhase} category=${result.category} kind=${result.failureKind}`);
-      publishArtifactFailure(result.artifactFailure);
+      publishArtifactFailure(result.artifactFailure, result.artifactPathHint);
       if (result.processSnapshot !== null) {
         const keys = ["live", "zombie", "gone", "parent1", "node", "esbuild", "workerd", "other"];
         assert.deepEqual(Object.keys(result.processSnapshot).sort(), [...keys].sort());

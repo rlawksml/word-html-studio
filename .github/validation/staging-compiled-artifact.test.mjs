@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { sha256 } from "./offline-host-support.mjs";
-import { collectCompiledArtifact, STAGING_ARTIFACT_FILE, validateStagingTransfer, verifyCompiledArtifact } from "./staging-compiled-artifact.mjs";
+import { collectCompiledArtifact, STAGING_ARTIFACT_FILE, stagingArtifactPathHint, validateStagingTransfer, verifyCompiledArtifact } from "./staging-compiled-artifact.mjs";
 
 const verified = Object.freeze({
   commit: "0".repeat(40), sourceSha256: "1".repeat(64), packageSha256: "2".repeat(64),
@@ -103,6 +103,10 @@ test("STAGE-ARTIFACT-03 copy of a tracked public asset must match its pinned sou
 
 test("STAGE-ARTIFACT-04 source maps and credential-shaped files do not leave the sandbox", (t) => {
   const { write, archive } = fixture(t);
+  assert.equal(stagingArtifactPathHint("dist/client/.vite/new-manifest.json"), "dist/client/.vite/new-manifest.json");
+  for (const path of ["dist/server/.env", "dist/server/api-token.js", "dist/client/../raw.js", "dist/client/asset\n.js"]) {
+    assert.equal(stagingArtifactPathHint(path), null);
+  }
   for (const path of ["dist/client/assets/raw.js.map", "dist/server/.env", "dist/server/assets/auth-secret.js", "dist/client/assets/upload/data.js"]) {
     const invalid = write(path, "SYNTHETIC FIXTURE");
     assert.throws(archive, failure(path.includes("/upload/") ? "ARTIFACT_DIRECTORY_LAYOUT" : "ARTIFACT_PATH_LAYOUT"));
