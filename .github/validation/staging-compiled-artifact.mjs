@@ -36,6 +36,7 @@ const NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$/;
 const INLINE_SOURCE_MAP = /(?:\/\/|\/\*)\s*[#@]\s*sourceMappingURL\s*=\s*["']?data:/i;
 const GENERATED = new Set([
   "dist/client/.assetsignore", "dist/client/.vite/manifest.json", "dist/client/_headers",
+  "dist/client/vinext-client-entry-manifest.json",
   "dist/server/.vite/manifest.json", "dist/server/image-config.json", "dist/server/vinext-externals.json",
   "dist/server/vinext-server.json", "dist/server/ssr/vinext-server.json",
 ]);

@@ -19,6 +19,7 @@ const assets = Object.freeze({
   "dist/client/_next/static/main-xyz.js": "// SYNTHETIC CLIENT",
   "dist/client/_next/static/main-xyz.css": "main { display:block }",
   "dist/client/.assetsignore": "/.vite",
+  "dist/client/vinext-client-entry-manifest.json": '{"appBrowserEntry":"_next/static/main-xyz.js"}',
   "dist/client/guides/bookstore-news-input-guide.pdf": "SYNTHETIC PUBLIC ASSET",
 });
 const failure = (safeCode) => (error) => error?.safeCode === safeCode && error.message === safeCode && error.cause === undefined;
@@ -192,7 +193,8 @@ test("STAGE-ARTIFACT-11 local receiver validates before writing, never executes 
   const args = [file, destination, sha256(binary), ...Object.values(verified).map(String)];
   assert.notEqual(spawnSync(process.execPath, [writer, ...args.map((value, index) => index === 2 ? "4".repeat(64) : value)]).status, 0);
   assert.equal(existsSync(destination), false);
-  assert.match(execFileSync(process.execPath, [writer, ...args], { encoding: "utf8" }), /^STAGING_COMPILED_EXTRACTED sha256=[a-f0-9]{64} files=6 bytes=\d+\n$/);
+  assert.equal(execFileSync(process.execPath, [writer, ...args], { encoding: "utf8" }),
+    `STAGING_COMPILED_EXTRACTED sha256=${sha256(binary)} files=${Object.keys(assets).length} bytes=${binary.length}\n`);
   assert.equal(readFileSync(join(destination, "dist/server/index.js"), "utf8"), badEntrypoint);
   assert.notEqual(spawnSync(process.execPath, [writer, ...args]).status, 0);
   assert.equal(readFileSync(join(destination, "dist/server/index.js"), "utf8"), badEntrypoint);
@@ -213,7 +215,7 @@ test("STAGE-ARTIFACT-12 exporter and receiver reject inline data source maps in 
     write(path, assets[path]);
   }
   write("dist/server/index.js", "entry();\n//# sourceMappingURL=outside.js.map");
-  assert.equal(verifyCompiledArtifact(archive(), verified).files.length, 6);
+  assert.equal(verifyCompiledArtifact(archive(), verified).files.length, Object.keys(assets).length);
 });
 
 test("STAGE-ARTIFACT-13 receiver requires user-private non-symlink input and output parents", (t) => {
