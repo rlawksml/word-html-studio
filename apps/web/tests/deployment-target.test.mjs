@@ -85,13 +85,19 @@ test("pins Cloudflare build tooling beyond the audited vulnerable ranges", async
 
   // 세 도구는 함께 호환되는 버전으로 고정해야 Vite plugin과 Wrangler가 서로 다른 Miniflare를 끌어오지 않습니다.
   assert.equal(packageJson.devDependencies["@cloudflare/vite-plugin"], "1.63.1");
-  assert.equal(packageJson.devDependencies.vite, "8.2.2");
+  assert.equal(packageJson.devDependencies.vite, "8.2.4");
   assert.equal(packageJson.devDependencies.wrangler, "4.149.0");
+  assert.deepEqual(packageJson.overrides, {
+    "undici@7.29.1": "7.30.1", "zod@4.4.3": "4.6.6",
+    "brace-expansion@1.1.18": "1.1.21", "brace-expansion@5.0.9": "5.0.12",
+  });
   const lock = JSON.parse(await readFile(new URL("../package-lock.json", import.meta.url), "utf8"));
   const versions = {
     vinext: "1.2.0", "@vitejs/plugin-rsc": "0.5.37",
     "@cloudflare/workers-types": "5.20261006.1",
-    miniflare: "5.20261006.1-alpha", workerd: "1.20261006.1", sharp: "0.35.5",
+    vite: "8.2.4", miniflare: "5.20261006.1-alpha", workerd: "1.20261006.1", sharp: "0.35.5",
+    undici: "7.30.1", zod: "4.6.6", "brace-expansion": "1.1.21",
+    "@typescript-eslint/typescript-estree/node_modules/brace-expansion": "5.0.12",
   };
   for (const [name, version] of Object.entries(versions)) {
     assert.equal(lock.packages[`node_modules/${name}`].version, version);
