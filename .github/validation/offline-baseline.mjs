@@ -1,6 +1,6 @@
 // Fixed fallback manifest and reviewed toolchain graph; no npm script evaluation.
-export const PACKAGE_SHA256 = "aa2a7349fc01bbe07de451f0ed95d9bcf649307c1573a73f7a237eb8a9099fa1";
-export const LOCK_SHA256 = "37040aeb02f94e7cbb23672a18b1b7d87d6e37d935b9ed44b0d0fa7069cfc90c";
+export const PACKAGE_SHA256 = "c63c7557defcc7e7977a60d38e3ba91fe7b5b323f1839a673db3c148e5af0ad1";
+export const LOCK_SHA256 = "7d0fbfd20e10d0758b12299d4d0e8f4705ad1e6000d198789338207727f2b8d9";
 // Keep the old npm test command unchanged. The isolated profile adds only the
 // five no-physical-delete cases below; JSON preservation has its own 10-case suite.
 export const PACKAGE_TESTS = Object.freeze([
