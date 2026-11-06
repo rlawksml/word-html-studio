@@ -39,7 +39,7 @@ const GENERATED = new Set([
   "dist/client/.assetsignore", "dist/client/.vite/manifest.json", "dist/client/_headers",
   "dist/client/vinext-client-entry-manifest.json",
   "dist/server/.vite/manifest.json", "dist/server/image-config.json", "dist/server/vinext-externals.json",
-  "dist/server/BUILD_ID",
+  "dist/server/BUILD_ID", "dist/server/RSC_BUILD_ID",
 ]);
 const PUBLIC = new Set([
   "dist/client/favicon.svg", "dist/client/file.svg", "dist/client/globe.svg", "dist/client/window.svg",
