@@ -15,6 +15,7 @@ const verified = Object.freeze({
 const writer = fileURLToPath(new URL("../../scripts/extract-staging-compiled.mjs", import.meta.url));
 const assets = Object.freeze({
   "dist/server/index.js": "// SYNTHETIC ENTRY",
+  "dist/server/BUILD_ID": "fixture-build-id",
   "dist/server/ssr/assets/render-xyz.js": "// SYNTHETIC CHUNK",
   "dist/client/_next/static/main-xyz.js": "// SYNTHETIC CLIENT",
   "dist/client/_next/static/main-xyz.css": "main { display:block }",
@@ -114,6 +115,14 @@ test("STAGE-ARTIFACT-04 source maps and credential-shaped files do not leave the
     rmSync(invalid);
     if (path.includes("/upload/")) rmSync(dirname(invalid), { recursive: true });
   }
+  write("dist/client/new-manifest.json", "NEVER READ 1");
+  write("dist/server/.env", "NEVER READ 2");
+  write("dist/server/new-manifest.json", "NEVER READ 3");
+  assert.throws(archive, (error) => {
+    assert.ok(failure("ARTIFACT_PATH_LAYOUT")(error));
+    assert.deepEqual(error.pathHints, ["dist/client/new-manifest.json", "dist/server/new-manifest.json"]);
+    return true;
+  });
 });
 
 test("STAGE-ARTIFACT-05 linked directories, symlinks and hardlinks fail closed", (t) => {

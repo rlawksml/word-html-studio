@@ -70,15 +70,15 @@ jobs:
           done <<'REVIEWED_CLOSURE'
           e55a1c1ba81bfc9bfd462998d286d8b132b7bab60aad6681ffb461888518f982 offline-host-source.mjs
           d84a229c8857a589ec418dfa7dbcdab8fdbfa57df37d7d03dc1a005d9ba707bb offline-baseline.mjs
-          cedbd939de8fe9415a145af342ad47ba01fcb7b3c668f8264dd133de653c2612 offline-host-controller.mjs
+          8a23f11f9287ab068e4d9b04ed52ebbfae147859d091f8d4d993f10d7b3d2d2f offline-host-controller.mjs
           686024644d89e376d586ce2b619a7650c681649759ace01e8e46eba9503da19e offline-host-support.mjs
           fca261cc22f62f9240842de280c3112ad4417f0de7a9aa42cf4654df874cbaad offline-host-runtime.mjs
           c39c66c5a22bef67882c9dd2d92ce4273e5038e563c5236db69a3d1a6ca207a7 offline-host-docker.mjs
           18e576e8d2f0123a38ce28d76ea939099b1ae98705115868f860cf5cca72861b offline-sandbox-common.mjs
           11df609cae4121782f2a3e2ad977aa12d891c9914451c7a95bfc4153e6b2ae58 offline-prep-launcher.mjs
-          a1e0321abad80e53d05c35661011fe085ac68431ad063130f5bbd637e567e1a9 offline-app-launcher.mjs
+          f9da0203bb73f5a1a3bb3ea520e6d9f9f32f34bc93e640f1076befa2722db9fb offline-app-launcher.mjs
           499ed0e6a76ded0ba21350c381107651eb6cb0cf73e5160102050236f7315cd5 offline-app.Dockerfile
-          6ad47f4a754c2bea39ff01e5a6a577478b1f2cbc419fda22a6cf405e622e7fdd staging-compiled-artifact.mjs
+          1f8258d074fcb58adf6e940724caea7bf6258b2b34b37815ba434b82cb31b416 staging-compiled-artifact.mjs
           REVIEWED_CLOSURE
           # No npm/SDK/app code on the host; the copied reviewed closure imports
           # native Node builtins and these pinned siblings ONLY. No NODE_OPTIONS,

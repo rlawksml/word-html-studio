@@ -38,7 +38,7 @@ const GENERATED = new Set([
   "dist/client/.assetsignore", "dist/client/.vite/manifest.json", "dist/client/_headers",
   "dist/client/vinext-client-entry-manifest.json",
   "dist/server/.vite/manifest.json", "dist/server/image-config.json", "dist/server/vinext-externals.json",
-  "dist/server/vinext-server.json", "dist/server/ssr/vinext-server.json",
+  "dist/server/BUILD_ID", "dist/server/vinext-server.json", "dist/server/ssr/vinext-server.json",
 ]);
 const PUBLIC = new Set([
   "dist/client/favicon.svg", "dist/client/file.svg", "dist/client/globe.svg", "dist/client/window.svg",
@@ -66,7 +66,7 @@ export function stagingArtifactPathHint(path) {
   if (path.split("/").some((part) => (part.startsWith(".") && part !== ".vite") || /(?:^|[._-])(?:secret|credential|dotenv|env|vars|backup|upload|token|key|data-export)(?:[._-]|$)/i.test(part))) return null;
   return path;
 }
-function pathFailure(path) { return Object.assign(fixedError("ARTIFACT_PATH_LAYOUT"), { pathHint: stagingArtifactPathHint(path) }); }
+function pathFailure(path) { return Object.assign(fixedError("ARTIFACT_PATH_LAYOUT"), { pathHints: [stagingArtifactPathHint(path)].filter(Boolean) }); }
 function validatePath(path) {
   try { validateAllowedPath(path); }
   catch { throw pathFailure(path); }
@@ -135,6 +135,7 @@ function collectBuild(appRoot, provenance, publicRoot) {
     }
   });
   const selected = [];
+  const rejected = [];
   let entries = 0, total = 0;
   const visit = (path) => {
     if (++entries > ENTRY_LIMIT || path.split("/").length > 9) throw pathFailure(path);
@@ -147,10 +148,16 @@ function collectBuild(appRoot, provenance, publicRoot) {
       if (!allowedDirectory(path)) throw fixedError("ARTIFACT_DIRECTORY_LAYOUT");
       for (const name of check("ARTIFACT_DIRECTORY_LAYOUT", () => readdirSync(absolute))) {
         const relative = `${path}/${name}`;
-        if (!NAME.test(name) && name !== ".vite" && name !== ".assetsignore" && !EXCLUDED_CONFIG.has(relative)) {
-          throw pathFailure(relative);
+        try {
+          if (!NAME.test(name) && name !== ".vite" && name !== ".assetsignore" && !EXCLUDED_CONFIG.has(relative)) throw pathFailure(relative);
+          visit(relative);
+        } catch (error) {
+          if (error?.safeCode !== "ARTIFACT_PATH_LAYOUT" || entries > ENTRY_LIMIT) throw error;
+          // A single build can identify several missing manifest rules. None of
+          // these files is read, and any rejected entry still blocks transfer.
+          rejected.push(error.pathHints?.[0] ?? null);
+          if (rejected.length >= 8) throw Object.assign(fixedError("ARTIFACT_PATH_LAYOUT"), { pathHints: rejected.filter(Boolean) });
         }
-        visit(relative);
       }
       return;
     }
@@ -169,6 +176,7 @@ function collectBuild(appRoot, provenance, publicRoot) {
     selected.push({ record: { path, bytes: bytes.length, sha256: sha256(bytes) }, bytes });
   };
   for (const root of ROOTS) visit(root);
+  if (rejected.length) throw Object.assign(fixedError("ARTIFACT_PATH_LAYOUT"), { pathHints: rejected.filter(Boolean) });
   selected.sort((a, b) => Buffer.compare(Buffer.from(a.record.path), Buffer.from(b.record.path)));
   const files = selected.map(({ record }) => record);
   const manifest = Buffer.from(JSON.stringify({ format: FORMAT, provenance, total, files }));
