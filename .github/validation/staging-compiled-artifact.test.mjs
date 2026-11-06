@@ -17,6 +17,7 @@ const assets = Object.freeze({
   "dist/server/index.js": "// SYNTHETIC ENTRY",
   "dist/server/BUILD_ID": "fixture-build-id",
   "dist/server/ssr/assets/render-xyz.js": "// SYNTHETIC CHUNK",
+  "dist/server/_next/static/chunks/server-xyz.css": "body { color: black }",
   "dist/client/_next/static/main-xyz.js": "// SYNTHETIC CLIENT",
   "dist/client/_next/static/main-xyz.css": "main { display:block }",
   "dist/client/.assetsignore": "/.vite",

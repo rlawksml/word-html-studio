@@ -56,7 +56,7 @@ export function validateStagingTransfer(approved, storageCheckedAt, now = Date.n
 }
 
 function allowedDirectory(path) {
-  return /^(?:dist\/(?:client|server)|dist\/client\/(?:\.vite|guides|assets|_next(?:\/static)?(?:\/[A-Za-z0-9._-]+)*)|dist\/server\/(?:\.vite|assets|ssr(?:\/assets)?))$/.test(path);
+  return /^(?:dist\/(?:client|server)|dist\/client\/(?:\.vite|guides|assets|_next(?:\/static(?:\/[A-Za-z0-9._-]+)*)?)|dist\/server\/(?:ssr|(?:ssr\/)?(?:\.vite|assets|_next(?:\/static(?:\/[A-Za-z0-9._-]+)*)?)))$/.test(path);
 }
 
 // Only one sanitized compiled path can be reported from the fixed, secret-free
@@ -83,7 +83,7 @@ function validateAllowedPath(path) {
   if (path.startsWith("dist/client/")) {
     assert.match(path, /^dist\/client\/(?:assets\/|_next\/static\/)(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.(?:js|mjs|css|woff2?|svg|png|webp|jpg|jpeg|gif|ico)$/);
   } else {
-    assert.match(path, /^dist\/server\/(?:ssr\/)?(?:assets\/)?[A-Za-z0-9_.-]+\.(?:js|mjs|css|wasm|bin|txt|html)$/);
+    assert.match(path, /^dist\/server\/(?:ssr\/)?(?:assets\/|_next\/static\/(?:[A-Za-z0-9_.-]+\/)*)?[A-Za-z0-9_.-]+\.(?:js|mjs|css|wasm|bin|txt|html)$/);
   }
 }
 
@@ -145,7 +145,7 @@ function collectBuild(appRoot, provenance, publicRoot) {
       return lstatSync(absolute);
     });
     if (info.isDirectory()) {
-      if (!allowedDirectory(path)) throw fixedError("ARTIFACT_DIRECTORY_LAYOUT");
+      if (!allowedDirectory(path)) throw Object.assign(fixedError("ARTIFACT_DIRECTORY_LAYOUT"), { pathHints: [stagingArtifactPathHint(path)].filter(Boolean) });
       for (const name of check("ARTIFACT_DIRECTORY_LAYOUT", () => readdirSync(absolute))) {
         const relative = `${path}/${name}`;
         try {

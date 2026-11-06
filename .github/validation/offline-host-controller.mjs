@@ -59,7 +59,7 @@ function runtimeStep(value) {
 function checkpoint() { if (interrupted) throw fixedError("OFFLINE_HOST_DEADLINE_OR_SIGNAL"); }
 function publishArtifactFailure(label, pathHints) {
   if (ARTIFACT_FAILURES.includes(label)) console.log(`OFFLINE_ARTIFACT_FAILURE ${label}`);
-  if (label === "ARTIFACT_PATH_LAYOUT" && Array.isArray(pathHints) && pathHints.length <= 8) {
+  if (["ARTIFACT_PATH_LAYOUT", "ARTIFACT_DIRECTORY_LAYOUT"].includes(label) && Array.isArray(pathHints) && pathHints.length <= 8) {
     for (const path of new Set(pathHints.map(stagingArtifactPathHint).filter(Boolean))) console.log(`OFFLINE_ARTIFACT_LAYOUT_HINT ${path}`);
   }
 }

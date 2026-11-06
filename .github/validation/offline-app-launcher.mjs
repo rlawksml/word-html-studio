@@ -270,7 +270,7 @@ catch (error) {
   const failureKind = error?.safeCode === "OFFLINE_UNEXPECTED_PROCESS_REMAINS" ? "UNEXPECTED_PROCESS_REMAINS"
     : error?.safeCode === "OFFLINE_STAGE_FAILED_OR_LIMITED" ? "STAGE_FAILED_OR_LIMITED" : "OTHER";
   const artifactFailure = controlPhase === "ARTIFACT" && ARTIFACT_FAILURES.includes(error?.safeCode) ? error.safeCode : null;
-  const artifactPathHints = artifactFailure === "ARTIFACT_PATH_LAYOUT" && Array.isArray(error?.pathHints)
+  const artifactPathHints = ["ARTIFACT_PATH_LAYOUT", "ARTIFACT_DIRECTORY_LAYOUT"].includes(artifactFailure) && Array.isArray(error?.pathHints)
     ? error.pathHints.slice(0, 8).map(stagingArtifactPathHint).filter(Boolean) : [];
   emit({ protocol: "offline-app-v1", nonce: executionNonce, ok: false, controlPhase, category, failureKind, artifactFailure, artifactPathHints, processSnapshot, stages: summaries });
   process.exitCode = 1;
