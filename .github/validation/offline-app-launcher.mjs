@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { APP_ENV, EXPECTED_TESTS, EXPECTED_WORKER_TESTS, LOCK_SHA256, PACKAGE_SHA256, TESTS, WORKER_TESTS } from "./offline-baseline.mjs";
 import { bounded, fixedError, readRegular, sha256 } from "./offline-host-support.mjs";
 import { delay, emit, jsonFile, noOtherProcesses, preflight, summarize, validNonce } from "./offline-sandbox-common.mjs";
-import { ARTIFACT_FAILURES, collectCompiledArtifact, stagingArtifactPathHint, verifyCompiledArtifact } from "./staging-compiled-artifact.mjs";
+import { ARTIFACT_FAILURES, collectCompiledArtifact, probeCompiledArtifactLayout, stagingArtifactPathHint, verifyCompiledArtifact } from "./staging-compiled-artifact.mjs";
 
 const summaries = [];
 const readiness = "/scratch/consumer-ready.json";
@@ -259,8 +259,12 @@ async function main() {
     return;
   }
   writeFileSync("/scratch/app-started", "once", { flag: "wx", mode: 0o600 });
-  const { metadata, artifactSha256 } = await runStages(action === "run-artifact");
-  emit({ protocol: "offline-app-v1", nonce, ok: true, commit: metadata.commit, sourceDigest: metadata.sourceDigest, stages: summaries, artifactSha256 });
+  const transfer = action === "run-artifact";
+  const { metadata, artifactSha256 } = await runStages(transfer);
+  // Keep app regression results independent of artifact layout diagnostics.
+  // The no-transfer path never calls the archive collector or export action.
+  const artifactLayoutProbe = transfer ? undefined : probeCompiledArtifactLayout("/scratch/repo/apps/web");
+  emit({ protocol: "offline-app-v1", nonce, ok: true, commit: metadata.commit, sourceDigest: metadata.sourceDigest, stages: summaries, artifactSha256, artifactLayoutProbe });
 }
 try { await main(); }
 catch (error) {

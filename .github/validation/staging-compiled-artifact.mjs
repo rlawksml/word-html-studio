@@ -2,7 +2,7 @@
 // JSON manifest, then its ordered file bytes. No tar extraction or app import.
 import assert from "node:assert/strict";
 import { constants, closeSync, fstatSync, lstatSync, openSync, readSync, readdirSync, realpathSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, posix } from "node:path";
 import { fixedError, sha256 } from "./offline-host-support.mjs";
 
 export const STAGING_ARTIFACT_FILE = "staging-compiled.bin";
@@ -26,6 +26,17 @@ const ENTRY_LIMIT = 2000;
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const SHA = /^[a-f0-9]{64}$/;
 const ROOTS = ["dist/client", "dist/server"];
+const LAYOUT_REGIONS = ["client", "server-root", "server-assets", "server-ssr", "server-ssr-assets", "server-static", "server-ssr-static", "server-other"];
+const LAYOUT_EXTENSIONS = ["js", "mjs", "css", "map", "json", "txt", "html", "wasm", "bin", "other"];
+const LAYOUT_SHAPES = ["hidden", "long", "nonstandard", "opaque"];
+const LAYOUT_REFS = ["worker-entry", "server-module", "client-module"];
+const PUNCTUATION = Object.freeze([
+  ["at", /@/], ["colon", /:/], ["hash", /#/], ["percent", /%/], ["plus", /\+/],
+  ["tilde", /~/], ["dollar", /\$/], ["question", /\?/], ["bracket", /[[\]]/],
+  ["parenthesis", /[()]/], ["comma", /,/], ["equals", /=/], ["space", / /],
+  ["backslash", /\\/], ["control", /[\x00-\x1f\x7f]/], ["non-ascii", /[^\x00-\x7f]/],
+  ["other-ascii", /[!"&'*;<>^`{|}]/],
+]);
 // The Cloudflare build can emit these runtime/local-dev config sidecars.
 // They are not Worker modules or browser assets: do not read or transfer them.
 const EXCLUDED_CONFIG = new Set([
@@ -145,8 +156,73 @@ function readSingleFile(path, limit) {
 export function collectCompiledArtifact(appRoot, provenance, publicRoot) {
   return check("ARTIFACT_ARCHIVE_INVALID", () => collectBuild(appRoot, provenance, publicRoot));
 }
-function collectBuild(appRoot, provenance, publicRoot) {
-  checkProvenance(provenance);
+
+// An opt-out transfer run can explain a path rejection without producing even
+// an in-memory archive. The same path gate is used; rejected files stay unread.
+export function probeCompiledArtifactLayout(appRoot) {
+  try { return collectBuild(appRoot, null, null, true); }
+  catch { return { status: "unavailable", findings: [] }; }
+}
+
+function layoutFinding(path, refs) {
+  const leaf = path.split("/").at(-1);
+  const parent = dirname(path);
+  let region = "server-other";
+  if (path.startsWith("dist/client/")) region = "client";
+  else if (parent === "dist/server") region = "server-root";
+  else if (parent === "dist/server/assets") region = "server-assets";
+  else if (parent === "dist/server/ssr") region = "server-ssr";
+  else if (parent === "dist/server/ssr/assets") region = "server-ssr-assets";
+  else if (/^dist\/server\/ssr\/_next(?:\/|$)/.test(parent)) region = "server-ssr-static";
+  else if (/^dist\/server\/_next(?:\/|$)/.test(parent)) region = "server-static";
+  const extension = /\.([a-z]+)$/.exec(leaf)?.[1];
+  const shape = leaf.startsWith(".") ? "hidden" : leaf.length > 128 ? "long" : /[^A-Za-z0-9_.-]/.test(leaf) ? "nonstandard" : "opaque";
+  return { region, extension: LAYOUT_EXTENSIONS.includes(extension) ? extension : "other", shape,
+    punctuation: PUNCTUATION.filter(([, pattern]) => pattern.test(leaf)).map(([label]) => label),
+    literalRefs: LAYOUT_REFS.filter((label) => refs.has(label)) };
+}
+
+function layoutFindings(appRoot, rejected, modules) {
+  const byPath = new Map(rejected.map(({ path }) => [path, new Set()]));
+  // Evidence only for emitted relative literal imports/re-exports; no JS is
+  // parsed/evaluated. No match is not proof an output is unused dynamically.
+  let bytesRead = 0;
+  for (const path of modules) {
+    const bytes = readArtifactFile(join(appRoot, path), Math.min(FILE_LIMIT, TOTAL_LIMIT - bytesRead));
+    bytesRead += bytes.length;
+    const kind = path === "dist/server/index.js" ? "worker-entry" : path.startsWith("dist/server/") ? "server-module" : "client-module";
+    for (const match of bytes.toString("utf8").matchAll(/\b(?:from\s*|import\s*(?:\(\s*)?|require\s*\(\s*)(["'])(\.\.?\/[^"'\\\r\n]{1,400})\1/g)) {
+      let value;
+      try { value = decodeURIComponent(match[2].split(/[?#]/, 1)[0]); } catch { continue; }
+      byPath.get(posix.normalize(`${posix.dirname(path)}/${value}`))?.add(kind);
+    }
+  }
+  return rejected.map(({ path }) => layoutFinding(path, byPath.get(path)));
+}
+
+// Re-validate the untrusted sandbox report on the host, reconstructing only
+// fixed enum fields. No path, stack, source text or arbitrary scalar may leave.
+export function validateArtifactLayoutProbe(value) {
+  assert.deepEqual(Object.keys(value).sort(), ["findings", "status"]);
+  assert.ok(["clear", "rejected", "unavailable"].includes(value.status));
+  assert.ok(Array.isArray(value.findings) && value.findings.length <= 8);
+  assert.equal(value.findings.length > 0, value.status === "rejected");
+  function orderedSubset(values, allowed) {
+    assert.ok(Array.isArray(values));
+    assert.deepEqual(values, allowed.filter((label) => values.includes(label)));
+    return [...values];
+  }
+  return { status: value.status, findings: value.findings.map((entry) => {
+    assert.deepEqual(Object.keys(entry).sort(), ["extension", "literalRefs", "punctuation", "region", "shape"]);
+    const { region, extension, shape } = entry;
+    assert.ok(LAYOUT_REGIONS.includes(region) && LAYOUT_EXTENSIONS.includes(extension) && LAYOUT_SHAPES.includes(shape));
+    return { region, extension, shape, punctuation: orderedSubset(entry.punctuation, PUNCTUATION.map(([label]) => label)),
+      literalRefs: orderedSubset(entry.literalRefs, LAYOUT_REFS) };
+  }) };
+}
+
+function collectBuild(appRoot, provenance, publicRoot, layoutProbe = false) {
+  if (!layoutProbe) checkProvenance(provenance);
   check("ARTIFACT_ROOT_UNSAFE", () => {
     for (const root of [appRoot, ...ROOTS.map((name) => join(appRoot, name))]) {
       assert.equal(realpathSync(root), root);
@@ -156,7 +232,7 @@ function collectBuild(appRoot, provenance, publicRoot) {
   const selected = [];
   const rejected = [];
   const buildOnlySecrets = new Set();
-  let entries = 0, total = 0;
+  let entries = 0, probedNames = 0, total = 0;
   const visit = (path) => {
     if (++entries > ENTRY_LIMIT || path.split("/").length > 9) throw pathFailure(path);
     const absolute = join(appRoot, path);
@@ -167,6 +243,7 @@ function collectBuild(appRoot, provenance, publicRoot) {
     if (info.isDirectory()) {
       if (!allowedDirectory(path)) throw Object.assign(fixedError("ARTIFACT_DIRECTORY_LAYOUT"), { pathHints: [stagingArtifactPathHint(path)].filter(Boolean) });
       for (const name of check("ARTIFACT_DIRECTORY_LAYOUT", () => readdirSync(absolute))) {
+        if (layoutProbe && ++probedNames > ENTRY_LIMIT) throw fixedError("ARTIFACT_DIRECTORY_LAYOUT");
         const relative = `${path}/${name}`;
         try {
           if (!NAME.test(name) && name !== ".vite" && name !== ".assetsignore" && !EXCLUDED_CONFIG.has(relative)
@@ -176,8 +253,12 @@ function collectBuild(appRoot, provenance, publicRoot) {
           if (error?.safeCode !== "ARTIFACT_PATH_LAYOUT" || entries > ENTRY_LIMIT) throw error;
           // A single build can identify several missing manifest rules. None of
           // these files is read, and any rejected entry still blocks transfer.
-          rejected.push(error.pathHints?.[0] ?? null);
-          if (rejected.length >= 8) throw Object.assign(fixedError("ARTIFACT_PATH_LAYOUT"), { pathHints: rejected.filter(Boolean) });
+          if (layoutProbe) {
+            if (rejected.length < 8) rejected.push({ path: relative });
+          } else {
+            rejected.push(error.pathHints?.[0] ?? null);
+            if (rejected.length >= 8) throw Object.assign(fixedError("ARTIFACT_PATH_LAYOUT"), { pathHints: rejected.filter(Boolean) });
+          }
         }
       }
       return;
@@ -187,6 +268,7 @@ function collectBuild(appRoot, provenance, publicRoot) {
       return;
     }
     if (PRIVATE_BUILD_MANIFEST.has(path)) {
+      if (layoutProbe) return; // no build-only secret is needed for a layout probe
       // These Vinext sidecars carry a prerender-only random key. Check it
       // inside the isolated build; never emit the sidecar or value to the host.
       check("ARTIFACT_BUILD_SECRET", () => {
@@ -197,6 +279,10 @@ function collectBuild(appRoot, provenance, publicRoot) {
       return;
     }
     validatePath(path);
+    if (layoutProbe) {
+      if (/\.m?js$/.test(path)) selected.push(path);
+      return;
+    }
     check("ARTIFACT_FILE_UNSAFE", () => assert.ok(info.size <= FILE_LIMIT && total + info.size <= TOTAL_LIMIT));
     const bytes = readArtifactFile(absolute, FILE_LIMIT);
     rejectInlineSourceMap(path, bytes);
@@ -207,6 +293,7 @@ function collectBuild(appRoot, provenance, publicRoot) {
     selected.push({ record: { path, bytes: bytes.length, sha256: sha256(bytes) }, bytes });
   };
   for (const root of ROOTS) visit(root);
+  if (layoutProbe) return rejected.length ? { status: "rejected", findings: layoutFindings(appRoot, rejected, selected) } : { status: "clear", findings: [] };
   if (rejected.length) throw Object.assign(fixedError("ARTIFACT_PATH_LAYOUT"), { pathHints: rejected.filter(Boolean) });
   for (const secret of buildOnlySecrets) {
     if (selected.some(({ bytes }) => bytes.includes(secret))) throw fixedError("ARTIFACT_BUILD_SECRET");

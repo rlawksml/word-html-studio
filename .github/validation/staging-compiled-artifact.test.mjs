@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { sha256 } from "./offline-host-support.mjs";
-import { collectCompiledArtifact, STAGING_ARTIFACT_FILE, stagingArtifactPathHint, validateStagingTransfer, verifyCompiledArtifact } from "./staging-compiled-artifact.mjs";
+import { collectCompiledArtifact, probeCompiledArtifactLayout, STAGING_ARTIFACT_FILE, stagingArtifactPathHint, validateArtifactLayoutProbe, validateStagingTransfer, verifyCompiledArtifact } from "./staging-compiled-artifact.mjs";
 
 const verified = Object.freeze({
   commit: "0".repeat(40), sourceSha256: "1".repeat(64), packageSha256: "2".repeat(64),
@@ -238,6 +238,38 @@ test("STAGE-ARTIFACT-12 exporter and receiver reject inline data source maps in 
   }
   write("dist/server/index.js", "entry();\n//# sourceMappingURL=outside.js.map");
   assert.equal(verifyCompiledArtifact(archive(), verified).files.length, Object.keys(assets).length);
+});
+
+test("STAGE-ARTIFACT-15 no-transfer probe classifies rejected leaf and literal import evidence without reading it", (t) => {
+  const { root, write, archive } = fixture(t);
+  assert.deepEqual(probeCompiledArtifactLayout(root), { status: "clear", findings: [] });
+  const rejected = "private-fixture#name+with~shape.js";
+  const forbidden = write(`dist/server/ssr/assets/${rejected}`, "must stay unread");
+  truncateSync(forbidden, 17 * 1024 * 1024);
+  write("dist/server/index.js", 'export { default } from "./ssr/assets/private-fixture%23name+with~shape.js";');
+  write("dist/server/ssr/assets/render-xyz.js", 'const promise = import("./private-fixture%23name+with~shape.js");');
+  write("dist/server/vinext-server.json", "intentionally not valid JSON");
+  const result = validateArtifactLayoutProbe(probeCompiledArtifactLayout(root));
+  assert.deepEqual(result, { status: "rejected", findings: [{
+    region: "server-ssr-assets", extension: "js", shape: "nonstandard",
+    punctuation: ["hash", "plus", "tilde"], literalRefs: ["worker-entry", "server-module"],
+  }] });
+  const output = JSON.stringify(result);
+  for (const value of [rejected, "private-fixture", "must stay unread", root]) assert.ok(!output.includes(value));
+  assert.throws(archive, failure("ARTIFACT_BUILD_SECRET")); // only the diagnostic skips this sidecar
+  rmSync(join(root, "dist/server/vinext-server.json"));
+  assert.throws(archive, failure("ARTIFACT_PATH_LAYOUT")); // never becomes transferable
+});
+
+test("STAGE-ARTIFACT-16 host accepts only the fixed no-transfer diagnostic schema", () => {
+  const finding = { region: "server-root", extension: "js", shape: "nonstandard", punctuation: ["at"], literalRefs: [] };
+  for (const invalid of [
+    { ...finding, path: "raw.js" }, { ...finding, punctuation: ["raw"] },
+    { ...finding, punctuation: ["at", "at"] }, { ...finding, literalRefs: ["raw-source"] },
+  ]) assert.throws(() => validateArtifactLayoutProbe({ status: "rejected", findings: [invalid] }));
+  assert.throws(() => validateArtifactLayoutProbe({ status: "clear", findings: [finding] }));
+  assert.throws(() => validateArtifactLayoutProbe({ status: "rejected", findings: Array(9).fill(finding) }));
+  assert.deepEqual(validateArtifactLayoutProbe({ status: "rejected", findings: [finding] }), { status: "rejected", findings: [finding] });
 });
 
 test("STAGE-ARTIFACT-13 receiver requires user-private non-symlink input and output parents", (t) => {

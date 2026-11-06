@@ -10,7 +10,7 @@ import { OwnedDocker } from "./offline-host-docker.mjs";
 import { copyRuntime } from "./offline-host-runtime.mjs";
 import { copyReviewedSources } from "./offline-host-source.mjs";
 import { fixedError, readRegular, requireSuccess, sha256 } from "./offline-host-support.mjs";
-import { ARTIFACT_FAILURES, STAGING_ARTIFACT_FILE, readArtifactFile, stagingArtifactPathHint, validateStagingTransfer, verifyCompiledArtifact } from "./staging-compiled-artifact.mjs";
+import { ARTIFACT_FAILURES, STAGING_ARTIFACT_FILE, readArtifactFile, stagingArtifactPathHint, validateArtifactLayoutProbe, validateStagingTransfer, verifyCompiledArtifact } from "./staging-compiled-artifact.mjs";
 
 const abort = new AbortController();
 let interrupted = false;
@@ -294,6 +294,7 @@ async function main() {
   assert.ok(final.State.Running && !final.State.OOMKilled);
   checkpoint();
   if (transfer) {
+    assert.equal(result.artifactLayoutProbe, undefined);
     controlStage("COMPILED_ARTIFACT");
     assert.match(result.artifactSha256, /^[a-f0-9]{64}$/);
     const exported = await docker.extractCompiledArtifact();
@@ -309,7 +310,10 @@ async function main() {
     assert.equal(receipt.sha256, result.artifactSha256); // exact tested build bytes
     pendingTransfer = { archive: exported.stdout, scratch, receipt, approved, storageCheckedAt };
     checkpoint();
-  } else assert.equal(result.artifactSha256, undefined);
+  } else {
+    assert.equal(result.artifactSha256, undefined);
+    console.log(`OFFLINE_ARTIFACT_LAYOUT_PROBE ${JSON.stringify(validateArtifactLayoutProbe(result.artifactLayoutProbe))}`);
+  }
   completion = `OFFLINE_APP_COMPLETE commit=${commit} source_sha256=${source.digest} package_sha256=${PACKAGE_SHA256} lock_sha256=${LOCK_SHA256} tests=${EXPECTED_TESTS} worker_tests=${EXPECTED_WORKER_TESTS}`;
 }
 function retainCompiledArtifact({ archive, scratch, receipt, approved, storageCheckedAt }) {

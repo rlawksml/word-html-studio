@@ -968,3 +968,5 @@ exactfb75c62에서 typecheck/lint/build/기본26파일247TC와 엄격 자식 종
 `STAGE-ARTIFACT-01~13` (P0, native 합성 fixture): `.github/validation/staging-compiled-artifact.test.mjs`. 기본 미전송, 승인/시각, 제한 경로, 공용 asset 원본 일치, 링크/크기, exact 검증 식별자, 바이트 손상/경로 충돌, 필수 파일, 인라인 소스맵 거부, 무실행·새 비공개 목적지 추출을 확인한다. DB/Storage·네트워크는 사용하지 않는다.
 
 `STAGE-ARTIFACT-14` (P0, 승인된 실제 격리 CI): 동일 커밋 `offline_app` 승인 실행 후 type/lint/build·앱/Worker 전체 회귀와 exact 정리 완료를 확인한다. 허용 파일만 담은 1일 아티팩트 1개가 실제 생성되고 로컬에서 전체 SHA 및 테스트 식별자가 일치해야 PASS다. 업로드 승인 없음·만료·실패 시에는 전달하지 않는다. 합성 검증을 이 통합 TC로 대신하지 않는다.
+
+`STAGE-ARTIFACT-15~16` (native 합성 fixture): 업로드를 끈 `offline_app`은 전체 회귀 뒤 경로 진단만 실행한다. 차단 항목의 고정 위치·이름 형태·확장자·구두점 분류 및 리터럴 import 증거만 출력하며 이름·내용·해시·빌드 키를 출력하거나 아카이브를 만들지 않는다. 리터럴 참조가 없다는 결과는 동적 참조가 없다는 증거가 아니며, 경로 진단 결과는 앱 회귀 통과 여부와 구분한다.
