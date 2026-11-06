@@ -272,6 +272,42 @@ test("STAGE-ARTIFACT-16 host accepts only the fixed no-transfer diagnostic schem
   assert.deepEqual(validateArtifactLayoutProbe({ status: "rejected", findings: [finding] }), { status: "rejected", findings: [finding] });
 });
 
+test("STAGE-ARTIFACT-17 collector and receiver allow tilde only in bounded server static JavaScript leaves", (t) => {
+  const { root, write, archive } = fixture(t);
+  const base = "dist/server/_next/static";
+  const allowed = [`${base}/entry~chunk.js`, `${base}/chunks/dep~module.js`, `${base}/chunks/${"a".repeat(124)}~.js`];
+  for (const path of allowed) write(path, "// SYNTHETIC MODULE");
+  const binary = archive();
+  assert.deepEqual(verifyCompiledArtifact(binary, verified).files.map(({ path }) => path), [...Object.keys(assets), ...allowed].sort());
+  assert.deepEqual(probeCompiledArtifactLayout(root), { status: "clear", findings: [] });
+
+  for (const path of [
+    "dist/client/_next/static/entry~chunk.js", "dist/server/assets/entry~chunk.js",
+    "dist/server/ssr/_next/static/entry~chunk.js", "dist/server/entry~chunk.js",
+    `${base}/entry~chunk.css`, `${base}/entry~chunk.mjs`, `${base}/entry~chunk.js\n`,
+    `${base}/~entry.js`, `${base}/chunks/${"a".repeat(125)}~.js`,
+    `${base}/entry~chunk%20.js`, `${base}/entry~chunk#1.js`, `${base}/entry~chunk+.js`, `${base}/entry~한글.js`,
+    `${base}/entry~secret.js`, `${base}/secret~entry.js`, `${base}/entry~credential~chunk.js`,
+  ]) {
+    const target = write(path, "must not transfer");
+    assert.throws(archive, failure("ARTIFACT_PATH_LAYOUT"));
+    rmSync(target);
+    assert.throws(() => verifyCompiledArtifact(replaceManifest(binary, (manifest) => { manifest.files[0].path = path; }), verified), failure("ARTIFACT_PATH_LAYOUT"));
+  }
+
+  // A directory may look like a valid .js leaf, but cannot pass the directory gate.
+  const tildeDirectory = `${base}/fake~chunk.js/inside.js`;
+  write(tildeDirectory, "must not transfer");
+  assert.throws(archive, failure("ARTIFACT_DIRECTORY_LAYOUT"));
+  rmSync(join(root, dirname(tildeDirectory)), { recursive: true });
+  assert.throws(() => verifyCompiledArtifact(replaceManifest(binary, (manifest) => { manifest.files[0].path = tildeDirectory; }), verified), failure("ARTIFACT_PATH_LAYOUT"));
+
+  const inlineMap = "entry();\n//# sourceMappingURL=data:application/json;base64,e30=";
+  write(allowed[0], inlineMap);
+  assert.throws(archive, failure("ARTIFACT_INLINE_MAP"));
+  assert.throws(() => verifyCompiledArtifact(replacePayload(binary, allowed[0], inlineMap), verified), failure("ARTIFACT_INLINE_MAP"));
+});
+
 test("STAGE-ARTIFACT-13 receiver requires user-private non-symlink input and output parents", (t) => {
   const { root, write, archive } = fixture(t);
   const binary = archive();

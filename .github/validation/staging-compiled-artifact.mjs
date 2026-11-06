@@ -48,6 +48,7 @@ const PRIVATE_BUILD_MANIFEST = new Set(["dist/server/vinext-server.json", "dist/
 const FORMAT = "bookstore-staging-compiled-v1";
 const NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$/;
 const GENERATED_SERVER_CHUNK = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,181}-[A-Za-z0-9_-]{8,20}\.m?js$/;
+const SERVER_STATIC_TILDE_LEAF = /^[A-Za-z0-9_][A-Za-z0-9._~-]{0,124}\.js(?![\s\S])/;
 // Unlike an external map filename, an inline data URL can hide original source
 // inside an otherwise allowlisted JS/CSS build output. Fail closed on directives.
 const INLINE_SOURCE_MAP = /(?:\/\/|\/\*)\s*[#@]\s*sourceMappingURL\s*=\s*["']?data:/i;
@@ -98,21 +99,29 @@ function validatePath(path) {
   try { validateAllowedPath(path); }
   catch { throw pathFailure(path); }
 }
+
+function isServerStaticTildeModule(path, leaf = path.split("/").at(-1)) {
+  // Vinext references these names literally. Only the leaf is exceptional;
+  // every parent segment and the file contents still pass the original gates.
+  return path.startsWith("dist/server/_next/static/") && leaf.includes("~") && SERVER_STATIC_TILDE_LEAF.test(leaf);
+}
+
 function validateAllowedPath(path) {
   assert.equal(typeof path, "string");
   assert.ok(path.length <= 400);
   const parts = path.split("/");
-  const generatedModule = path.startsWith("dist/server/") && GENERATED_SERVER_CHUNK.test(parts.at(-1));
+  const assetName = parts.at(-1);
+  const generatedModule = path.startsWith("dist/server/") && GENERATED_SERVER_CHUNK.test(assetName);
+  const tildeModule = isServerStaticTildeModule(path, assetName);
   assert.ok(parts.length <= 9 && parts.every((part, index) => [".vite", ".assetsignore"].includes(part) || NAME.test(part)
-    || (index === parts.length - 1 && generatedModule)));
+    || (index === parts.length - 1 && (generatedModule || tildeModule))));
   const parent = path.slice(0, path.lastIndexOf("/"));
   assert.ok(allowedDirectory(parent));
   if (GENERATED.has(path) || PUBLIC.has(path)) return;
-  const assetName = path.slice(path.lastIndexOf("/") + 1);
-  assert.ok(generatedModule || !/(?:^|[._-])(?:secret|credential|dotenv|env|backup|upload|data-export)(?:[._-]|$)/i.test(assetName));
+  assert.ok(generatedModule || !/(?:^|[._~-])(?:secret|credential|dotenv|env|backup|upload|data-export)(?:[._~-]|$)/i.test(assetName));
   if (path.startsWith("dist/client/")) {
     assert.match(path, /^dist\/client\/(?:assets\/|_next\/static\/)(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+\.(?:js|mjs|css|woff2?|svg|png|webp|jpg|jpeg|gif|ico)$/);
-  } else {
+  } else if (!tildeModule) {
     assert.match(path, /^dist\/server\/(?:ssr\/)?(?:assets\/|_next\/static\/(?:[A-Za-z0-9_.-]+\/)*)?[A-Za-z0-9_.-]+\.(?:js|mjs|css|wasm|bin|txt|html)$/);
   }
 }
@@ -247,7 +256,8 @@ function collectBuild(appRoot, provenance, publicRoot, layoutProbe = false) {
         const relative = `${path}/${name}`;
         try {
           if (!NAME.test(name) && name !== ".vite" && name !== ".assetsignore" && !EXCLUDED_CONFIG.has(relative)
-            && !(relative.startsWith("dist/server/") && GENERATED_SERVER_CHUNK.test(name))) throw pathFailure(relative);
+            && !(relative.startsWith("dist/server/") && GENERATED_SERVER_CHUNK.test(name))
+            && !isServerStaticTildeModule(relative, name)) throw pathFailure(relative);
           visit(relative);
         } catch (error) {
           if (error?.safeCode !== "ARTIFACT_PATH_LAYOUT" || entries > ENTRY_LIMIT) throw error;
