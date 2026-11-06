@@ -8,7 +8,7 @@ import { fixedError, sha256 } from "./offline-host-support.mjs";
 export const STAGING_ARTIFACT_FILE = "staging-compiled.bin";
 export const ARTIFACT_FAILURES = Object.freeze([
   "ARTIFACT_ROOT_UNSAFE", "ARTIFACT_ENTRY_UNSAFE", "ARTIFACT_DIRECTORY_LAYOUT", "ARTIFACT_PATH_LAYOUT",
-  "ARTIFACT_FILE_UNSAFE", "ARTIFACT_INLINE_MAP", "ARTIFACT_PUBLIC_MISMATCH", "ARTIFACT_ARCHIVE_INVALID",
+  "ARTIFACT_FILE_UNSAFE", "ARTIFACT_INLINE_MAP", "ARTIFACT_BUILD_SECRET", "ARTIFACT_PUBLIC_MISMATCH", "ARTIFACT_ARCHIVE_INVALID",
   "ARTIFACT_REQUIRED_SERVER", "ARTIFACT_REQUIRED_JS", "ARTIFACT_REQUIRED_CSS",
 ]);
 function check(code, operation) {
@@ -29,6 +29,7 @@ const ROOTS = ["dist/client", "dist/server"];
 // The Cloudflare build can emit these runtime/local-dev config sidecars.
 // They are not Worker modules or browser assets: do not read or transfer them.
 const EXCLUDED_CONFIG = new Set(["dist/server/wrangler.json", "dist/server/.dev.vars"]);
+const PRIVATE_BUILD_MANIFEST = new Set(["dist/server/vinext-server.json", "dist/server/ssr/vinext-server.json"]);
 const FORMAT = "bookstore-staging-compiled-v1";
 const NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$/;
 // Unlike an external map filename, an inline data URL can hide original source
@@ -38,7 +39,7 @@ const GENERATED = new Set([
   "dist/client/.assetsignore", "dist/client/.vite/manifest.json", "dist/client/_headers",
   "dist/client/vinext-client-entry-manifest.json",
   "dist/server/.vite/manifest.json", "dist/server/image-config.json", "dist/server/vinext-externals.json",
-  "dist/server/BUILD_ID", "dist/server/vinext-server.json", "dist/server/ssr/vinext-server.json",
+  "dist/server/BUILD_ID",
 ]);
 const PUBLIC = new Set([
   "dist/client/favicon.svg", "dist/client/file.svg", "dist/client/globe.svg", "dist/client/window.svg",
@@ -136,6 +137,7 @@ function collectBuild(appRoot, provenance, publicRoot) {
   });
   const selected = [];
   const rejected = [];
+  const buildOnlySecrets = new Set();
   let entries = 0, total = 0;
   const visit = (path) => {
     if (++entries > ENTRY_LIMIT || path.split("/").length > 9) throw pathFailure(path);
@@ -165,6 +167,16 @@ function collectBuild(appRoot, provenance, publicRoot) {
       check("ARTIFACT_FILE_UNSAFE", () => assert.ok(info.isFile() && info.nlink === 1 && info.size <= 65536));
       return;
     }
+    if (PRIVATE_BUILD_MANIFEST.has(path)) {
+      // These Vinext sidecars carry a prerender-only random key. Check it
+      // inside the isolated build; never emit the sidecar or value to the host.
+      check("ARTIFACT_BUILD_SECRET", () => {
+        const metadata = JSON.parse(readSingleFile(absolute, 65536).toString("utf8"));
+        assert.match(metadata.prerenderSecret, /^[a-f0-9]{64}$/);
+        buildOnlySecrets.add(metadata.prerenderSecret);
+      });
+      return;
+    }
     validatePath(path);
     check("ARTIFACT_FILE_UNSAFE", () => assert.ok(info.size <= FILE_LIMIT && total + info.size <= TOTAL_LIMIT));
     const bytes = readArtifactFile(absolute, FILE_LIMIT);
@@ -177,6 +189,9 @@ function collectBuild(appRoot, provenance, publicRoot) {
   };
   for (const root of ROOTS) visit(root);
   if (rejected.length) throw Object.assign(fixedError("ARTIFACT_PATH_LAYOUT"), { pathHints: rejected.filter(Boolean) });
+  for (const secret of buildOnlySecrets) {
+    if (selected.some(({ bytes }) => bytes.includes(secret))) throw fixedError("ARTIFACT_BUILD_SECRET");
+  }
   selected.sort((a, b) => Buffer.compare(Buffer.from(a.record.path), Buffer.from(b.record.path)));
   const files = selected.map(({ record }) => record);
   const manifest = Buffer.from(JSON.stringify({ format: FORMAT, provenance, total, files }));

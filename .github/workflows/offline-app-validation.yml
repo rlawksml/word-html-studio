@@ -78,7 +78,7 @@ jobs:
           11df609cae4121782f2a3e2ad977aa12d891c9914451c7a95bfc4153e6b2ae58 offline-prep-launcher.mjs
           f0e9109a54a41d7060bf2840908a44b6d36642a6413d9b1e0d145bf338ba86de offline-app-launcher.mjs
           499ed0e6a76ded0ba21350c381107651eb6cb0cf73e5160102050236f7315cd5 offline-app.Dockerfile
-          89fd290305a4d4442c3ce3d793c4eb05f9a7a9ea5987631febd9b099a41b3d01 staging-compiled-artifact.mjs
+          d78b7d51fb8d4ba73a3d54e659e4f5ef7e73b2bfdd3a1cac9850819005b22574 staging-compiled-artifact.mjs
           REVIEWED_CLOSURE
           # No npm/SDK/app code on the host; the copied reviewed closure imports
           # native Node builtins and these pinned siblings ONLY. No NODE_OPTIONS,

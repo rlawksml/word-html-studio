@@ -88,6 +88,10 @@ test("STAGE-ARTIFACT-02 deterministic framing retains only allowlisted files in 
   const { write, archive } = fixture(t);
   write("dist/server/wrangler.json", '{"not-transferred":"configuration"}');
   write("dist/server/.dev.vars", "DUMMY_VALUE=not-transferred");
+  const privateBuildKey = "f".repeat(64);
+  for (const path of ["dist/server/vinext-server.json", "dist/server/ssr/vinext-server.json"]) {
+    write(path, JSON.stringify({ prerenderSecret: privateBuildKey }));
+  }
   write("dist/root-source.js", "not transferred");
   write(".env", "not transferred");
   const first = archive(), second = archive();
@@ -96,6 +100,9 @@ test("STAGE-ARTIFACT-02 deterministic framing retains only allowlisted files in 
   assert.deepEqual(receipt.files.map(({ path }) => path), Object.keys(assets).sort());
   assert.equal(receipt.sha256, sha256(first));
   assert.ok(!first.includes("not-transferred") && !first.includes("not transferred"));
+  assert.ok(!first.includes(privateBuildKey));
+  write("dist/server/index.js", `const fixture = '${privateBuildKey}';`);
+  assert.throws(archive, failure("ARTIFACT_BUILD_SECRET"));
 });
 
 test("STAGE-ARTIFACT-03 copy of a tracked public asset must match its pinned source bytes", (t) => {
