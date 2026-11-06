@@ -84,6 +84,7 @@ test("STAGE-ARTIFACT-01 transfer defaults off and requires explicit fresh UTC ve
 test("STAGE-ARTIFACT-02 deterministic framing retains only allowlisted files in fixed build roots", (t) => {
   const { write, archive } = fixture(t);
   write("dist/server/wrangler.json", '{"not-transferred":"configuration"}');
+  write("dist/server/.dev.vars", "DUMMY_VALUE=not-transferred");
   write("dist/root-source.js", "not transferred");
   write(".env", "not transferred");
   const first = archive(), second = archive();

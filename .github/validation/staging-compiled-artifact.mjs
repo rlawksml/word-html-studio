@@ -26,6 +26,9 @@ const ENTRY_LIMIT = 2000;
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const SHA = /^[a-f0-9]{64}$/;
 const ROOTS = ["dist/client", "dist/server"];
+// The Cloudflare build can emit these runtime/local-dev config sidecars.
+// They are not Worker modules or browser assets: do not read or transfer them.
+const EXCLUDED_CONFIG = new Set(["dist/server/wrangler.json", "dist/server/.dev.vars"]);
 const FORMAT = "bookstore-staging-compiled-v1";
 const NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$/;
 // Unlike an external map filename, an inline data URL can hide original source
@@ -131,13 +134,15 @@ function collectBuild(appRoot, provenance, publicRoot) {
     if (info.isDirectory()) {
       if (!allowedDirectory(path)) throw fixedError("ARTIFACT_DIRECTORY_LAYOUT");
       for (const name of check("ARTIFACT_DIRECTORY_LAYOUT", () => readdirSync(absolute))) {
-        if (!NAME.test(name) && name !== ".vite" && name !== ".assetsignore") throw fixedError("ARTIFACT_PATH_LAYOUT");
-        visit(`${path}/${name}`);
+        const relative = `${path}/${name}`;
+        if (!NAME.test(name) && name !== ".vite" && name !== ".assetsignore" && !EXCLUDED_CONFIG.has(relative)) {
+          throw fixedError("ARTIFACT_PATH_LAYOUT");
+        }
+        visit(relative);
       }
       return;
     }
-    // Generated build config is never transported or used as a deploy target.
-    if (path === "dist/server/wrangler.json") {
+    if (EXCLUDED_CONFIG.has(path)) {
       check("ARTIFACT_FILE_UNSAFE", () => assert.ok(info.isFile() && info.nlink === 1 && info.size <= 65536));
       return;
     }
