@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { APP_ENV, EXPECTED_TESTS, EXPECTED_WORKER_TESTS, LOCK_SHA256, PACKAGE_SHA256, TESTS, WORKER_TESTS } from "./offline-baseline.mjs";
 import { bounded, fixedError, readRegular, sha256 } from "./offline-host-support.mjs";
 import { delay, emit, jsonFile, noOtherProcesses, preflight, summarize, validNonce } from "./offline-sandbox-common.mjs";
-import { collectCompiledArtifact, verifyCompiledArtifact } from "./staging-compiled-artifact.mjs";
+import { ARTIFACT_FAILURES, collectCompiledArtifact, verifyCompiledArtifact } from "./staging-compiled-artifact.mjs";
 
 const summaries = [];
 const readiness = "/scratch/consumer-ready.json";
@@ -269,6 +269,7 @@ catch (error) {
   const category = ERROR_CLASSES.has(error?.code) ? error.code : "OTHER";
   const failureKind = error?.safeCode === "OFFLINE_UNEXPECTED_PROCESS_REMAINS" ? "UNEXPECTED_PROCESS_REMAINS"
     : error?.safeCode === "OFFLINE_STAGE_FAILED_OR_LIMITED" ? "STAGE_FAILED_OR_LIMITED" : "OTHER";
-  emit({ protocol: "offline-app-v1", nonce: executionNonce, ok: false, controlPhase, category, failureKind, processSnapshot, stages: summaries });
+  const artifactFailure = controlPhase === "ARTIFACT" && ARTIFACT_FAILURES.includes(error?.safeCode) ? error.safeCode : null;
+  emit({ protocol: "offline-app-v1", nonce: executionNonce, ok: false, controlPhase, category, failureKind, artifactFailure, processSnapshot, stages: summaries });
   process.exitCode = 1;
 }

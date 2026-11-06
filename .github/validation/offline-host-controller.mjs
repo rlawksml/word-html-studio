@@ -10,7 +10,7 @@ import { OwnedDocker } from "./offline-host-docker.mjs";
 import { copyRuntime } from "./offline-host-runtime.mjs";
 import { copyReviewedSources } from "./offline-host-source.mjs";
 import { fixedError, readRegular, requireSuccess, sha256 } from "./offline-host-support.mjs";
-import { STAGING_ARTIFACT_FILE, readArtifactFile, validateStagingTransfer, verifyCompiledArtifact } from "./staging-compiled-artifact.mjs";
+import { ARTIFACT_FAILURES, STAGING_ARTIFACT_FILE, readArtifactFile, validateStagingTransfer, verifyCompiledArtifact } from "./staging-compiled-artifact.mjs";
 
 const abort = new AbortController();
 let interrupted = false;
@@ -57,6 +57,18 @@ function runtimeStep(value) {
   console.log(`OFFLINE_RUNTIME_STAGE ${value}`);
 }
 function checkpoint() { if (interrupted) throw fixedError("OFFLINE_HOST_DEADLINE_OR_SIGNAL"); }
+function publishArtifactFailure(label) {
+  if (ARTIFACT_FAILURES.includes(label)) console.log(`OFFLINE_ARTIFACT_FAILURE ${label}`);
+}
+function observeExportFailure(result, nonce) {
+  if (result.stdout.length > 16384 || result.stderr.length !== 0) return;
+  try {
+    const value = JSON.parse(result.stdout.toString("utf8"));
+    if (value.protocol === "offline-app-v1" && value.nonce === nonce && value.ok === false && value.controlPhase === "ARTIFACT") {
+      publishArtifactFailure(value.artifactFailure);
+    }
+  } catch { /* export still fails with the fixed control code */ }
+}
 function decode(result, protocol, nonce, code) {
   const text = requireSuccess(result, code);
   assert.ok(result.stderr.length === 0 && text.length <= 16384);
@@ -223,7 +235,9 @@ async function main() {
       assert.ok(["START", "PREFLIGHT", "READINESS", "SOURCE_CLONE", "TOOLCHAIN_LINK", "TYPECHECK", "LINT", "BUILD", "UNIT", "STAGING_WORKER", "POST_STAGE", "ARTIFACT"].includes(result.controlPhase));
       assert.ok([...ERROR_CLASSES, "OTHER"].includes(result.category));
       assert.ok(["UNEXPECTED_PROCESS_REMAINS", "STAGE_FAILED_OR_LIMITED", "OTHER"].includes(result.failureKind));
+      assert.ok(result.artifactFailure === null || (result.controlPhase === "ARTIFACT" && ARTIFACT_FAILURES.includes(result.artifactFailure)));
       console.log(`OFFLINE_APP_CONTROL phase=${result.controlPhase} category=${result.category} kind=${result.failureKind}`);
+      publishArtifactFailure(result.artifactFailure);
       if (result.processSnapshot !== null) {
         const keys = ["live", "zombie", "gone", "parent1", "node", "esbuild", "workerd", "other"];
         assert.deepEqual(Object.keys(result.processSnapshot).sort(), [...keys].sort());
@@ -280,7 +294,10 @@ async function main() {
     controlStage("COMPILED_ARTIFACT");
     assert.match(result.artifactSha256, /^[a-f0-9]{64}$/);
     const exported = await docker.extractCompiledArtifact();
-    if (exported.code !== 0 || exported.signal || exported.limited || exported.error || exported.stderr.length) throw fixedError("OFFLINE_COMPILED_ARTIFACT_UNCONFIRMED");
+    if (exported.code !== 0 || exported.signal || exported.limited || exported.error || exported.stderr.length) {
+      observeExportFailure(exported, nonce);
+      throw fixedError("OFFLINE_COMPILED_ARTIFACT_UNCONFIRMED");
+    }
     const provenance = {
       commit, sourceSha256: source.digest, packageSha256: PACKAGE_SHA256,
       lockSha256: LOCK_SHA256, tests: EXPECTED_TESTS, workerTests: EXPECTED_WORKER_TESTS,
@@ -308,6 +325,7 @@ catch (error) {
   const category = ERROR_CLASSES.has(error?.code) ? error.code : "OTHER";
   const label = CONTROL_STAGES.has(phase) ? phase : "START";
   console.error(`OFFLINE_CONTROL_FAILURE stage=${label} category=${category}`);
+  if (phase === "COMPILED_ARTIFACT") publishArtifactFailure(error?.safeCode);
   failed = TRUSTED_FAILURES.has(error?.safeCode) ? error.safeCode : "OFFLINE_TRUSTED_CONTROL_OR_PREFLIGHT_FAILED";
 }
 finally {

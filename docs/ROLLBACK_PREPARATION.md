@@ -2,6 +2,10 @@
 
 ## 현재 판정
 
+2026-11-06 재개: 새 의존성으로 갱신한 호환 앱 `873a4dda3e87775d5b5c24623342023f7dc4e32a`가 [앱30/type/lint/build](https://github.com/rlawksml/word-html-studio/actions/runs/42143543021)과 [보존10](https://github.com/rlawksml/word-html-studio/actions/runs/42143546067)을 통과했다. 사용자 승인 범위는 쓰기 없는 시간의 운영 읽기 백업(이 Mac에만 보관), 스테이징 QA 후 별도 무료 빈 대상 복원 실습까지다. 운영 배포는 승인되지 않았고 호환 앱의 실제 Sites 버전도 아직 없다.
+
+현재 v2 검사기는 fallback이 운영에서 실제 활성인 불변 버전이어야 한다. v34를 안전하다고 예외 처리하거나 Cloudflare의 버전을 대신 넣지 않는다. **운영 승인을 받은 뒤** 호환판을 먼저 운영 기준선으로 고정하고, 읽기 전용 스모크와 해당 버전의 데이터 보존을 확인한 후에만 v1.1 전환을 검토한다. 이 절차는 최신 DB/사진을 유지하며 어떤 단계에서도 과거 백업을 덮어쓰지 않는다. 사전 단계의 소스 빌드가 실제 Sites 버전 확보를 대신하지 않는다.
+
 2026-11-06 후속: 호환 fallback exact1f3fb0be1a7938c54692a42c9b5227e305cc948b의 type/lint/build·앱30과 별도 보존10·엄격 정리를 각각 통과했다. [실제 보고서](https://github.com/rlawksml/word-html-studio/blob/49bcafab2d7f2f5b523149b48a6d3af847143a57/docs/test-reports/2026-11-06-compatible-fallback-runtime.md). 아래 옛28efad2/v34의4FAIL 이력과 구분한다. **운영 NO-GO**는 유지한다. 새 소스의 테스트 PASS만으로 플랫폼의 불변 fallback 배포물·실DB/기간/사진 참조·최신 독립 백업/빈 대상 복원·환경 보존이 완료된 것은 아니다. 읽기 백업과 무료 복원 용량 선택은 사용자 승인 대기이며 실제 pause/create/restore는 하지 않았다.
 
 2026-11-05: **Production NO-GO**. 이 문서와 도구는 준비 전용이며 배포·롤백·DB 복원을 실행하지 않는다. 사용자는 운영 반영 직전까지의 작업만 승인했다. 운영 merge, 배포, 스키마 적용은 별도 승인 대상이다.

@@ -21,6 +21,7 @@ const assets = Object.freeze({
   "dist/client/.assetsignore": "/.vite",
   "dist/client/guides/bookstore-news-input-guide.pdf": "SYNTHETIC PUBLIC ASSET",
 });
+const failure = (safeCode) => (error) => error?.safeCode === safeCode && error.message === safeCode && error.cause === undefined;
 
 function fixture(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "bookstore-compiled-test-")));
@@ -96,14 +97,14 @@ test("STAGE-ARTIFACT-02 deterministic framing retains only allowlisted files in 
 test("STAGE-ARTIFACT-03 copy of a tracked public asset must match its pinned source bytes", (t) => {
   const { write, archive } = fixture(t);
   write("dist/client/guides/bookstore-news-input-guide.pdf", "REPLACED FIXTURE");
-  assert.throws(archive);
+  assert.throws(archive, failure("ARTIFACT_PUBLIC_MISMATCH"));
 });
 
 test("STAGE-ARTIFACT-04 source maps and credential-shaped files do not leave the sandbox", (t) => {
   const { write, archive } = fixture(t);
   for (const path of ["dist/client/assets/raw.js.map", "dist/server/.env", "dist/server/assets/auth-secret.js", "dist/client/assets/upload/data.js"]) {
     const invalid = write(path, "SYNTHETIC FIXTURE");
-    assert.throws(archive);
+    assert.throws(archive, failure(path.includes("/upload/") ? "ARTIFACT_DIRECTORY_LAYOUT" : "ARTIFACT_PATH_LAYOUT"));
     rmSync(invalid);
     if (path.includes("/upload/")) rmSync(dirname(invalid), { recursive: true });
   }
@@ -114,20 +115,20 @@ test("STAGE-ARTIFACT-05 linked directories, symlinks and hardlinks fail closed",
   const target = write("outside.js", "SYNTHETIC FIXTURE");
   const destination = join(root, "dist/server/link.js");
   symlinkSync(target, destination);
-  assert.throws(archive);
+  assert.throws(archive, failure("ARTIFACT_ENTRY_UNSAFE"));
   rmSync(destination);
   linkSync(target, destination);
-  assert.throws(archive);
+  assert.throws(archive, failure("ARTIFACT_FILE_UNSAFE"));
   rmSync(destination);
   renameSync(join(root, "dist/client"), join(root, "moved"));
   symlinkSync(join(root, "moved"), join(root, "dist/client"));
-  assert.throws(archive);
+  assert.throws(archive, failure("ARTIFACT_ROOT_UNSAFE"));
 });
 
 test("STAGE-ARTIFACT-06 oversize files are rejected before copying their bytes", (t) => {
   const { write, archive } = fixture(t);
   truncateSync(write("dist/server/large.js", ""), 16 * 1024 * 1024 + 1);
-  assert.throws(archive);
+  assert.throws(archive, failure("ARTIFACT_FILE_UNSAFE"));
 });
 
 test("STAGE-ARTIFACT-07 receiver rejects a wrong commit, lock, source, package or counter", (t) => {
@@ -143,7 +144,7 @@ test("STAGE-ARTIFACT-08 file corruption and trailing or truncated bytes fail ver
   const binary = archive(), corrupt = Buffer.from(binary);
   corrupt[corrupt.length - 1] ^= 1;
   for (const bad of [corrupt, binary.subarray(0, -1), Buffer.concat([binary, Buffer.from("extra")])]) {
-    assert.throws(() => verifyCompiledArtifact(bad, verified));
+    assert.throws(() => verifyCompiledArtifact(bad, verified), failure("ARTIFACT_ARCHIVE_INVALID"));
   }
 });
 
@@ -165,8 +166,16 @@ test("STAGE-ARTIFACT-09 receiver rejects traversal, duplicate, case alias and in
 
 test("STAGE-ARTIFACT-10 manifest validation requires the real entry and JS/CSS assets", (t) => {
   const { root, archive } = fixture(t);
-  rmSync(join(root, "dist/client/_next/static/main-xyz.css"));
-  assert.throws(() => verifyCompiledArtifact(archive(), verified));
+  for (const [path, kind] of [
+    ["dist/server/index.js", "ARTIFACT_REQUIRED_SERVER"],
+    ["dist/client/_next/static/main-xyz.js", "ARTIFACT_REQUIRED_JS"],
+    ["dist/client/_next/static/main-xyz.css", "ARTIFACT_REQUIRED_CSS"],
+  ]) {
+    const absolute = join(root, path);
+    rmSync(absolute);
+    assert.throws(() => verifyCompiledArtifact(archive(), verified), failure(kind));
+    writeFileSync(absolute, assets[path]);
+  }
 });
 
 test("STAGE-ARTIFACT-11 local receiver validates before writing, never executes JS or overwrites a destination", (t) => {
@@ -193,9 +202,9 @@ test("STAGE-ARTIFACT-12 exporter and receiver reject inline data source maps in 
     ["dist/client/_next/static/main-xyz.css", "main{}\n/*# sourceMappingURL=data:application/json;base64,e30= */"],
   ]) {
     // An intentionally re-sealed archive still must fail on content, not hash drift.
-    assert.throws(() => verifyCompiledArtifact(replacePayload(binary, path, value), verified));
+    assert.throws(() => verifyCompiledArtifact(replacePayload(binary, path, value), verified), failure("ARTIFACT_INLINE_MAP"));
     write(path, value);
-    assert.throws(archive);
+    assert.throws(archive, failure("ARTIFACT_INLINE_MAP"));
     write(path, assets[path]);
   }
   write("dist/server/index.js", "entry();\n//# sourceMappingURL=outside.js.map");

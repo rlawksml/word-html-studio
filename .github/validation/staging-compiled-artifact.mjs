@@ -3,9 +3,22 @@
 import assert from "node:assert/strict";
 import { constants, closeSync, fstatSync, lstatSync, openSync, readSync, readdirSync, realpathSync } from "node:fs";
 import { join } from "node:path";
-import { sha256 } from "./offline-host-support.mjs";
+import { fixedError, sha256 } from "./offline-host-support.mjs";
 
 export const STAGING_ARTIFACT_FILE = "staging-compiled.bin";
+export const ARTIFACT_FAILURES = Object.freeze([
+  "ARTIFACT_ROOT_UNSAFE", "ARTIFACT_ENTRY_UNSAFE", "ARTIFACT_DIRECTORY_LAYOUT", "ARTIFACT_PATH_LAYOUT",
+  "ARTIFACT_FILE_UNSAFE", "ARTIFACT_INLINE_MAP", "ARTIFACT_PUBLIC_MISMATCH", "ARTIFACT_ARCHIVE_INVALID",
+  "ARTIFACT_REQUIRED_SERVER", "ARTIFACT_REQUIRED_JS", "ARTIFACT_REQUIRED_CSS",
+]);
+function check(code, operation) {
+  try { return operation(); }
+  catch (error) {
+    // Do not attach the original exception; it can include the source path.
+    if (ARTIFACT_FAILURES.includes(error?.safeCode)) throw error;
+    throw fixedError(code);
+  }
+}
 const TOTAL_LIMIT = 64 * 1024 * 1024;
 const MANIFEST_LIMIT = 1024 * 1024;
 const FILE_LIMIT = 16 * 1024 * 1024;
@@ -42,7 +55,8 @@ function allowedDirectory(path) {
   return /^(?:dist\/(?:client|server)|dist\/client\/(?:\.vite|guides|assets|_next(?:\/static)?(?:\/[A-Za-z0-9._-]+)*)|dist\/server\/(?:\.vite|assets|ssr(?:\/assets)?))$/.test(path);
 }
 
-function validatePath(path) {
+function validatePath(path) { return check("ARTIFACT_PATH_LAYOUT", () => validateAllowedPath(path)); }
+function validateAllowedPath(path) {
   assert.equal(typeof path, "string");
   assert.ok(path.length <= 400);
   assert.ok(path.split("/").length <= 9 && path.split("/").every((part) => [".vite", ".assetsignore"].includes(part) || NAME.test(part)));
@@ -66,10 +80,13 @@ function checkProvenance(value) {
 }
 
 function rejectInlineSourceMap(path, bytes) {
-  if (/\.(?:m?js|css)$/.test(path)) assert.ok(!INLINE_SOURCE_MAP.test(bytes.toString("utf8")));
+  if (/\.(?:m?js|css)$/.test(path) && INLINE_SOURCE_MAP.test(bytes.toString("utf8"))) throw fixedError("ARTIFACT_INLINE_MAP");
 }
 
 export function readArtifactFile(path, limit) {
+  return check("ARTIFACT_FILE_UNSAFE", () => readSingleFile(path, limit));
+}
+function readSingleFile(path, limit) {
   assert.equal(realpathSync(path), path);
   const entry = lstatSync(path);
   assert.ok(entry.isFile() && entry.nlink === 1 && entry.size <= limit);
@@ -92,33 +109,45 @@ export function readArtifactFile(path, limit) {
 }
 
 export function collectCompiledArtifact(appRoot, provenance, publicRoot) {
+  return check("ARTIFACT_ARCHIVE_INVALID", () => collectBuild(appRoot, provenance, publicRoot));
+}
+function collectBuild(appRoot, provenance, publicRoot) {
   checkProvenance(provenance);
-  assert.equal(realpathSync(appRoot), appRoot);
+  check("ARTIFACT_ROOT_UNSAFE", () => {
+    for (const root of [appRoot, ...ROOTS.map((name) => join(appRoot, name))]) {
+      assert.equal(realpathSync(root), root);
+      assert.ok(lstatSync(root).isDirectory());
+    }
+  });
   const selected = [];
   let entries = 0, total = 0;
   const visit = (path) => {
-    assert.ok(++entries <= ENTRY_LIMIT && path.split("/").length <= 9);
+    if (++entries > ENTRY_LIMIT || path.split("/").length > 9) throw fixedError("ARTIFACT_PATH_LAYOUT");
     const absolute = join(appRoot, path);
-    const info = lstatSync(absolute);
-    assert.equal(realpathSync(absolute), absolute);
+    const info = check("ARTIFACT_ENTRY_UNSAFE", () => {
+      assert.equal(realpathSync(absolute), absolute);
+      return lstatSync(absolute);
+    });
     if (info.isDirectory()) {
-      assert.ok(allowedDirectory(path));
-      for (const name of readdirSync(absolute)) {
-        assert.ok(NAME.test(name) || name === ".vite" || name === ".assetsignore");
+      if (!allowedDirectory(path)) throw fixedError("ARTIFACT_DIRECTORY_LAYOUT");
+      for (const name of check("ARTIFACT_DIRECTORY_LAYOUT", () => readdirSync(absolute))) {
+        if (!NAME.test(name) && name !== ".vite" && name !== ".assetsignore") throw fixedError("ARTIFACT_PATH_LAYOUT");
         visit(`${path}/${name}`);
       }
       return;
     }
     // Generated build config is never transported or used as a deploy target.
     if (path === "dist/server/wrangler.json") {
-      assert.ok(info.isFile() && info.nlink === 1 && info.size <= 65536);
+      check("ARTIFACT_FILE_UNSAFE", () => assert.ok(info.isFile() && info.nlink === 1 && info.size <= 65536));
       return;
     }
     validatePath(path);
-    assert.ok(info.size <= FILE_LIMIT && total + info.size <= TOTAL_LIMIT);
+    check("ARTIFACT_FILE_UNSAFE", () => assert.ok(info.size <= FILE_LIMIT && total + info.size <= TOTAL_LIMIT));
     const bytes = readArtifactFile(absolute, FILE_LIMIT);
     rejectInlineSourceMap(path, bytes);
-    if (PUBLIC.has(path)) assert.ok(bytes.equals(readArtifactFile(join(publicRoot, path.slice("dist/client/".length)), FILE_LIMIT)));
+    if (PUBLIC.has(path)) check("ARTIFACT_PUBLIC_MISMATCH", () => {
+      assert.ok(bytes.equals(readSingleFile(join(publicRoot, path.slice("dist/client/".length)), FILE_LIMIT)));
+    });
     total += bytes.length;
     selected.push({ record: { path, bytes: bytes.length, sha256: sha256(bytes) }, bytes });
   };
@@ -133,6 +162,9 @@ export function collectCompiledArtifact(appRoot, provenance, publicRoot) {
 }
 
 export function verifyCompiledArtifact(archive, expected) {
+  return check("ARTIFACT_ARCHIVE_INVALID", () => verifyArchive(archive, expected));
+}
+function verifyArchive(archive, expected) {
   checkProvenance(expected);
   assert.ok(Buffer.isBuffer(archive) && archive.length >= 5 && archive.length <= 4 + MANIFEST_LIMIT + TOTAL_LIMIT);
   const size = archive.readUInt32BE(0);
@@ -171,9 +203,9 @@ export function verifyCompiledArtifact(archive, expected) {
   });
   // Refuse an empty/test-only set. These are the real worker entry and browser assets.
   assert.equal(offset, archive.length);
-  assert.ok(files.some(({ path, bytes }) => path === "dist/server/index.js" && bytes.length > 0));
-  for (const extension of [".js", ".css"]) {
-    assert.ok(files.some(({ path, bytes }) => path.startsWith("dist/client/_next/static/") && path.endsWith(extension) && bytes.length > 0));
+  if (!files.some(({ path, bytes }) => path === "dist/server/index.js" && bytes.length > 0)) throw fixedError("ARTIFACT_REQUIRED_SERVER");
+  for (const [extension, code] of [[".js", "ARTIFACT_REQUIRED_JS"], [".css", "ARTIFACT_REQUIRED_CSS"]]) {
+    if (!files.some(({ path, bytes }) => path.startsWith("dist/client/_next/static/") && path.endsWith(extension) && bytes.length > 0)) throw fixedError(code);
   }
   return { files, sha256: sha256(archive), bytes: archive.length };
 }
