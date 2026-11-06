@@ -100,6 +100,12 @@ exactfb75c62에서 typecheck/lint/build/기본26파일247TC와 엄격 자식 종
 
 ## 0. 백업·복원 안전성
 
+### TC-DR-005 · 운영 백업 중 변경 시 완료 차단
+
+- 우선순위: P0. 새 비공개 목적지와 승인된 무편집 시간대를 확인한 읽기 전용 작업만 허용한다.
+- 자동: `apps/web/tests/backup-source-guard.test.mjs`의 BACKUP-SOURCE-01~14. 잘못된 source/미확인 시간대, 활성·잘못된 lease, DB 같은 개수의 본문 수정, schema·Storage drift, 누락/잘못된 버킷과 목록 응답을 fixture로 재현한다.
+- 기대: 고정 오류 코드, 완료 manifest·`COMPLETE` 없음, 기존 자료 불변. 안정된 입력만 한 차례 저장 후 각 범위 재조회 비교를 통과한다. 실제 운영 백업·POSIX writer 검증 및 별도 복원과는 구분한다.
+
 ### TC-DR-001 · 백업 파일 무결성
 
 - 우선순위/구분: P0 / 자동

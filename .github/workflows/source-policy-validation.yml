@@ -250,18 +250,20 @@ jobs:
               test_argv=(tests/backup-completeness.test.mjs)
               ;;
             backup_paths)
-              expected_tests=14
+              expected_tests=28
               source_files=(
                 apps/web/scripts/supabase-backup.mjs
+                apps/web/scripts/backup-source-guard.mjs
                 apps/web/scripts/backup-writer-client.mjs
                 apps/web/scripts/backup-dirfd-writer.py
                 apps/web/scripts/backup-utils.mjs
                 apps/web/scripts/backup-manifest-policy.mjs
                 apps/web/scripts/supabase-schema.mjs
                 apps/web/tests/backup-writer-paths.test.mjs
+                apps/web/tests/backup-source-guard.test.mjs
                 apps/web/tests/helpers/backup-writer-fixture.mjs
               )
-              test_argv=(tests/backup-writer-paths.test.mjs)
+              test_argv=(tests/backup-writer-paths.test.mjs tests/backup-source-guard.test.mjs)
               ;;
             backup_protocol)
               expected_tests=12

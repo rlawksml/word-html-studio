@@ -17,7 +17,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const REQUIRED = [
   "supabase-backup.mjs", "backup-utils.mjs", "backup-manifest-policy.mjs", "supabase-schema.mjs",
 ];
-const OPTIONAL = ["backup-writer-client.mjs", "backup-dirfd-writer.py"];
+const OPTIONAL = ["backup-writer-client.mjs", "backup-dirfd-writer.py", "backup-source-guard.mjs"];
 const MODES = new Set([
   "normal", "ancestor", "world", "group", "missing", "rename", "collision",
   "hardlink", "fifo", "sdk-error", "missing-env", "existing-dir", "existing-file", "repository",
@@ -26,6 +26,7 @@ const PROTOCOL = "backup-writer-fixture-v1";
 const CHILD_LIMIT = 32768;
 const DUMMY_URL = "https://fixture-source.supabase.co";
 const DUMMY_KEY = "synthetic-not-a-real-supabase-key";
+const DUMMY_TIME = "2026-01-01T00:00:00.000Z";
 export const IMAGE_PATH = "fixture-photo.bin";
 export const PHOTO_BYTES = Buffer.from([0, 255, 1, 128, 10, 13, 42]);
 export const SENTINEL_BYTES = Buffer.from("synthetic protected sentinel: 보존\n");
@@ -164,7 +165,10 @@ async function ownedGroupGone(pid) {
 
 async function runChild(input) {
   const env = nativeEnv(input.root);
-  if (input.mode !== "missing-env") Object.assign(env, { SUPABASE_URL: DUMMY_URL, SUPABASE_SECRET_KEY: DUMMY_KEY });
+  if (input.mode !== "missing-env") Object.assign(env, {
+    SUPABASE_URL: DUMMY_URL, SUPABASE_SECRET_KEY: DUMMY_KEY,
+    BACKUP_EXPECTED_SOURCE_PROJECT_REF: "fixture-source", BACKUP_CONFIRM_IDLE_WINDOW: "confirmed",
+  });
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [fileURLToPath(import.meta.url), "--fixture-child", JSON.stringify(input)], {
       cwd: input.root, env, detached: true, stdio: ["ignore", "pipe", "pipe", "pipe"],
@@ -243,17 +247,24 @@ function syntheticClient(input, state) {
       };
     },
     storage: {
-      async listBuckets() { return { data: [{ name: "bookstore-news-originals" }, { name: "bookstore-news-previews" }], error: null }; },
+      async listBuckets() {
+        return { error: null, data: ["bookstore-news-originals", "bookstore-news-previews"].map((name) => ({
+          name, id: name, public: name.endsWith("previews"), updated_at: DUMMY_TIME,
+        })) };
+      },
       from(bucket) {
         assert.ok(["bookstore-news-originals", "bookstore-news-previews"].includes(bucket), "FIXTURE_BUCKET_NOT_ALLOWLISTED");
         return {
           async list(prefix) {
             assert.equal(prefix, "", "FIXTURE_STORAGE_PREFIX");
-            return { data: [{ name: IMAGE_PATH, id: "synthetic-file", updated_at: "2026-01-01T00:00:00.000Z" }], error: null };
+            return { error: null, data: [{
+              name: IMAGE_PATH, id: "synthetic-file", created_at: DUMMY_TIME, updated_at: DUMMY_TIME,
+              metadata: { size: PHOTO_BYTES.length, eTag: "synthetic-tag" },
+            }] };
           },
           async download(name) {
             assert.equal(name, IMAGE_PATH, "FIXTURE_STORAGE_OBJECT");
-            return { data: { async arrayBuffer() { return Uint8Array.from(PHOTO_BYTES).buffer; } }, error: null };
+            return { data: new Blob([PHOTO_BYTES]), error: null };
           },
         };
       },

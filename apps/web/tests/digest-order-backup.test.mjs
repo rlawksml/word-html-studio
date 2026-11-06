@@ -71,7 +71,8 @@ test("DORDER-BACKUP-05 backup source는 설치 gate를 사용하며 table 조회
   const source = await readFile(new URL("../scripts/supabase-backup.mjs", import.meta.url), "utf8");
   assert.match(source, /readSupabaseSchemaCapabilities\(client\)/);
   assert.match(source, /tableSpecsForBackup\(schemaCapabilities\.schemaVersionAvailable, schemaCapabilities\.digestOrderAvailable\)/);
-  assert.match(source, /if \(result\.error\) throw new Error\(`Database export failed/);
+  assert.match(source, /if \(result\?\.error \|\| !Array\.isArray\(result\?\.data\)\) throw new Error\("BACKUP_DATABASE_READ_FAILED"\)/);
+  assert.ok(source.indexOf("await captureStableBackupSource") < source.indexOf('await writer.put("manifest.json"'));
   assert.doesNotMatch(source, /await.*\.delete\(/);
 });
 

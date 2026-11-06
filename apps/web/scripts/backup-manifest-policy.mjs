@@ -41,6 +41,8 @@ function timestamp(value) {
     && (zone === "Z" || (Number(zh) <= 23 && Number(zm) <= 59)) && Number.isFinite(Date.parse(value));
 }
 
+export { timestamp as isBackupTimestamp };
+
 function fileDescriptor(value) {
   return record(value) && count(value.bytes) && hash(value.sha256);
 }

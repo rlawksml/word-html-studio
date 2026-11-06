@@ -55,12 +55,22 @@
 - 상한 초과·중간 실패는 잘라 저장하거나 자동 삭제하지 않는다. 초기화 이후의 부분 자료와 INCOMPLETE를 보관한다. commit 이후 ACK 유실은 UNKNOWN으로 완료 판정을 보류하고 자료 삭제·marker 재생성을 하지 않는다.
 - 악성 동일 UID/root의 임의 reparenting까지 방어한다고 보장하지 않는다. 실제 백업은 승인된 프로젝트와 새 private 경로에서만 실행하고 순차 SELECT의 snapshot 일관성을 별도로 확인한다.
 
+### 읽기 일관성 확인
+
+- 실제 프로젝트와 실행을 승인한 담당자가 백업 동안 입력·HTML 편집·DB/Storage 작업이 없는 시간대를 확인합니다. 아래 `confirmed`는 그 확인의 기록이지 서비스의 쓰기를 잠그는 기능이 아닙니다. 데스크톱 경로가 iCloud 등 외부 동기화 대상이 아니며 기존 백업을 덮어쓰지 않는 새 비공개 목적지인지도 별도로 확인합니다.
+- CLI는 HTTPS 공식 프로젝트 root와 지정한 ref가 다르면 접속하지 않습니다. 먼저 편집 임대를 읽고 활성 임대(만료 직후 1분 포함)나 해석 불가 임대가 있으면 중단합니다. 테이블은 최대 100,000행, Storage 목록은 파일/폴더 합계 10,000항목으로 제한되며 한도를 넘기면 조용히 자르지 않습니다.
+- DB 행·schema capability와 Storage bucket/object 목록을 다시 읽어 비교합니다. 객체 ID·생성/수정 시간·크기·eTag를 비교하고 다운로드 실제 크기도 확인합니다. 다운로드로 바뀔 수 있는 접근 시간은 비교에서 제외합니다. 메타데이터가 없거나 값이 다르거나 최종 임대가 바뀌면 완료 manifest를 만들지 않습니다.
+- SDK는 다운로드 응답을 먼저 메모리에 담습니다. 최초 목록에서 64MiB를 넘는 객체는 받지 않으며, 내려받은 Blob의 크기가 달라지면 복사·저장을 시작하지 않습니다. 현재 migration의 버킷 상한은 원본/legacy 20MiB, 미리보기 5MiB입니다. 실행 전 실제 버킷 설정을 별도로 확인하며 다운로드 동안 원격 제한까지 변경되는 경우의 메모리 상한을 보장하지 않습니다.
+- 순차 읽기는 **원자적 스냅샷이 아닙니다**. 변경 후 다시 원복된 값, 임대를 쓰지 않는 작업, 읽기 사이에 발생한 변경을 모두 발견한다고 보장하지 않습니다. 편집 중지 시간대가 확인되지 않거나 결과가 `COMPLETE`가 아니면 복원 근거로 쓰지 않습니다. 새 부분 사본과 `INCOMPLETE`는 자동 삭제하지 않습니다.
+
 운영 비밀값은 Git에 포함되지 않는 `apps/web/.env.production.local` 같은 로컬 파일에만 둡니다.
 
 ```bash
 cd apps/web
 BACKUP_SOURCE_TAG=v1.0.0 \
 BACKUP_SOURCE_COMMIT=<배포-커밋-SHA> \
+BACKUP_EXPECTED_SOURCE_PROJECT_REF=<운영-프로젝트-ref> \
+BACKUP_CONFIRM_IDLE_WINDOW=confirmed \
 node --env-file=.env.production.local scripts/supabase-backup.mjs \
   /사용자/지정/저장소/bookstore-news-YYYYMMDD-HHMMSS
 ```
