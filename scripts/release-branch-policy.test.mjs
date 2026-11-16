@@ -3,11 +3,12 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { checkReleaseBranch } from "./release-branch-policy.mjs";
 
-const route = (source, target, sourceRepo = "owner/studio") =>
-  checkReleaseBranch({ source, target, sourceRepo, targetRepo: "owner/studio" });
+const route = (source, target, sourceRepo = "owner/studio", prNumber) =>
+  checkReleaseBranch({ source, target, sourceRepo, targetRepo: "owner/studio", prNumber });
 
 test("RELEASE-FLOW-01: accepts issue PRs into develop", () => {
-  assert.equal(route("codex/m5-release-flow", "develop"), "staging-source");
+  assert.equal(route("codex/v1.2-issue-123-save-draft", "develop"), "staging-source");
+  assert.equal(route("codex/v1.2.1-task-release-docs", "develop"), "staging-source");
 });
 
 test("RELEASE-FLOW-02: accepts only the internal develop PR into main", () => {
@@ -19,8 +20,8 @@ test("RELEASE-FLOW-02: accepts only the internal develop PR into main", () => {
 
 test("RELEASE-FLOW-03: rejects forks, malformed refs and incomplete event data", () => {
   assert.throws(() => route("develop", "main", "other/studio"), /다른 저장소/);
-  assert.throws(() => route("codex/m5-flow", "develop", "other/studio"), /다른 저장소/);
-  for (const branch of ["main", "staging", "codex/", "codex/test/another"]) {
+  assert.throws(() => route("codex/v1.2-issue-123-save-draft", "develop", "other/studio"), /다른 저장소/);
+  for (const branch of ["main", "staging", "codex/", "codex/m5-flow", "codex/v1.2-issue-0-save-draft", "codex/v1.2-save-draft"]) {
     assert.throws(() => route(branch, "develop"), /codex/);
   }
   assert.throws(() => checkReleaseBranch({}), /누락/);
@@ -40,4 +41,12 @@ test("RELEASE-FLOW-05: CI branch checks have no credentials, build or publish st
   assert.doesNotMatch(workflow, /npm run validate:deployment-target/);
   assert.match(workflow, /ready_for_review/);
   assert.match(workflow, /github.event.pull_request.draft == false/);
+});
+
+test("RELEASE-FLOW-06: allows only the existing v1.1 baseline PR to keep its legacy name", () => {
+  const branch = "codex/m5-release-flow";
+  assert.equal(route(branch, "develop", "owner/studio", 95), "staging-source");
+  assert.throws(() => route(branch, "develop", "owner/studio", 96), /codex/);
+  assert.throws(() => route(branch, "develop", "other/studio", 95), /다른 저장소/);
+  assert.throws(() => route(branch, "main", "owner/studio", 95), /develop → main/);
 });

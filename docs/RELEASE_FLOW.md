@@ -4,9 +4,16 @@ GitHub `rlawksml/word-html-studio`가 앱 소스의 기준이다. 배포 플랫�
 
 | GitHub 브랜치 | 역할 | 반영 대상 |
 |---|---|---|
-| `codex/<이슈>` | 이슈 하나의 수정과 테스트 | `develop` PR. 필요할 때만 별도 테스트 브랜치 사용 |
+| `codex/v1.2-issue-123-save-draft` | 목표 버전·이슈·변경 내용이 드러나는 작업 브랜치 | `develop` PR. 필요할 때만 별도 테스트 브랜치 사용 |
 | `develop` | 개발 통합 | [비공개 스테이징](https://bookstore-news-studio-staging.rlawksml.workers.dev/)과 스테이징 Supabase |
 | `main` | 사용자 승인 릴리스 소스 | [고정 운영 주소](https://bookstore-news-studio-v11.rlawksml.workers.dev/)의 기존 `bookstore-news-studio-v11` Worker |
+
+## 이름 규칙
+
+- 브랜치: `codex/<목표 버전>-issue-<번호>-<영문-작업명>`. 이슈 번호가 없으면 `codex/v1.2-task-release-docs`처럼 `task`를 쓴다. 패치 대상이면 `v1.2.1`처럼 적는다.
+- 커밋과 PR: `fix(v1.2): 초안 저장 오류 수정 (#123)`처럼 변경 유형·목표 버전·내용·이슈 번호를 맞춘다. `feat`, `fix`, `docs`, `ci`, `test` 등을 쓰고, 이슈가 없으면 번호를 빼면 된다. squash 커밋 제목에도 이 형식을 유지한다.
+- 릴리스: `develop → main` PR 제목과 배포 기록에는 정확한 버전을 쓴다. 예: `release(v1.2.0): 동네책방 소식 스튜디오 배포`. 배포 후 Git 태그(예: `v1.2.0`)는 실제 운영이 반환한 소스 SHA에 붙인다. 아직 배포하지 않았거나 `-rc.1`로 운영 중인 버전을 안정판 태그로 바꾸지 않는다.
+- `main`·`develop`은 버전마다 새로 만들지 않는다. 과거 공유 커밋·PR의 이름은 바꾸지 않는다. 기존 v1.1 기준선 [PR #95](https://github.com/rlawksml/word-html-studio/pull/95)만 이름 검사 예외다. 다른 과거 PR을 계속 진행할 경우 새 규칙 이름의 브랜치로 연결한다.
 
 ## 한 릴리스를 올리는 순서
 
