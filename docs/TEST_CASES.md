@@ -4,6 +4,10 @@
 
 ## 문서 정보
 
+### 릴리스 브랜치 정책 — RELEASE-FLOW-01~05
+
+`node --test scripts/release-branch-policy.test.mjs`로 내부 기능 PR → `develop`, 내부 `develop` → `main`, 잘못된 대상·외부 저장소·누락 이벤트 거부, 기능 브랜치끼리의 스택형 PR, 배포·외부 데이터 접근이 없는 CI job 구성을 확인한다. 이 검사는 Git 경로만 확인한다. 실제 Staging/운영 배포나 DB 통합 테스트를 대신하지 않는다.
+
 ### 2026-11-06 도구 체인·Worker 종료 진단 (최신)
 
 후속 exacted6bf0db80e4cb8cf10fecee12c552c0bec0385c/[42076842796](https://github.com/rlawksml/word-html-studio/actions/runs/42076842796)은 type/lint/build·앱277·Worker36 PASS/나머지0, 엄격 정리 후 COMPLETE다. `STAGE-UPLOAD-01`은 실제 published CLI dry-run·생성물 import를 유지하며 동일 모듈의 정확한 esbuild 자식만 실제 close까지 기다리고 marker1회를 확인한다. 단독 upload1도 exact3d4f3e4/[42076842047](https://github.com/rlawksml/word-html-studio/actions/runs/42076842047)에서 strict 정리를 통과했다. 아래 실패는 수정 전 이력이며 두 실행 수는 합산하지 않는다. 실제 원격 사용자·DB/사진 검증으로 확대하지 않는다.

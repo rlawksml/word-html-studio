@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   workflow_dispatch:
@@ -37,10 +38,21 @@ permissions:
   contents: read
 
 jobs:
+  release-branch-policy:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: node --test scripts/release-branch-policy.test.mjs
+      - run: node scripts/release-branch-policy.mjs
+
   verify:
     # Manual dispatch must not install app dependencies or activate legacy DB tests.
-    # Pull requests and main pushes keep the complete existing audit/verify gate.
-    if: github.event_name != 'workflow_dispatch'
+    # Drafts run the cheap branch policy; ready PRs and main pushes keep the app gate.
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -56,9 +68,7 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
       - run: npm run audit:production
-      - run: npm run validate:deployment-target
-        env:
-          DEPLOYMENT_TARGET: ${{ github.event_name == 'workflow_dispatch' && 'develop' || (github.base_ref || github.ref_name) }}
+      # The Sites manifest is only validated when preparing a Sites release, not for Git branch CI.
       - run: npm run migration:check
         env:
           MIGRATION_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}

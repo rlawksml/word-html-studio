@@ -47,8 +47,8 @@ test("rejects staging and production Sites project cross-wiring", () => {
 test("uses GitHub Actions releases backed by the supported Node 24 runtime", async () => {
   const workflow = await readFile(new URL("../../../.github/workflows/ci.yml", import.meta.url), "utf8");
 
-  // 두 job이 같은 런타임 세대를 사용해야 한쪽 검증만 경고 없이 통과하는 상태를 막을 수 있습니다.
-  assert.equal((workflow.match(/actions\/checkout@v7/g) ?? []).length, 2);
+  // 브랜치 정책 job의 checkout까지 같은 런타임 세대로 유지합니다.
+  assert.equal((workflow.match(/actions\/checkout@v7/g) ?? []).length, 3);
   assert.equal((workflow.match(/actions\/setup-node@v7/g) ?? []).length, 2);
   assert.doesNotMatch(workflow, /actions\/(?:checkout|setup-node)@v[1-4]\b/);
 });

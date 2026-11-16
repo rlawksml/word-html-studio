@@ -1,0 +1,27 @@
+# 동네책방 소식 스튜디오 릴리스 운영
+
+GitHub `rlawksml/word-html-studio`가 앱 소스의 기준이다. 배포 플랫폼은 승인한 소스를 실행하는 곳이며, 플랫폼을 바꿔도 브랜치 전략은 같다.
+
+| GitHub 브랜치 | 역할 | 반영 대상 |
+|---|---|---|
+| `codex/<이슈>` | 이슈 하나의 수정과 테스트 | `develop` PR. 필요할 때만 별도 테스트 브랜치 사용 |
+| `develop` | 개발 통합 | [비공개 스테이징](https://bookstore-news-studio-staging.rlawksml.workers.dev/)과 스테이징 Supabase |
+| `main` | 사용자 승인 릴리스 소스 | [고정 운영 주소](https://bookstore-news-studio-v11.rlawksml.workers.dev/)의 기존 `bookstore-news-studio-v11` Worker |
+
+## 한 릴리스를 올리는 순서
+
+1. 최신 `develop`에서 이슈별 브랜치를 만들고 PR을 연다. 브랜치 검사·이슈 TC·필요한 회귀를 통과한 PR을 `develop`에 병합한다. GitHub Actions는 코드 검증만 한다. Draft 상태에서는 가벼운 브랜치 정책 검사만 하고, Ready로 바꾸면 전체 앱 검증을 실행한다.
+2. 릴리스 후보 `develop`의 정확한 SHA로 [분리 스테이징](CLOUDFLARE_STAGING.md)을 검증한다. 설정이 스테이징 Supabase를 가리키는지 확인한 뒤 필요한 시나리오만 실행한다. 테스트에 운영 DB/Storage를 연결하지 않는다.
+3. 검증 결과와 스테이징 SHA를 기록하고 `develop → main` PR에서 운영 승인을 받는다. 릴리스 PR은 squash하지 않는다. 머지 과정에서 별도 커밋이 생기면 스테이징에서 검증한 커밋이 `main`에 포함되고 두 소스 트리가 같은지 확인한다. 다르면 다시 검증한다.
+4. 배포 승인을 받으면 해당 검증 소스, 실제 현재 운영 Worker의 불변 버전 ID, 기존 환경 설정, 무료 실행 범위를 대조한다. 로컬의 검증 빌드만 기존 Worker에 반영한다. 기본 생성 `wrangler.json`으로 임의 배포하거나 Worker·URL을 만들지 않는다. 이 흐름은 자동 배포나 클라우드 요금제 변경을 설정하지 않는다.
+5. 공개 주소의 [`/api/version`](https://bookstore-news-studio-v11.rlawksml.workers.dev/api/version)에서 실제 배포 SHA와 스키마 호환을 대조하고 GitHub 릴리스 기록에 배포 SHA·Worker 버전·검증 결과를 남긴다. 장애 시 호환되는 직전 앱 배포본을 같은 Worker에서 복구한다. DB·사진을 롤백하지 않는다.
+
+머지나 앱 배포는 DB 마이그레이션·사진 정리를 실행하지 않는다. 스키마 변경이 필요한 경우에만 백업·이전 앱 호환 검증과 별도 승인을 거친다. 운영 백업과 환경 비밀값은 GitHub에 올리지 않는다. 자세한 복구 준비는 [롤백 가이드](ROLLBACK_PREPARATION.md)를 따른다.
+
+## Sites를 배포 대상으로 쓰는 경우
+
+같은 `codex/* → develop → main` 절차를 유지한다. 승인한 GitHub 커밋에서 배포 소스만 준비해서 [Sites 소스 검증](SITES_SOURCE_ADAPTER.md)을 거친다. Sites가 별도의 배포용 Git 커밋을 만들면 GitHub 원본 SHA와 Sites 소스 SHA를 함께 기록한다. Sites 편집 화면을 독립적인 운영 소스로 쓰지 않는다. 기존 v1.0 Sites는 보존하며 이 설정으로 복구·게시하거나 운영 대상으로 되돌리지 않는다.
+
+## 현재 운영 소스 정합화
+
+2026-11-16 공개 운영 버전에서 `1.1.0-rc.1` / `2bf2166cfbfc4f10f430b5d1b8b3d243e2a5cd59` / 스키마 현재·기대 `202609070002`를 확인했다. 최초 정합화는 이 이미 배포된 소스의 Git 이력과 운영 절차를 맞추는 작업이다. 기존 환경 변경·재배포·DB 마이그레이션은 포함하지 않는다. 정책 설정 PR의 테스트는 릴리스 경로 설정에 한정되며, 새 애플리케이션 버전의 배포 판정이 아니다.
