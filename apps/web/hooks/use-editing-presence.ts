@@ -22,12 +22,31 @@ const idlePresence: EditingPresence = { status: "idle", activeRole: null };
 export function useEditingPresence({ enabled, role, target }: EditingPresenceOptions) {
   const [presence, setPresence] = useState<EditingPresence>(idlePresence);
   const targetRef = useRef(target);
+  const releasedTargetRef = useRef<EditingPresenceTarget | null>(null);
   useEffect(() => { targetRef.current = target; }, [target]);
 
   const releasePresence = useCallback(() => {
     const current = targetRef.current;
     if (!current) return Promise.resolve();
-    return releaseEditingPresence(current).then(() => undefined, () => undefined);
+    return releaseEditingPresence(current, AbortSignal.timeout(3_000)).then((response) => {
+      if (response.ok) releasedTargetRef.current = current;
+    }, () => undefined);
+  }, []);
+
+  // 로그아웃 실패로 편집 화면에 남으면 이미 해제한 임대를 다시 확인합니다.
+  const refreshPresence = useCallback(async () => {
+    const current = targetRef.current;
+    if (!current) return true;
+    try {
+      const result = await heartbeatEditingPresence(current, AbortSignal.timeout(3_000));
+      if (targetRef.current !== current) return false;
+      releasedTargetRef.current = null;
+      setPresence({ status: result.owned ? "owned" : "occupied", activeRole: result.activeRole });
+      return result.owned;
+    } catch {
+      if (targetRef.current === current) setPresence({ status: "unavailable", activeRole: null });
+      return false;
+    }
   }, []);
 
   useEffect(() => {
@@ -42,7 +61,10 @@ export function useEditingPresence({ enabled, role, target }: EditingPresenceOpt
       setPresence((current) => current.status === "idle" ? { status: "checking", activeRole: null } : current);
       try {
         const result = await heartbeatEditingPresence(target);
-        if (active) setPresence({ status: result.owned ? "owned" : "occupied", activeRole: result.activeRole });
+        if (active) {
+          releasedTargetRef.current = null;
+          setPresence({ status: result.owned ? "owned" : "occupied", activeRole: result.activeRole });
+        }
       } catch {
         if (active) setPresence({ status: "unavailable", activeRole: null });
       }
@@ -59,9 +81,9 @@ export function useEditingPresence({ enabled, role, target }: EditingPresenceOpt
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("pagehide", handlePageHide);
-      void releaseEditingPresence(target).catch(() => undefined);
+      if (releasedTargetRef.current !== target) void releaseEditingPresence(target).catch(() => undefined);
     };
   }, [enabled, role, target]);
 
-  return { editingPresence: presence, releasePresence };
+  return { editingPresence: presence, releasePresence, refreshPresence };
 }

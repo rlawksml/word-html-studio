@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
-import test from "node:test";
+import test, { after } from "node:test";
+import { installCloudflareTracingFixture } from "./cloudflare-tracing-fixture.mjs";
+import { assertCanonicalUrl } from "./fixtures/metadata-assertions.mjs";
+
+const tracingFixture = installCloudflareTracingFixture(new URL("../dist/server/", import.meta.url));
+after(() => tracingFixture.deregister());
 
 const applicationSourceFiles = [
   "../hooks/use-studio-controller.ts",
@@ -206,7 +211,7 @@ test("publishes complete SEO metadata, discovery routes, and a social preview", 
   ]);
 
   const home = await homeResponse.text();
-  assert.match(home, /rel="canonical" href="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/"/);
+  assertCanonicalUrl(home, "https://bookstore-news-studio.rlawksml.chatgpt.site/");
   assert.match(home, /property="og:title" content="지관서가 동네책방 소식"/);
   assert.match(home, /property="og:image" content="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/og-bookstore-news\.png"/);
   assert.match(home, /name="twitter:card" content="summary_large_image"/);
@@ -215,7 +220,7 @@ test("publishes complete SEO metadata, discovery routes, and a social preview", 
   assert.match(home, /CollectionPage/);
 
   const help = await helpResponse.text();
-  assert.match(help, /rel="canonical" href="https:\/\/bookstore-news-studio\.rlawksml\.chatgpt\.site\/help"/);
+  assertCanonicalUrl(help, "https://bookstore-news-studio.rlawksml.chatgpt.site/help");
   const improvements = await improvementsResponse.text();
   assert.match(improvements, /name="robots" content="noindex, nofollow"/);
 
@@ -232,8 +237,10 @@ test("publishes complete SEO metadata, discovery routes, and a social preview", 
 });
 
 test("keeps passcodes in server environment variables and uses a tab-scoped worker session", async () => {
-  const [source, sessionRoute, sessionLibrary, serverLibrary] = await Promise.all([
+  const [source, controller, appHeader, sessionRoute, sessionLibrary, serverLibrary] = await Promise.all([
     readApplicationSource(),
+    readFile(new URL("../hooks/use-studio-controller.ts", import.meta.url), "utf8"),
+    readFile(new URL("../components/molecules/AppHeader.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/session/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/workspace-session.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/supabase-server.ts", import.meta.url), "utf8"),
@@ -276,7 +283,18 @@ test("keeps passcodes in server environment variables and uses a tab-scoped work
   assert.match(source, /forgetSubmissionDraft\(snapshot\)/);
   assert.match(source, /<BrandButton onClick=\{returnToVisitor\} \/>/);
   assert.match(source, /aria-label="동네책방 소식 홈"/);
-  assert.match(source, /<button onClick=\{returnToVisitor\}>로그아웃<\/button>/);
+  assert.match(appHeader, /requestWorkerAccess\("input"\)/);
+  assert.match(appHeader, /requestWorkerAccess\("html"\)/);
+  assert.match(appHeader, /onClick=\{\(\) => void logout\(\)\}/);
+  assert.match(appHeader, /aria-busy=\{pendingAction === "logout"\}/);
+  const returnToVisitorBody = controller.match(/const returnToVisitor = \(\) => \{([\s\S]*?)\n  \};/)?.[1] || "";
+  const logoutBody = controller.match(/const logout = async \(\) => \{([\s\S]*?)\n  \};/)?.[1] || "";
+  assert.doesNotMatch(returnToVisitorBody, /DELETE|removeItem/);
+  assert.match(returnToVisitorBody, /resetVisitorPage\(\)/);
+  assert.match(logoutBody, /method: "DELETE"/);
+  assert.match(logoutBody, /removeItem\("bookstore-news-role"\)/);
+  assert.match(controller, /setLeaveTarget\(element\.closest\("\.worker-nav"\) \? "logout" : "visitor"\)/);
+  assert.match(controller, /session\?\.role === targetRole/);
   assert.match(source, /← 뒤로가기/);
   assert.doesNotMatch(source, /장의 사진 업로드|월별 현황 메시지 복사|completion-modal|재게시를 알려주세요|setCompletion/);
 });
@@ -421,11 +439,12 @@ test("uses record-scoped Supabase writes with private originals and public mobil
   assert.doesNotMatch(imageRoute, /`\$\{uniqueId\}-\$\{originalName\}`/);
   assert.doesNotMatch(imageRoute, /\uAC00-\uD7A3/);
   assert.match(imageRoute, /validStoragePath/);
-  assert.match(imageRoute, /body\.images\.length > 500/);
+  assert.match(imageRoute, /respondToDeferredImageCleanup\(request, readWorkerSession/);
   assert.doesNotMatch(imageRoute, /request\.formData\(\)/);
   assert.match(pageSource, /uploadFileToSignedUrl\(reservation\.uploads\.originalUrl, file, "300"\)/);
   assert.match(pageSource, /await saveSubmissionChange/);
-  assert.match(pageSource, /await deleteStoredImages\(reserved\)/);
+  assert.doesNotMatch(pageSource, /pendingImageDeletesRef|await deleteStoredImages\(reserved\)/);
+  assert.match(pageSource, /attachUploadedImages\(submission/);
   assert.match(imageRoute, /원본 사진 다운로드 권한/);
   assert.match(imageRoute, /원본 사진을 찾지 못했습니다/);
   assert.match(migration, /alter table public\.bookstores/);

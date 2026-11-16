@@ -1,5 +1,5 @@
 import type { Bookstore, LabeledLink, Submission } from "@/lib/workspace-types";
-import { escapeHtml, formatDate, formatMonth, safeFilename, safeHref } from "@/lib/workspace-formatters";
+import { escapeHtml, escapeMultilineHtml, formatDate, formatMonth, safeFilename, safeHref } from "@/lib/workspace-formatters";
 import { formatNewsSchedule } from "@/lib/news-schedule";
 
 /** 외부 HTML 편집기에 그대로 붙여넣을 수 있는 책방별 inline CSS HTML을 만듭니다. */
@@ -8,7 +8,7 @@ export function generatedHtml(submission: Submission, bookstore: Bookstore, incl
     const images = news.images.map((image, imageIndex) => {
       const filename = `${submission.month}_${safeFilename(bookstore.name)}_${String(newsIndex + 1).padStart(2, "0")}_${String(imageIndex + 1).padStart(2, "0")}_${safeFilename(news.title)}.${image.name.split(".").pop() || "jpg"}`;
       // 미리보기에는 공개 축소 이미지를 넣고, 다운로드 HTML에는 편집자가 교체할 파일명 표식을 남깁니다.
-      if (includePreviewImages) return `<figure style="max-width:700px;margin:20px auto;text-align:center"><img src="${image.url}" alt="${escapeHtml(image.caption || news.title)}" style="display:block;width:auto;max-width:100%;height:auto;margin:0 auto">${image.caption ? `<figcaption style="margin-top:8px;color:#777;font-size:13px">${escapeHtml(image.caption)}</figcaption>` : ""}</figure>`;
+      if (includePreviewImages) return `<figure style="max-width:700px;margin:20px auto;text-align:center"><img src="${image.url}" alt="${escapeHtml(image.caption || news.title)}" style="display:block;width:auto;max-width:100%;height:auto;margin:0 auto">${image.caption ? `<figcaption style="margin-top:8px;color:#777;font-size:13px">${escapeMultilineHtml(image.caption)}</figcaption>` : ""}</figure>`;
       return `<!-- IMAGE: ${filename} -->`;
     }).join("\n");
     const schedule = formatNewsSchedule(news);
@@ -29,8 +29,8 @@ export function generatedHtml(submission: Submission, bookstore: Bookstore, incl
   ${news.regular ? '<span style="display:inline-block;margin-bottom:12px;padding:3px 8px;background:#eee;color:#555;font-size:12px">정기</span>' : ""}
   ${images}
   <div style="padding:22px;background:#f4f4f2;border:1px solid #ddd;border-radius:8px">
-    <p style="margin:0 0 14px;line-height:1.8;white-space:pre-line">${escapeHtml(news.description)}</p>
-    ${facts.map(([label, value]) => `<p style="margin:6px 0;white-space:pre-line"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`).join("\n    ")}
+    <p style="margin:0 0 14px;line-height:1.8">${escapeMultilineHtml(news.description)}</p>
+    ${facts.map(([label, value]) => `<p style="margin:6px 0"><strong>${escapeHtml(label)}:</strong> ${escapeMultilineHtml(value)}</p>`).join("\n    ")}
     ${links.length ? `<p style="margin:14px 0 0">${links.map((link) => `<a href="${safeHref(link.url)}" style="display:inline-block;margin:0 12px 6px 0;color:#8e735b;font-weight:600;text-decoration:none">${escapeHtml(link.label || "관련 링크")} ↗</a>`).join("")}</p>` : ""}
   </div>
 </section>`;
@@ -47,11 +47,11 @@ export function generatedHtml(submission: Submission, bookstore: Bookstore, incl
   return `<div style="max-width:800px;margin:0 auto;background:#fff;padding:30px;font-family:'Apple SD Gothic Neo',Arial,sans-serif;line-height:1.65;color:#222">
   <h1 style="text-align:center;font-size:1.8em;font-weight:600;margin:0 0 28px">지관서가 전해주는 ${formatMonth(submission.month)} 소식 – ${escapeHtml(bookstore.name)}</h1>
   <div style="padding:18px;border-left:4px solid #8e735b;background:#f3efe8;margin-bottom:28px">
-    <p style="margin:0;white-space:pre-line"><strong>${escapeHtml(bookstore.name)}</strong><br>${escapeHtml(bookstore.region)}${bookstore.address ? `<br>주소: ${escapeHtml(bookstore.address)}` : ""}${bookstore.hours ? `<br>영업시간: ${escapeHtml(bookstore.hours)}` : ""}${contactLines.map(([label, value]) => `<br>${escapeHtml(label)}: ${escapeHtml(value)}`).join("")}</p>
+    <p style="margin:0"><strong>${escapeHtml(bookstore.name)}</strong><br>${escapeHtml(bookstore.region)}${bookstore.address ? `<br>주소: ${escapeMultilineHtml(bookstore.address)}` : ""}${bookstore.hours ? `<br>영업시간: ${escapeMultilineHtml(bookstore.hours)}` : ""}${contactLines.map(([label, value]) => `<br>${escapeHtml(label)}: ${escapeMultilineHtml(value)}`).join("")}</p>
     ${bookstoreLinks.length ? `<p style="margin:10px 0 0">${bookstoreLinks.map((link) => `<a href="${safeHref(link.url)}" style="margin-right:12px;color:#8e735b;text-decoration:none">${escapeHtml(link.label || "관련 링크")} ↗</a>`).join("")}</p>` : ""}
-    ${bookstore.introduction ? `<p style="margin:12px 0 0;color:#666">${escapeHtml(bookstore.introduction)}</p>` : ""}
+    ${bookstore.introduction ? `<p style="margin:12px 0 0;color:#666">${escapeMultilineHtml(bookstore.introduction)}</p>` : ""}
   </div>
-  ${submission.monthlyNotice ? `<div style="margin:0 0 28px;padding:14px 18px;background:#fff8e7;border:1px solid #ead8ad"><strong>이번 달 운영 안내</strong><p style="margin:6px 0 0;white-space:pre-line">${escapeHtml(submission.monthlyNotice)}</p></div>` : ""}
+  ${submission.monthlyNotice ? `<div style="margin:0 0 28px;padding:14px 18px;background:#fff8e7;border:1px solid #ead8ad"><strong>이번 달 운영 안내</strong><p style="margin:6px 0 0">${escapeMultilineHtml(submission.monthlyNotice)}</p></div>` : ""}
   ${sections}
 </div>`;
 }

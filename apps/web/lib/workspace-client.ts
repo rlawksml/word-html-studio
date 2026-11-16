@@ -1,4 +1,5 @@
 import type { Bookstore, EditingPresenceTarget, NewsImage, Submission, Workspace } from "@/lib/workspace-types";
+import { retainedImageCleanupResult } from "./image-retention-policy.mjs";
 
 export const MAX_ORIGINAL_IMAGE_BYTES = 20 * 1024 * 1024;
 const RETRYABLE_HTTP_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
@@ -66,7 +67,7 @@ export function triggerDownload(filename: string, blob: Blob) {
   URL.revokeObjectURL(url);
 }
 
-export function workspaceSessionHeaders() {
+export function workspaceSessionHeaders(): Record<string, string> {
   // HttpOnly 쿠키와 별도로 현재 탭의 sessionId를 보내 탭 종료 후 작업 권한이 재사용되지 않게 합니다.
   const sessionId = window.sessionStorage.getItem("bookstore-news-session-id") || "";
   return sessionId ? { "x-workspace-session-id": sessionId } : {};
@@ -171,8 +172,9 @@ export async function persistSubmission(submission: Submission) {
   }
 }
 
-export async function heartbeatEditingPresence(target: EditingPresenceTarget) {
+export async function heartbeatEditingPresence(target: EditingPresenceTarget, signal?: AbortSignal) {
   const response = await fetch("/api/presence", {
+    signal,
     method: "POST",
     headers: { "content-type": "application/json", ...workspaceSessionHeaders() },
     body: JSON.stringify(target),
@@ -182,13 +184,16 @@ export async function heartbeatEditingPresence(target: EditingPresenceTarget) {
   return response.json() as Promise<{ owned: boolean; activeRole: "input" | "html"; expiresAt: string }>;
 }
 
-export function releaseEditingPresence(target: EditingPresenceTarget) {
+export function releaseEditingPresence(target: EditingPresenceTarget, signal?: AbortSignal) {
   const sessionId = window.sessionStorage.getItem("bookstore-news-session-id") || "";
+  // 로그아웃 후 effect cleanup은 인증 없는 해제 요청을 반복하지 않습니다.
+  if (!sessionId) return Promise.resolve(new Response(null, { status: 204 }));
   return fetch("/api/presence", {
     method: "DELETE",
     headers: { "content-type": "application/json", ...workspaceSessionHeaders() },
     body: JSON.stringify({ ...target, sessionId }),
     keepalive: true,
+    signal,
   });
 }
 
@@ -260,15 +265,10 @@ export function persistSubmissionOnUnload(submission: Submission) {
 }
 
 export async function deleteStoredImages(images: NewsImage[]) {
-  const targets = images.filter((image) => image.originalPath || image.previewPath);
-  if (!targets.length) return;
-  const body = JSON.stringify({ images: targets.map(({ originalPath, previewPath }) => ({ originalPath, previewPath })) });
-  const response = await requestWithRetry(() => fetch("/api/images", {
-    method: "DELETE",
-    headers: { "content-type": "application/json", ...workspaceSessionHeaders() },
-    body,
-  }));
-  if (!response.ok) throw new Error(await responseMessage(response, "사진 파일을 정리하지 못했습니다."));
+  // 이전 서버로 롤백돼도 물리 삭제가 실행되지 않도록 DELETE 자체를 보내지 않습니다.
+  // 기존 호출 시그니처만 유지하며 입력 경로를 queue나 전역 상태에 보유하지 않습니다.
+  void images;
+  return retainedImageCleanupResult();
 }
 
 export async function createImagePreview(file: File) {

@@ -27,8 +27,11 @@ export async function POST(request: NextRequest) {
 }
 
 // DELETE: 로그아웃 시 브라우저의 작업자 세션을 즉시 만료시킵니다.
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
   const response = new NextResponse(null, { status: 204 });
+  const requestedSessionId = request.headers.get("x-workspace-session-id");
+  // 로그인 rollback은 자신이 발급한 세션일 때만 쿠키를 지웁니다. 일반 로그아웃은 헤더 없이 항상 지웁니다.
+  if (requestedSessionId && !(await readWorkerSession(request, requestedSessionId))) return response;
   clearWorkerSessionCookie(response);
   return response;
 }

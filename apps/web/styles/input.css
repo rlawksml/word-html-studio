@@ -45,6 +45,7 @@
 
 /* single editor */
 .single-editor { max-width:900px; margin:0 auto; }
+.editor-form-body[aria-busy="true"] { opacity:.72; transition:opacity .15s ease; }
 .monthly-notice-card { display:grid; grid-template-columns:minmax(220px,.7fr) 1fr; gap:24px; align-items:center; margin-bottom:16px; padding:22px 26px; border:1px solid #ded5bd; background:#fffaf0; }
 .monthly-notice-card span { color:#9d8661; font-size:9px; letter-spacing:.12em; }
 .monthly-notice-card h2 { margin:5px 0; font-size:17px; font-weight:600; }

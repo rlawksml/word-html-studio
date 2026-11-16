@@ -1,8 +1,9 @@
 import type { Bookstore, LabeledLink, LabeledValue, NewsItem, Submission } from "@/lib/workspace-types";
+import { isDigestOrderMonth } from "./digest-order.ts";
 
 // 네트워크나 React 상태에 의존하지 않는 생성·표시·검증 함수만 두는 도메인 유틸리티입니다.
 export type Role = "visitor" | "input" | "html";
-export type LeaveTarget = "visitor" | "list";
+export type LeaveTarget = "visitor" | "logout" | "list";
 
 export const BOOKSTORE_COLORS = ["#d96c5f", "#4f83a8", "#d19a3e", "#5f9274", "#8c6bb1", "#c56f9a", "#6f8f3d", "#b66d3f", "#397f86", "#7d756d"];
 export const DISPLAY_LABELS = ["신청 중", "신청 마감", "행사 종료", "신규 모집", "상시 운영"];
@@ -18,6 +19,20 @@ export function currentKstMonth(date = new Date()) {
   const month = parts.find((part) => part.type === "month")?.value;
   if (!year || !month) throw new Error("현재 발행 월을 계산하지 못했습니다.");
   return `${year}-${month}`;
+}
+
+// 월 입력의 삭제·부분 연도는 확정하지 않습니다. 자동 보정 없이 직전 화면 월을 유지합니다.
+export function keepValidPublicationMonth(previous: string, candidate: unknown): string {
+  return isDigestOrderMonth(candidate) ? candidate : previous;
+}
+
+// 기존 Date(year, ...)의 0000~0099 → 1900~1999 해석도 유지합니다. 고대력 지원은 별도 변경입니다.
+export function publicationCalendarDays(month: unknown): (string | null)[] {
+  if (!isDigestOrderMonth(month)) return [];
+  const [year, numericMonth] = month.split("-").map(Number);
+  const first = new Date(year, numericMonth - 1, 1).getDay();
+  const count = new Date(year, numericMonth, 0).getDate();
+  return [...Array(first).fill(null), ...Array.from({ length: count }, (_, index) => `${month}-${String(index + 1).padStart(2, "0")}`)];
 }
 
 // 새 책방과 소식을 만들 때 선택 필드까지 빠짐없이 초기화하는 팩토리입니다.
@@ -57,6 +72,8 @@ export const formatDate = (value: string) => {
 };
 export const formatSavedAt = (value: string) => value ? new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value)) : "아직 저장하지 않음";
 export const escapeHtml = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+// 외부 편집기가 white-space CSS를 제거해도 본문의 줄바꿈을 보존합니다. 속성·URL에는 사용하지 않습니다.
+export const escapeMultilineHtml = (value: string) => escapeHtml(value).replace(/\r\n|\r|\n/g, "<br>");
 export const safeClientHref = (value: string) => {
   try {
     const url = new URL(value);
