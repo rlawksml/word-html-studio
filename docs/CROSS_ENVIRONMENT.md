@@ -29,3 +29,7 @@ Node.js 최소 버전과 scripts는 apps/web/package.json, 고정 버전은 pack
 ## 새 AI에 전달할 요청
 
 > 이 저장소 AGENTS.md, STATUS.md, docs/CROSS_ENVIRONMENT.md, docs/RELEASE_FLOW.md와 TODO.md를 읽어줘. 원격 브랜치·PR 상태와 미커밋 변경을 확인하고 현재 운영본·개발본·검증 전 후보를 구분해서 설명해줘. 운영 DB와 사진을 보존하며 내가 요청한 범위만 이어서 작업해줘. main/develop을 운영 최신본이라고 가정하지 말고, 종료할 때 변경·검증·남은 일과 원격 동기화 결과를 기록해줘.
+
+## 2026-11-24 이관 검증
+
+별도 빈 폴더에서 `de89a5c430cb1f2ec08e463ae1f00c116b589958`의 인계 브랜치 clone 성공. 추적 파일 343개 SHA-256 불일치 0개, 로컬·원격 커밋 일치, 기존 PUBLIC 설정 유지. 앱 설치·실행·기능 테스트·운영 재검증은 이번 문서 변경에서 수행하지 않았다. 기존 main/develop·PR #95·운영 배포는 변경하지 않았다.
