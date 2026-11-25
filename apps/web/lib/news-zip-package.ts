@@ -12,9 +12,9 @@ const documentEntry = (name: string, content: string): NewsZipDocument => ({ nam
 export function newsZipPlan(submission: Submission, bookstore: Bookstore, withHtml: boolean): NewsZipPlan {
   const baseFilename = `${submission.month}_${safeFilename(bookstore.name)}`;
   // 비공개 원본이 있으면 원본을, 없으면 공개 미리보기를 사용자가 정한 순서대로 담습니다.
-  const photos = submission.news.flatMap((news, newsIndex) => news.images.map((image, imageIndex) => ({
-    name: newsImageFilename(submission.month, bookstore.name, newsIndex, imageIndex, news.title, image.name),
-    url: image.originalUrl || image.url,
+  const photos = submission.news.flatMap((news, newsIndex) => news.images.map((item, imageIndex) => ({
+    name: newsImageFilename(submission.month, bookstore.name, newsIndex, imageIndex, news.title, item.name),
+    url: item.originalUrl || item.url,
   })));
   const documents: NewsZipDocument[] = [];
   if (withHtml) {
