@@ -3,7 +3,8 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
-import { formatDate, formatMonth, safeClientHref, submissionStatus } from "@/lib/workspace-formatters";
+import { formatMonth, safeClientHref, submissionStatus } from "@/lib/workspace-formatters";
+import { formatNewsDate } from "@/lib/news-date-selection";
 import type { Bookstore, LabeledLink, NewsItem, Submission } from "@/lib/workspace-types";
 import { formatNewsSchedule } from "@/lib/news-schedule";
 
@@ -18,7 +19,7 @@ export function PublicNewsDetail({ submission, news, bookstore, onClose }: Publi
   useBodyScrollLock();
 
   const status = submissionStatus(submission);
-  const schedule = formatNewsSchedule(news);
+  const schedule = formatNewsSchedule(news, submission.month);
   const links = [
     news.applyUrl ? { id: -1, label: "신청 및 자세히 보기", url: news.applyUrl } : null,
     ...news.links,
@@ -31,7 +32,7 @@ export function PublicNewsDetail({ submission, news, bookstore, onClose }: Publi
       <p className="public-detail-description">{news.description}</p>
       <dl className="public-detail-facts">
         {schedule && <div><dt>일정</dt><dd>{schedule}</dd></div>}
-        {news.deadline && <div><dt>신청 마감</dt><dd>{formatDate(news.deadline)}</dd></div>}
+        {news.deadline && <div><dt>신청 마감</dt><dd>{formatNewsDate(news.deadline, submission.month)}</dd></div>}
         {news.place && <div><dt>장소</dt><dd>{news.place}</dd></div>}
         {news.fee && <div><dt>참가비</dt><dd>{news.fee}</dd></div>}
         {news.applicationInfo && <div><dt>신청 방법</dt><dd>{news.applicationInfo}</dd></div>}

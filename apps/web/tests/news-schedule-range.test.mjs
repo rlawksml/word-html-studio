@@ -85,6 +85,31 @@ test("기간은 저장 API·방문자 상세·HTML 생성기에서 같은 규칙
   assert.match(validation, /INVALID_SCHEDULE_RANGE/);
   assert.match(controller, /newsVisibleInMonth\(news, submission\.month, month\)/);
   assert.match(controller, /newsOccursOnDate/);
-  assert.match(detail, /formatNewsSchedule\(news\)/);
-  assert.match(html, /formatNewsSchedule\(news\)/);
+  assert.match(detail, /formatNewsSchedule\(news, submission\.month\)/);
+  assert.match(html, /formatNewsSchedule\(news, submission\.month\)/);
+});
+
+test("SCHEDULE-YEAR-01 발행 연도와 다른 개별 날짜·마감일만 연도를 붙인다", async () => {
+  const { formatNewsDate } = await import("../lib/news-date-selection.ts");
+  const dated = { dates: ["2026-12-27", "2027-01-03"], scheduleText: "", scheduleRange: null };
+  assert.equal(formatNewsSchedule(dated, "2026-12"), "12월 27일, 2027년 1월 3일");
+  assert.equal(formatNewsSchedule({ ...dated, dates: ["2026-12-06"] }, "2026-12"), "12월 6일");
+  assert.equal(formatNewsSchedule(dated), "12월 27일, 1월 3일");
+  assert.equal(formatNewsSchedule({ ...dated, scheduleText: "매주 토요일" }, "2026-12"), "매주 토요일");
+  assert.equal(formatNewsSchedule({ ...dated, scheduleRange: { startDate: "2026-12-10", endDate: "2027-01-05" } }, "2026-12"), "2026년 12월 10일~2027년 1월 5일");
+  assert.equal(formatNewsDate("2027-01-03", "2026-12"), "2027년 1월 3일");
+  const [html, detail] = await Promise.all([
+    readFile(new URL("../lib/html-generators.ts", import.meta.url), "utf8"),
+    readFile(new URL("../components/molecules/PublicNewsDetail.tsx", import.meta.url), "utf8"),
+  ]);
+  for (const source of [html, detail]) assert.match(source, /formatNewsDate\(news\.deadline, submission\.month\)/);
+});
+
+test("SCHEDULE-YEAR-02 잘못된 월은 NaN 없이 빈 월 표기로 처리한다", async () => {
+  const { formatMonth } = await import("../lib/workspace-formatters.ts");
+  assert.equal(formatMonth("2026-12"), "2026년 12월");
+  assert.equal(formatMonth("2027-01"), "2027년 1월");
+  for (const month of ["", "2026", "2026-1", "abcd-ef"]) assert.equal(formatMonth(month), "");
+  const html = await readFile(new URL("../lib/html-generators.ts", import.meta.url), "utf8");
+  assert.match(html, /동네 책방 \$\{formatMonth\(month\) \? `\$\{formatMonth\(month\)\} ` : ""\}소식/);
 });
