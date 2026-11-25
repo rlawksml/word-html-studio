@@ -1,5 +1,6 @@
 import type { Bookstore, LabeledLink, Submission } from "@/lib/workspace-types";
-import { escapeHtml, escapeMultilineHtml, formatDate, formatMonth, safeFilename, safeHref } from "@/lib/workspace-formatters";
+import { escapeHtml, escapeMultilineHtml, formatMonth, newsImageFilename, safeHref } from "@/lib/workspace-formatters";
+import { formatNewsDate } from "@/lib/news-date-selection";
 import { formatNewsSchedule } from "@/lib/news-schedule";
 
 // 마감·종료 라벨은 진행 중 소식과 구분되도록 회색으로 표시합니다. 회색은 흰 글자 대비 약 5:1입니다.
@@ -10,15 +11,15 @@ export const displayLabelBackground = (label: string) => CLOSED_DISPLAY_LABELS.h
 export function generatedHtml(submission: Submission, bookstore: Bookstore, includePreviewImages = false) {
   const sections = submission.news.map((news, newsIndex) => {
     const images = news.images.map((image, imageIndex) => {
-      const filename = `${submission.month}_${safeFilename(bookstore.name)}_${String(newsIndex + 1).padStart(2, "0")}_${String(imageIndex + 1).padStart(2, "0")}_${safeFilename(news.title)}.${image.name.split(".").pop() || "jpg"}`;
+      const filename = newsImageFilename(submission.month, bookstore.name, newsIndex, imageIndex, news.title, image.name);
       // 미리보기에는 공개 축소 이미지를 넣고, 다운로드 HTML에는 편집자가 교체할 파일명 표식을 남깁니다.
-      if (includePreviewImages) return `<figure style="max-width:700px;margin:20px auto;text-align:center"><img src="${image.url}" alt="${escapeHtml(image.caption || news.title)}" style="display:block;width:auto;max-width:100%;height:auto;margin:0 auto">${image.caption ? `<figcaption style="margin-top:8px;color:#777;font-size:13px">${escapeMultilineHtml(image.caption)}</figcaption>` : ""}</figure>`;
+      if (includePreviewImages) return `<figure style="max-width:700px;margin:20px auto;text-align:center"><img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.caption || news.title)}" style="display:block;width:auto;max-width:100%;height:auto;margin:0 auto">${image.caption ? `<figcaption style="margin-top:8px;color:#777;font-size:13px">${escapeMultilineHtml(image.caption)}</figcaption>` : ""}</figure>`;
       return `<!-- IMAGE: ${filename} -->`;
     }).join("\n");
-    const schedule = formatNewsSchedule(news);
+    const schedule = formatNewsSchedule(news, submission.month);
     const facts = [
       schedule ? ["일정", schedule] : null,
-      news.deadline ? ["신청 마감", formatDate(news.deadline)] : null,
+      news.deadline ? ["신청 마감", formatNewsDate(news.deadline, submission.month)] : null,
       news.place ? ["장소", news.place] : null,
       news.fee ? ["참가비", news.fee] : null,
       news.applicationInfo ? ["신청 방법", news.applicationInfo] : null,
@@ -70,5 +71,5 @@ export function digestHtml(submissions: Submission[], bookstores: Bookstore[], f
     return items ? `<section style="margin:0 0 30px"><h2 style="margin:0 0 10px;font-size:1.35em">${escapeHtml(bookstore.name)} <span style="font-size:.7em;color:#777">(${escapeHtml(bookstore.region)})</span></h2><ul style="margin:0;padding-left:22px">${items}</ul></section>` : "";
   }).join("\n");
   const month = included[0]?.month || fallbackMonth;
-  return `<div style="max-width:900px;margin:0 auto;background:#fff;padding:32px;font-family:'Apple SD Gothic Neo',Arial,sans-serif;line-height:1.7;color:#222"><h1 style="text-align:center;font-size:1.9em;margin:0 0 36px">지관서가 전해주는 동네 책방 ${formatMonth(month)} 소식</h1>${blocks || "<p>포함된 소식이 없습니다.</p>"}</div>`;
+  return `<div style="max-width:900px;margin:0 auto;background:#fff;padding:32px;font-family:'Apple SD Gothic Neo',Arial,sans-serif;line-height:1.7;color:#222"><h1 style="text-align:center;font-size:1.9em;margin:0 0 36px">지관서가 전해주는 동네 책방 ${formatMonth(month) ? `${formatMonth(month)} ` : ""}소식</h1>${blocks || "<p>포함된 소식이 없습니다.</p>"}</div>`;
 }

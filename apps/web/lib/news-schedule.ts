@@ -72,8 +72,10 @@ export function newsVisibleInMonth(news: SchedulableNews, submissionMonth: strin
 }
 
 // 기존 개별 날짜는 scheduleText 우선 규칙을 유지하고, 새 기간에만 기간과 보충 문장을 함께 표시합니다.
-export function formatNewsSchedule(news: SchedulableNews) {
+// 발행 월을 주면 발행 연도와 다른 개별 날짜에만 연도를 붙여 12월호의 1월 일정처럼 해를 넘기는 날짜를 구분합니다.
+export function formatNewsSchedule(news: SchedulableNews, publicationMonth = "") {
   const rangeText = formatScheduleRange(news.scheduleRange);
   if (rangeText) return news.scheduleText.trim() ? `${rangeText}\n${news.scheduleText.trim()}` : rangeText;
-  return news.scheduleText.trim() || news.dates.map((date) => shortDate(date)).filter(Boolean).join(", ");
+  const publicationYear = /^\d{4}-\d{2}$/.test(publicationMonth) ? publicationMonth.slice(0, 4) : "";
+  return news.scheduleText.trim() || news.dates.map((date) => shortDate(date, Boolean(publicationYear) && !date.startsWith(`${publicationYear}-`))).filter(Boolean).join(", ");
 }

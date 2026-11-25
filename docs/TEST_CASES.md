@@ -967,6 +967,17 @@ exactfb75c62에서 typecheck/lint/build/기본26파일247TC와 엄격 자식 종
 | HTML-LINES-06 | 실제 사용 편집기에 HTML 복사 및 ZIP TXT 붙여넣기 | 첫 줄·빈 줄·이모티콘 동일 표시; 별도 브라우저 검증 필요 |
 | HTML-LINES-07 | 자동 fixture가 만든 native bundler 종료 | 정확한 소유 서비스1개·실제 close1개, 원래 spawn 복원, timeout은 실패. 전체 runner의 좀비 포함 잔여 프로세스 검사도 계속 필수 |
 
+# 생성 HTML·ZIP 안전성 — Issue #97
+
+합성 데이터만 사용한다. `apps/web`의 `tests/html-export-safety.test.mjs`, 전체 `npm test`에 포함된다.
+
+| TC | 검증 내용 | 기대 결과 |
+|---|---|---|
+| HTML-SAFE-01 | 정상·대문자·다중 점 확장자, 확장자 없음, `-->`·스크립트가 든 원본 파일명 | 지원 확장자는 원래 표기 유지, 그 외는 `jpg`. 복사용 HTML의 주석이 닫히지 않고 주입 태그가 없음 |
+| HTML-SAFE-02 | 50단위 경계의 한글·이모지 제목, 금지 문자, 따옴표가 든 미리보기 URL | 서로게이트를 자르지 않고 기존 50단위 상한 유지, `src` 속성 escape |
+| HTML-SAFE-03 | ZIP 사진 파일·사진배치안내·ZIP HTML 제목 소스 경로 | 두 경로 모두 공용 `newsImageFilename` 사용, `<title>` escape, 원본 확장자 직접 사용 없음 (#100 이후 `lib/news-zip-package.ts` 기준) |
+| ZIP-PLAN-01 | 사진 ZIP·작업파일 ZIP 구성 (#100) | ZIP 이름, `사진` 폴더, 사진 순서·원본 URL 우선, HTML·TXT·사진배치안내 순서와 내용이 분리 전과 같음 |
+
 ## 격리 CI의 Staging 컴파일 전달
 
 `STAGE-ARTIFACT-01~13` (P0, native 합성 fixture): `.github/validation/staging-compiled-artifact.test.mjs`. 기본 미전송, 승인/시각, 제한 경로, 공용 asset 원본 일치, 링크/크기, exact 검증 식별자, 바이트 손상/경로 충돌, 필수 파일, 인라인 소스맵 거부, 무실행·새 비공개 목적지 추출을 확인한다. DB/Storage·네트워크는 사용하지 않는다.
