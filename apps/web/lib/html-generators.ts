@@ -1,14 +1,14 @@
 import type { Bookstore, LabeledLink, Submission } from "@/lib/workspace-types";
-import { escapeHtml, escapeMultilineHtml, formatDate, formatMonth, safeFilename, safeHref } from "@/lib/workspace-formatters";
+import { escapeHtml, escapeMultilineHtml, formatDate, formatMonth, newsImageFilename, safeHref } from "@/lib/workspace-formatters";
 import { formatNewsSchedule } from "@/lib/news-schedule";
 
 /** 외부 HTML 편집기에 그대로 붙여넣을 수 있는 책방별 inline CSS HTML을 만듭니다. */
 export function generatedHtml(submission: Submission, bookstore: Bookstore, includePreviewImages = false) {
   const sections = submission.news.map((news, newsIndex) => {
     const images = news.images.map((image, imageIndex) => {
-      const filename = `${submission.month}_${safeFilename(bookstore.name)}_${String(newsIndex + 1).padStart(2, "0")}_${String(imageIndex + 1).padStart(2, "0")}_${safeFilename(news.title)}.${image.name.split(".").pop() || "jpg"}`;
+      const filename = newsImageFilename(submission.month, bookstore.name, newsIndex, imageIndex, news.title, image.name);
       // 미리보기에는 공개 축소 이미지를 넣고, 다운로드 HTML에는 편집자가 교체할 파일명 표식을 남깁니다.
-      if (includePreviewImages) return `<figure style="max-width:700px;margin:20px auto;text-align:center"><img src="${image.url}" alt="${escapeHtml(image.caption || news.title)}" style="display:block;width:auto;max-width:100%;height:auto;margin:0 auto">${image.caption ? `<figcaption style="margin-top:8px;color:#777;font-size:13px">${escapeMultilineHtml(image.caption)}</figcaption>` : ""}</figure>`;
+      if (includePreviewImages) return `<figure style="max-width:700px;margin:20px auto;text-align:center"><img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.caption || news.title)}" style="display:block;width:auto;max-width:100%;height:auto;margin:0 auto">${image.caption ? `<figcaption style="margin-top:8px;color:#777;font-size:13px">${escapeMultilineHtml(image.caption)}</figcaption>` : ""}</figure>`;
       return `<!-- IMAGE: ${filename} -->`;
     }).join("\n");
     const schedule = formatNewsSchedule(news);
