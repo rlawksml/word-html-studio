@@ -1,10 +1,10 @@
 # 현재 상태와 작업 재개 — 2026-11-25 KST
 
 - 저장소: https://github.com/rlawksml/word-html-studio (PUBLIC). 새 저장소를 만들지 않고 기존 이력을 유지한다.
-- 확인 시점 GitHub main: 3affe71109f5c51a497c92c6bd7bdba8b679c6c5, develop: 10fae105dd45009c7815b3569e6688fc94dd96d8 (2026-11-25 재확인, 변화 없음).
+- 확인 시점 GitHub main: 3affe71109f5c51a497c92c6bd7bdba8b679c6c5, develop: 55c271668edc6da933bd90e4414d0cc1aed64571 (2026-11-25 #95 병합 후). develop은 운영 v1.1 2bf2166을 포함하고 파일 내용이 검증한 130be32와 같다. main은 아직 운영 소스보다 오래됐다.
 - 주의: main/develop과 현재 운영 v1.1 소스는 다르다. 이전 운영 점검 기록의 v1.1 공개 버전은 1.1.0-rc.1 / 2bf2166이다. 2026-11-25에도 실제 배포 버전은 새로 조회하지 않았다.
-- GitHub PR #95: codex/m5-release-flow (130be32508eaa2f8ff9af714d062e5ca4df45a08) → develop, OPEN, 2026-11-25 Ready 전환, mergeable clean. 아직 병합하지 않았다. 병합 여부는 사용자 결정 사항이다.
-- GitHub PR #96: 이 인계 브랜치 → codex/m5-release-flow, Draft. #95 병합 후 base를 develop으로 바꿀지 재검토한다.
+- GitHub PR #95: codex/m5-release-flow (130be32) → develop, 2026-11-25 사용자 승인으로 merge commit 병합(55c2716). 병합 전 develop push로 배포되는 워크플로가 없음을 확인했다(CI push 트리거는 main뿐). 운영 주소는 세션 네트워크 정책으로 조회하지 못했으나 병합은 운영 Worker·DB·사진에 닿지 않는다.
+- GitHub PR #96: 이 인계 브랜치 → develop(2026-11-25 base 변경), Draft. 브랜치 이름이 develop PR 이름 규칙(codex/v1.2-task-…)과 맞지 않아 Ready 전환 시 release-branch-policy가 실패한다. 통합하려면 규칙에 맞는 task 브랜치로 옮긴다.
 - 이 인계 문서의 작업 브랜치: codex/m5-cross-environment-handoff. 다른 컴퓨터에서는 이 브랜치를 먼저 읽되 제품 변경의 기준은 docs/RELEASE_FLOW.md와 실제 원격 PR 상태를 확인한다.
 - 별도 staging-workspace에는 다른 작업의 미커밋 파일이 남아 있다. 그 폴더의 전체 변경이 GitHub에 있다고 가정하지 않는다.
 
@@ -20,7 +20,7 @@
 
 ## 2026-11-25 v1.2 생성 HTML 개선 (이슈 #97~#100)
 
-모두 #95 병합 전이라 운영 소스가 포함된 `codex/m5-release-flow`(130be32)에서 시작했다. 각 PR은 Ready 상태이며 병합하지 않았다.
+#95 병합 전 `codex/m5-release-flow`(130be32)에서 시작했고, 병합 후 #101~#103의 base를 develop으로 바꿨다(각 커밋 1개, mergeable clean). #104는 #101 위에 쌓여 있다. 각 PR은 Ready 상태이며 병합하지 않았다.
 
 | 이슈 | 브랜치 | PR | base | CI verify |
 |---|---|---|---|---|
@@ -36,8 +36,8 @@
 
 ## 다음 행동
 
-1. 사용자 승인 시 PR #95를 develop에 병합한다. 병합 후 develop SHA를 이 문서에 기록한다.
-1-1. #95 병합 후 v1.2 PR(#101~#104)의 base를 develop으로 바꾸고 위 순서로 검토·병합한다.
+1. 완료: #95 병합(55c2716), v1.2 PR base 변경.
+1-1. 사용자 승인 시 v1.2 PR을 #101 → #104(base를 develop으로 변경) → #102 → #103 순서로 병합한다.
 2. #96 base를 develop으로 바꿔 인계 문서를 통합할지 검토한다.
 3. 이후 v1.2 작업은 병합된 develop에서 codex/v1.2-issue-<번호>-<작업명> 브랜치로 시작한다. 운영 반영은 docs/RELEASE_FLOW.md 순서와 별도 승인을 따른다.
 
