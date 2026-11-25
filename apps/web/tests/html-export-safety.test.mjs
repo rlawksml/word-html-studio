@@ -6,11 +6,11 @@ import { bundleWithOwnedService } from "./helpers/esbuild-owned-bundle.mjs";
 
 // Bundle the real generator and formatters so the exported HTML is checked, not a copy of its rules.
 const { result: bundled } = await bundleWithOwnedService({
-  stdin: { contents: 'export * from "./lib/html-generators.ts"; export * from "./lib/workspace-formatters.ts";', resolveDir: fileURLToPath(new URL("../", import.meta.url)), loader: "ts" },
+  stdin: { contents: 'export * from "./lib/html-generators.ts"; export * from "./lib/workspace-formatters.ts"; export * from "./lib/news-zip-package.ts";', resolveDir: fileURLToPath(new URL("../", import.meta.url)), loader: "ts" },
   tsconfig: fileURLToPath(new URL("../tsconfig.json", import.meta.url)),
   bundle: true, write: false, platform: "node", format: "esm",
 });
-const { generatedHtml, newsImageFilename, safeFilename, makeNews, makeSubmission, blankBookstore } = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
+const { generatedHtml, newsImageFilename, newsZipPlan, safeFilename, makeNews, makeSubmission, blankBookstore } = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
 
 const image = (name, url = "https://example.invalid/a.jpg") => ({ id: 9, name, originalPath: "", previewPath: "", originalUrl: "", url, caption: "" });
 function fixture(images) {
@@ -42,10 +42,27 @@ test("HTML-SAFE-02 names stay within 50 units without splitting emoji", () => {
 });
 
 test("HTML-SAFE-03 every ZIP path uses the shared name and an escaped title", async () => {
-  const source = await readFile(new URL("../hooks/use-studio-controller.ts", import.meta.url), "utf8");
-  assert.equal((source.match(/newsImageFilename\(submission\.month, bookstore\.name,/g) || []).length, 2);
-  assert.match(source, /<title>\$\{escapeHtml\(bookstore\.name\)\}<\/title>/);
-  assert.doesNotMatch(source, /\.name\.split\("\."\)\.pop\(\)/);
-  const generator = await readFile(new URL("../lib/html-generators.ts", import.meta.url), "utf8");
-  assert.doesNotMatch(generator, /\.name\.split\("\."\)\.pop\(\)/);
+  const [zipSource, controller, generator] = await Promise.all(["../lib/news-zip-package.ts", "../hooks/use-studio-controller.ts", "../lib/html-generators.ts"]
+    .map((path) => readFile(new URL(path, import.meta.url), "utf8")));
+  assert.equal((zipSource.match(/newsImageFilename\(submission\.month, bookstore\.name,/g) || []).length, 2);
+  assert.match(zipSource, /<title>\$\{escapeHtml\(bookstore\.name\)\}<\/title>/);
+  for (const source of [zipSource, controller, generator]) assert.doesNotMatch(source, /\.name\.split\("\."\)\.pop\(\)/);
+  assert.match(controller, /const plan = newsZipPlan\(submission, bookstore, withHtml\)/);
+});
+
+test("ZIP-PLAN-01 the extracted plan keeps the previous ZIP layout and order", () => {
+  const { bookstore, submission } = fixture([{ ...image("one.PNG"), originalUrl: "https://example.invalid/original.png" }, image("two")]);
+  submission.news.push({ ...makeNews(4), title: "둘째 소식", description: "본문", images: [] });
+  const photos = newsZipPlan(submission, bookstore, false);
+  assert.deepEqual(photos, { filename: "2026-12_테스트_책방_사진.zip", photoFolder: "사진", documents: [], photos: [
+    { name: "2026-12_테스트_책방_01_01_행사.PNG", url: "https://example.invalid/original.png" },
+    { name: "2026-12_테스트_책방_01_02_행사.jpg", url: "https://example.invalid/a.jpg" }] });
+  const bundle = newsZipPlan(submission, bookstore, true);
+  assert.equal(bundle.filename, "2026-12_테스트_책방_작업파일.zip");
+  assert.deepEqual(bundle.photos, photos.photos);
+  assert.deepEqual(bundle.documents.map((document) => document.name), ["2026-12_테스트_책방.html", "2026-12_테스트_책방_HTML코드_복사용.txt", "사진배치안내.txt"]);
+  const pasteReady = generatedHtml(submission, bookstore, false);
+  assert.equal(bundle.documents[0].content, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>테스트 책방</title></head><body>${pasteReady}</body></html>`);
+  assert.equal(bundle.documents[1].content, pasteReady);
+  assert.equal(bundle.documents[2].content, "1. 행사\n- 2026-12_테스트_책방_01_01_행사.PNG\n- 2026-12_테스트_책방_01_02_행사.jpg\n\n2. 둘째 소식\n");
 });

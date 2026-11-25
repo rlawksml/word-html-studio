@@ -975,7 +975,8 @@ exactfb75c62에서 typecheck/lint/build/기본26파일247TC와 엄격 자식 종
 |---|---|---|
 | HTML-SAFE-01 | 정상·대문자·다중 점 확장자, 확장자 없음, `-->`·스크립트가 든 원본 파일명 | 지원 확장자는 원래 표기 유지, 그 외는 `jpg`. 복사용 HTML의 주석이 닫히지 않고 주입 태그가 없음 |
 | HTML-SAFE-02 | 50단위 경계의 한글·이모지 제목, 금지 문자, 따옴표가 든 미리보기 URL | 서로게이트를 자르지 않고 기존 50단위 상한 유지, `src` 속성 escape |
-| HTML-SAFE-03 | ZIP 사진 파일·사진배치안내·ZIP HTML 제목 소스 경로 | 두 경로 모두 공용 `newsImageFilename` 사용, `<title>` escape, 원본 확장자 직접 사용 없음 |
+| HTML-SAFE-03 | ZIP 사진 파일·사진배치안내·ZIP HTML 제목 소스 경로 | 두 경로 모두 공용 `newsImageFilename` 사용, `<title>` escape, 원본 확장자 직접 사용 없음 (#100 이후 `lib/news-zip-package.ts` 기준) |
+| ZIP-PLAN-01 | 사진 ZIP·작업파일 ZIP 구성 (#100) | ZIP 이름, `사진` 폴더, 사진 순서·원본 URL 우선, HTML·TXT·사진배치안내 순서와 내용이 분리 전과 같음 |
 
 ## 격리 CI의 Staging 컴파일 전달
 

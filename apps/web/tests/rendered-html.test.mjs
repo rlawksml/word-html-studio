@@ -14,6 +14,7 @@ const applicationSourceFiles = [
   "../hooks/use-workspace-persistence.ts",
   "../hooks/use-editing-presence.ts",
   "../lib/html-generators.ts",
+  "../lib/news-zip-package.ts",
   "../lib/improvement-export.ts",
   "../lib/improvement-types.ts",
   "../lib/improvements-client.ts",
