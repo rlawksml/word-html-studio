@@ -27,7 +27,7 @@
 | #97 escape·사진 파일명 통일 | codex/v1.2-issue-97-html-escape-filenames | #101 | codex/m5-release-flow | success |
 | #98 해 넘김 날짜·잘못된 월 | codex/v1.2-issue-98-cross-year-dates | #102 | codex/m5-release-flow | success |
 | #99 표시 라벨 색 | codex/v1.2-issue-99-label-colors | #103 | codex/m5-release-flow | success |
-| #100 ZIP 구성 분리 | codex/v1.2-issue-100-zip-builder-split | #104 | #97 브랜치(스택) | 첫 실행 1건 실패 후 수정, 재검증 결과는 PR 확인 |
+| #100 ZIP 구성 분리 | codex/v1.2-issue-100-zip-builder-split | #104 | #97 브랜치(스택) | success (첫 실행 280/281, 원본 우선 계약 표기 수정 후 재검증 통과) |
 
 - 상세 검증: `docs/test-reports/2026-11-25-issue97~100-*.md`(각 브랜치).
 - 병합 순서: #95 → #101 → #104(base를 develop으로 변경) → #102 → #103. #101과 #102는 `lib/html-generators.ts` import 줄이 겹치므로 뒤에 병합하는 쪽을 갱신한다.
