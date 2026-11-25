@@ -4,9 +4,11 @@
 
 ## 문서 정보
 
-### 릴리스 브랜치 정책 — RELEASE-FLOW-01~06
+### 릴리스 브랜치 정책 — RELEASE-FLOW-01~07
 
 `node --test scripts/release-branch-policy.test.mjs`로 버전·이슈가 표시된 작업 PR → `develop`, 내부 `develop` → `main`, 잘못된 대상·외부 저장소·누락 이벤트 거부, 기능 브랜치끼리의 스택형 PR, 외부 데이터 접근이 없는 CI 구성 및 기존 PR #95에만 한정된 예외를 확인한다. 이 검사는 Git 경로만 확인하며 실제 Staging/운영 배포나 DB 통합 테스트를 대신하지 않는다.
+
+`RELEASE-FLOW-07`(#107): ci.yml의 `change-scope` 스크립트를 가짜 `gh`로 실제 실행해, 바뀐 파일이 모두 `.md`일 때만 `app=false`이고 앱·비Markdown 파일 포함, 빈 목록, 조회 실패, push에서는 `app=true`인지 확인한다. 필수 검사 `verify`가 `change-scope`·`verify-app` 결과를 모두 받고, 앱 검증 단계가 `verify-app`에 남아 있으며, 범위 판단 작업에 checkout·비밀값·npm이 없는지도 본다.
 
 ### 2026-11-06 도구 체인·Worker 종료 진단 (최신)
 

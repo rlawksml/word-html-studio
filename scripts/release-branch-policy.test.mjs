@@ -50,3 +50,36 @@ test("RELEASE-FLOW-06: allows only the existing v1.1 baseline PR to keep its leg
   assert.throws(() => route(branch, "develop", "other/studio", 95), /다른 저장소/);
   assert.throws(() => route(branch, "main", "owner/studio", 95), /develop → main/);
 });
+
+test("RELEASE-FLOW-07: Markdown-only PRs skip the app gate while the required verify check still reports", async () => {
+  const workflow = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  const job = (name) => workflow.split(`\n  ${name}:\n`)[1]?.split(/\n  [a-z-]+:\n/)[0] ?? "";
+  assert.match(job("verify"), /needs: \[change-scope, verify-app\]/);
+  assert.match(job("verify"), /if: always\(\) && /);
+  assert.match(job("verify-app"), /if: needs\.change-scope\.outputs\.app == 'true' && /);
+  assert.match(job("verify-app"), /- run: npm test/);
+  assert.doesNotMatch(job("change-scope"), /actions\/checkout|secrets\.|npm /);
+  assert.match(job("release-branch-policy"), /timeout-minutes: 5/);
+
+  // Run the real scope script with a fake `gh` that prints the PR file list.
+  const script = job("change-scope").split("        run: |\n")[1].replace(/^ {10}/gm, "");
+  const { mkdtemp, writeFile, chmod, readFile: read } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { execFileSync } = await import("node:child_process");
+  const scope = async (eventName, files, ghFails = false) => {
+    const dir = await mkdtemp(join(tmpdir(), "scope-"));
+    await writeFile(join(dir, "gh"), ghFails ? "#!/bin/sh\nexit 1\n" : `#!/bin/sh\nprintf '%s\\n' ${files.map((file) => `'${file}'`).join(" ")}\n`);
+    await chmod(join(dir, "gh"), 0o755);
+    await writeFile(join(dir, "out"), "");
+    execFileSync("bash", ["-e", "-c", script], { env: { PATH: `${dir}:${process.env.PATH}`, EVENT_NAME: eventName, REPOSITORY: "owner/studio", PR_NUMBER: "1", GITHUB_OUTPUT: join(dir, "out") }, stdio: "pipe" });
+    return (await read(join(dir, "out"), "utf8")).trim();
+  };
+  assert.equal(await scope("pull_request", ["STATUS.md", "docs/RELEASE_FLOW.md"]), "app=false");
+  assert.equal(await scope("pull_request", ["STATUS.md", "apps/web/lib/html-generators.ts"]), "app=true");
+  assert.equal(await scope("pull_request", ["docs/guides/guide.pdf"]), "app=true");
+  assert.equal(await scope("pull_request", ["NOTES.md", "apps/web/lib/old.ts"]), "app=true");
+  assert.equal(await scope("pull_request", []), "app=true");
+  assert.equal(await scope("pull_request", ["STATUS.md"], true), "app=true");
+  assert.equal(await scope("push", ["STATUS.md"]), "app=true");
+});
