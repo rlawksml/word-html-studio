@@ -6,6 +6,7 @@ import { useWorkspacePersistence } from "@/hooks/use-workspace-persistence";
 import { useEditingPresence } from "@/hooks/use-editing-presence";
 import { useDigestOrder } from "@/hooks/use-digest-order";
 import { digestHtml, generatedHtml } from "@/lib/html-generators";
+import { newsZipPlan } from "@/lib/news-zip-package";
 import {
   BOOKSTORE_COLORS,
   formatMonth,
@@ -16,7 +17,6 @@ import {
   nowIso,
   previousMonth,
   publicationCalendarDays,
-  safeFilename,
   type LeaveTarget,
   type Role,
 } from "@/lib/workspace-formatters";
@@ -787,28 +787,15 @@ export function useStudioController(initialMonth: string) {
     const downloadAction = withHtml ? "download-bundle" : "download-photos";
     if (!beginPendingAction(downloadAction)) return;
     try {
+      // 파일 이름과 내용은 순수 함수가 정하고, 이 hook은 사진 내려받기·압축·다운로드만 맡습니다.
+      const plan = newsZipPlan(submission, bookstore, withHtml);
       // 방문자와 입력자가 ZIP 라이브러리까지 내려받지 않도록 실제 다운로드 순간에만 불러옵니다.
       const { default: JSZip } = await import("jszip");
       const zip = new JSZip();
-      const imageFolder = zip.folder("사진");
-      for (let newsIndex = 0; newsIndex < submission.news.length; newsIndex += 1) {
-        const news = submission.news[newsIndex];
-        for (let imageIndex = 0; imageIndex < news.images.length; imageIndex += 1) {
-          const item = news.images[imageIndex];
-          const extension = item.name.split(".").pop() || "jpg";
-          const filename = `${submission.month}_${safeFilename(bookstore.name)}_${String(newsIndex + 1).padStart(2, "0")}_${String(imageIndex + 1).padStart(2, "0")}_${safeFilename(news.title)}.${extension}`;
-          imageFolder?.file(filename, await urlToBlob(item.originalUrl || item.url));
-        }
-      }
-      if (withHtml) {
-        const pasteReadyHtml = generatedHtml(submission, bookstore, false);
-        const baseFilename = `${submission.month}_${safeFilename(bookstore.name)}`;
-        // HTML은 브라우저 미리보기용 전체 문서, TXT는 외부 HTML 편집기에 그대로 붙여넣는 본문 마크업입니다.
-        zip.file(`${baseFilename}.html`, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${bookstore.name}</title></head><body>${pasteReadyHtml}</body></html>`);
-        zip.file(`${baseFilename}_HTML코드_복사용.txt`, pasteReadyHtml);
-        zip.file("사진배치안내.txt", submission.news.map((news, index) => `${index + 1}. ${news.title}\n${news.images.map((image, imageIndex) => `- ${submission.month}_${safeFilename(bookstore.name)}_${String(index + 1).padStart(2, "0")}_${String(imageIndex + 1).padStart(2, "0")}_${safeFilename(news.title)}.${image.name.split(".").pop() || "jpg"}`).join("\n")}`).join("\n\n"));
-      }
-      triggerDownload(`${submission.month}_${safeFilename(bookstore.name)}_${withHtml ? "작업파일" : "사진"}.zip`, await zip.generateAsync({ type: "blob" }));
+      const photoFolder = zip.folder(plan.photoFolder);
+      for (const photo of plan.photos) photoFolder?.file(photo.name, await urlToBlob(photo.url));
+      for (const document of plan.documents) zip.file(document.name, document.content);
+      triggerDownload(plan.filename, await zip.generateAsync({ type: "blob" }));
       notify(withHtml ? "HTML·TXT·사진 ZIP을 준비했습니다." : "사진 ZIP을 준비했습니다.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "다운로드 파일을 준비하지 못했습니다.";

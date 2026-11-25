@@ -82,7 +82,26 @@ export const safeClientHref = (value: string) => {
   } catch { return ""; }
 };
 export const safeHref = (value: string) => escapeHtml(safeClientHref(value));
-export const safeFilename = (value: string) => value.replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, "_").slice(0, 50);
+// 50 UTF-16 단위 상한은 유지하되 이모지 같은 서로게이트 쌍을 반으로 자르지 않습니다.
+export const safeFilename = (value: string) => {
+  const cleaned = value.replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, "_");
+  let result = "";
+  for (const character of cleaned) {
+    if (result.length + character.length > 50) break;
+    result += character;
+  }
+  return result;
+};
+// 업로드 원본 파일명은 사용자가 정한 값이라 HTML 주석·ZIP 경로에 그대로 넣지 않고 지원 확장자만 사용합니다.
+const IMAGE_FILENAME_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif", "heic", "heif"]);
+export const imageFilenameExtension = (name: string) => {
+  const dot = name.lastIndexOf(".");
+  const extension = dot >= 0 ? name.slice(dot + 1) : "";
+  return IMAGE_FILENAME_EXTENSIONS.has(extension.toLowerCase()) ? extension : "jpg";
+};
+// 복사용 HTML 주석, ZIP 사진 파일, 사진배치안내가 같은 이름을 쓰도록 규칙을 한 곳에 둡니다.
+export const newsImageFilename = (month: string, bookstoreName: string, newsIndex: number, imageIndex: number, newsTitle: string, imageName: string) =>
+  `${month}_${safeFilename(bookstoreName)}_${String(newsIndex + 1).padStart(2, "0")}_${String(imageIndex + 1).padStart(2, "0")}_${safeFilename(newsTitle)}.${imageFilenameExtension(imageName)}`;
 export const shiftMonth = (month: string, amount: number) => { const date = new Date(`${month}-01T00:00:00`); date.setMonth(date.getMonth() + amount); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`; };
 export const previousMonth = (month: string) => shiftMonth(month, -1);
 export const submissionStatus = (submission?: Submission) => !submission ? "미작성" : submission.publishedAt ? (new Date(submission.updatedAt) > new Date(submission.publishedAt) ? "재게시 필요" : "게시 완료") : submission.status === "completed" ? "입력 완료" : "작성 중";

@@ -32,7 +32,7 @@ Atomic Design은 파일 수를 늘리는 목표가 아닙니다. 독립적으로
 - 월·책방·소식 선택 상태
 - 작성 중 이탈 방지와 사진·완료·발행 명령
 - 소식·사진·통합본 순서 변경
-- 사진 업로드와 ZIP 생성
+- 사진 업로드와 ZIP 내려받기 실행(파일 이름·내용 구성은 `lib/news-zip-package.ts`)
 - 입력 완료와 게시 완료 상태 변경
 
 최초 세션 확인과 데이터 로드는 `hooks/use-workspace-initialization.ts`로 분리합니다. 이 hook은 한 요청을 12초로 제한하고 2초·4초 간격을 두어 최대 3번 확인하므로 전체 자동 시도는 1분 안에 끝납니다. 8초 이상 지연되면 사용자가 직접 다시 시도할 수 있습니다. 연결은 성공했지만 책방이 0개이면 오류로 막지 않고 입력자가 첫 책방을 등록할 수 있습니다.
@@ -70,6 +70,7 @@ components
     → lib/workspace-client       # 브라우저 ↔ Next.js API
     → lib/submission-draft       # 같은 탭의 저장 전 입력 복구
     → lib/html-generators        # 개별·통합 inline CSS HTML
+    → lib/news-zip-package       # HTML 편집자용 ZIP의 사진·HTML·TXT 이름과 내용 구성
     → lib/news-schedule          # 개별 날짜·기간의 월 노출과 표시 규칙
     → lib/access-code-normalization # 한글·영문 두벌식 작업 암호의 서버 정규화
     → lib/workspace-formatters   # 팩토리·날짜·안전한 URL·상태 표시
