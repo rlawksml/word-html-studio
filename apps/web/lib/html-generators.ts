@@ -3,6 +3,10 @@ import { escapeHtml, escapeMultilineHtml, formatMonth, newsImageFilename, safeHr
 import { formatNewsDate } from "@/lib/news-date-selection";
 import { formatNewsSchedule } from "@/lib/news-schedule";
 
+// 마감·종료 라벨은 진행 중 소식과 구분되도록 회색으로 표시합니다. 회색은 흰 글자 대비 약 5:1입니다.
+const CLOSED_DISPLAY_LABELS = new Set(["신청 마감", "행사 종료"]);
+export const displayLabelBackground = (label: string) => CLOSED_DISPLAY_LABELS.has(label) ? "#6f6f6f" : "#8e735b";
+
 /** 외부 HTML 편집기에 그대로 붙여넣을 수 있는 책방별 inline CSS HTML을 만듭니다. */
 export function generatedHtml(submission: Submission, bookstore: Bookstore, includePreviewImages = false) {
   const sections = submission.news.map((news, newsIndex) => {
@@ -26,7 +30,7 @@ export function generatedHtml(submission: Submission, bookstore: Bookstore, incl
       ...news.links,
     ].filter((item): item is LabeledLink => Boolean(item && item.url.trim() && safeHref(item.url)));
     return `<section style="margin:34px 0">
-  <h2 style="margin:0 0 14px;color:#2c3e50;font-size:1.5em;font-weight:600">${escapeHtml(news.title)}${news.displayLabel ? ` <span style="display:inline-block;padding:3px 8px;background:#8e735b;color:#fff;font-size:12px;vertical-align:middle">${escapeHtml(news.displayLabel)}</span>` : ""}</h2>
+  <h2 style="margin:0 0 14px;color:#2c3e50;font-size:1.5em;font-weight:600">${escapeHtml(news.title)}${news.displayLabel ? ` <span style="display:inline-block;padding:3px 8px;background:${displayLabelBackground(news.displayLabel)};color:#fff;font-size:12px;vertical-align:middle">${escapeHtml(news.displayLabel)}</span>` : ""}</h2>
   ${news.regular ? '<span style="display:inline-block;margin-bottom:12px;padding:3px 8px;background:#eee;color:#555;font-size:12px">정기</span>' : ""}
   ${images}
   <div style="padding:22px;background:#f4f4f2;border:1px solid #ddd;border-radius:8px">
