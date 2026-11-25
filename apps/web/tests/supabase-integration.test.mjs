@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createClient } from "@supabase/supabase-js";
+import { assertIntegrationTarget } from "./helpers/integration-target-guard.mjs";
+import { assertLegacyIntegrationBlocked } from "./helpers/owned-cleanup-plan.mjs";
 import {
   assertRowsAbsent,
   assertStorageObjectAbsent,
@@ -8,6 +9,11 @@ import {
 } from "./helpers/supabase-cleanup-guard.mjs";
 
 const enabled = process.env.RUN_SUPABASE_INTEGRATION === "1";
+// Stage 1: legacy cleanup has no ownership adapter. No override or live execution.
+if (enabled) assertLegacyIntegrationBlocked();
+// Unreachable while enabled: retain target checks for a future separately reviewed adapter.
+if (enabled) assertIntegrationTarget(process.env);
+const { createClient } = enabled ? await import("@supabase/supabase-js") : {};
 
 async function loadWorker() {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
@@ -279,8 +285,9 @@ test("persists records, rejects stale writes, and cleans uploaded images", { ski
       assert.ok(upload.ok, `signed upload failed: ${upload.status}`);
     }
     const remove = await appFetch("/api/images", { method: "DELETE", headers: workerHeaders, body: JSON.stringify({ images: [uploadedImage] }) });
-    await assertStatus(remove, 204);
-    uploadedImage = null;
+    await assertStatus(remove, 200);
+    assert.deepEqual(await remove.json(), { retained: true, deleted: false, code: "IMAGE_CLEANUP_DEFERRED" });
+    // 보존 응답은 물리 삭제 완료가 아닙니다. 아래 기존 exact-fixture 정리 대상은 그대로 둡니다.
   } finally {
     const storageCleanup = uploadedImage ? [
       {

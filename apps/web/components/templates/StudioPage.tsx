@@ -1,6 +1,7 @@
 "use client";
 
 import { lazy, Suspense } from "react";
+import { LoadingBooks } from "@/components/atoms/LoadingBooks";
 import { AppHeader } from "@/components/molecules/AppHeader";
 import { StorageAlert } from "@/components/molecules/StorageAlert";
 import { StorageLoadingOverlay } from "@/components/molecules/StorageLoadingOverlay";
@@ -24,8 +25,8 @@ export function StudioPage({ initialMonth }: { initialMonth: string }) {
       <AppHeader studio={studio} />
       <StorageAlert message={studio.storageError} onReload={studio.role === "visitor" ? undefined : studio.reloadWorkspace} />
       {studio.role === "visitor" && <VisitorWorkspace studio={studio} />}
-      {studio.role === "input" && <Suspense fallback={<div className="role-loading" role="status">소식 입력 화면을 준비하고 있습니다.</div>}><InputWorkspace studio={studio} /></Suspense>}
-      {studio.role === "html" && <Suspense fallback={<div className="role-loading" role="status">HTML 작업 화면을 준비하고 있습니다.</div>}><HtmlWorkspace studio={studio} /></Suspense>}
+      {studio.role === "input" && <Suspense fallback={<div className="role-loading" role="status" aria-live="polite"><LoadingBooks /><p>책방 소식 입력 화면을 펼치고 있어요.</p></div>}><InputWorkspace studio={studio} /></Suspense>}
+      {studio.role === "html" && <Suspense fallback={<div className="role-loading" role="status" aria-live="polite"><LoadingBooks /><p>완료된 소식과 HTML 작업 도구를 준비하고 있어요.</p></div>}><HtmlWorkspace studio={studio} /></Suspense>}
       <StudioFeedback studio={studio} />
     </main>
     {!dataReady && <StorageLoadingOverlay state={studio.initialLoadState} onRetry={studio.retryInitialLoad} />}

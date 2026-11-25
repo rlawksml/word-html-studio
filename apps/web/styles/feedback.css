@@ -1,12 +1,22 @@
 /* modals */
 .access-modal>span,.leave-modal>span,.editing-blocked-modal>span { color:#b9bdb9; font-size:10px; letter-spacing:.18em; }
-.modal-backdrop { position:fixed; inset:0; z-index:100; display:grid; place-items:center; padding:20px; background:rgba(20,20,20,.52); }
-.access-modal,.leave-modal,.editing-blocked-modal { width:min(440px,100%); background:white; padding:34px; position:relative; box-shadow:0 20px 70px rgba(0,0,0,.2); }
+.modal-backdrop { position:fixed; inset:0; z-index:100; display:grid; place-items:center; overflow-y:auto; padding:20px; background:rgba(20,20,20,.52); }
+.access-modal,.leave-modal,.editing-blocked-modal { width:min(440px,100%); max-height:calc(100dvh - 40px); overflow-y:auto; background:white; padding:34px; position:relative; box-shadow:0 20px 70px rgba(0,0,0,.2); }
 .modal-close { position:absolute; right:16px; top:14px; border:0; background:transparent; font-size:24px; color:#777; }
+.modal-close:disabled { cursor:wait; opacity:.35; }
 .access-modal h2,.leave-modal h2,.editing-blocked-modal h2 { margin:8px 0 10px; font-size:26px; font-weight:500; }
 .access-modal p,.leave-modal p,.editing-blocked-modal p { margin:0 0 22px; color:#777; font-size:12px; line-height:1.7; }
 .access-modal>.primary-button { width:100%; margin-top:10px; }
 .access-modal>small { display:block; margin-top:16px; color:#999; font-size:9px; text-align:center; }
+.access-progress { display:flex; align-items:center; gap:14px; margin:14px 0 2px; padding:13px 14px; border:1px solid #deded9; background:#f7f7f4; color:#4e5651; }
+.access-progress .loading-books,.action-progress .loading-books { flex:0 0 auto; height:28px; padding:0 5px 4px; gap:3px; border-bottom-width:1px; }
+.access-progress .loading-books i,.action-progress .loading-books i { width:7px; height:20px; }
+.access-progress .loading-books i:nth-child(2),.action-progress .loading-books i:nth-child(2) { height:24px; }
+.access-progress .loading-books i:nth-child(3),.action-progress .loading-books i:nth-child(3) { height:18px; }
+.access-progress strong,.access-progress small { display:block; }
+.access-progress strong { font-size:11px; font-weight:600; }
+.access-progress small { margin-top:3px; color:#888; font-size:9px; }
+.action-progress { display:flex; align-items:center; gap:12px; margin:0 0 16px!important; padding:11px 12px; background:#f7f7f4; color:#555!important; }
 .leave-modal-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:22px; }
 .leave-modal-actions button { min-width:0; }
 .leave-save-button { grid-column:1 / -1; }
@@ -14,4 +24,5 @@
 .leave-discard-button:hover { border-color:#8c3c35; background:#fff1ed; }
 .editing-blocked-actions { display:flex; justify-content:flex-end; }
 .editing-blocked-actions button { min-width:96px; }
+.access-modal button:disabled,.leave-modal button:disabled { cursor:wait; opacity:.58; }
 .toast { position:fixed; right:24px; bottom:24px; z-index:130; background:#242824; color:white; padding:13px 17px; font-size:11px; box-shadow:0 8px 28px rgba(0,0,0,.2); }

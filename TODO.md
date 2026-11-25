@@ -1,5 +1,55 @@
 # TODO
 
+## v1.2부터 적용할 릴리스 운영
+
+- [x] GitHub 브랜치 경로 검사와 호스트별 배포 검사를 분리. CI는 배포하지 않음.
+- [ ] 현재 운영 소스 `2bf2166`의 이력을 `develop`과 `main`에 순서대로 연결. 운영 승인 전 `main` 머지 금지.
+- [ ] 다음 승인 릴리스에서 검증한 소스·운영 Worker 버전·롤백 대상을 기록. 기존 운영 주소와 DB·사진 유지.
+
+현재 절차는 [릴리스 운영 가이드](docs/RELEASE_FLOW.md)를 따른다. 아래 11월 6일 이전 보고는 각 날짜의 과거 기록이다.
+
+## 2026-11-06 고정 진행표 (최신)
+
+운영 반영 전까지 아래5묶음을 이어서 진행한다. 한 묶음이 끝나도 요청을 다시 받기 위해 멈추지 않는다. 실제 권한·로그인·비용·데이터 위험의 선택이 필요한 때만 해당 경로를 대기하고 다른 병렬 작업은 계속한다.
+
+- [ ] 1. 잔여 보안/도구 체인: Git 전송·CLI 소유 종료 수정 완료. exacted6bf0d의 type/lint/build·앱277·Worker36·엄격 정리 후 COMPLETE PASS. 새 pair dev 포함 metadata audit는 SCHEMA로 판정 불가라 고정 단계 진단 중. bundle 내부 parser를 lock 제거만으로 해결 처리하지 않음
+- [ ] 2. Staging #86 SQL1건·최신 후보 배포: SQL 설치·버전/객체/RLS/익명 접근 차단 PASS. 후보 배포는 아직 실행 전, 배포 파일 전달 범위 확인 대기
+- [ ] 3. 실제 사용자 흐름: 새 QA2책방·미사용 월·사진·두 세션 승인 확인. 기존 자료 불변·성공 QA 보관
+- [ ] 4. 최신 독립 백업·새 빈 대상 복원: 운영 자료 읽기 백업 승인 대기. 활성 무료 프로젝트2개 한도 확인, QA 뒤 Staging만 일시정지하는 별도 빈 복원 대상 방안의 선택 대기. 아직 pause/create/restore 없음
+- [ ] 5. 호환 fallback 불변 배포물·환경·최종 판정: exact1f3fb0b의 type/lint/build·앱30·보존10·엄격 정리 각각 PASS. 실제 불변 배포물·실DB/복원·환경 증거는 미완료
+
+현재 **운영 NO-GO**. [React/fallback 결과](docs/test-reports/2026-11-06-react-rsc-fallback.md), [최신 통합 진행표](docs/test-reports/2026-11-06-toolchain-staging-progress.md). 과거 수치는 별도 실행 이력이며 합산하지 않는다. main merge·운영 배포/SQL·유료 전환·기존 데이터 변경은 승인되지 않았다.
+
+## 2026-11-05 현재 릴리스 게이트 (아래 과거 단계 기록보다 우선)
+
+현재 **운영 NO-GO**. #93 writer-only를 수정해 최종 exactafbbf96의 [CLI14/protocol12/백업30/복원정책25/앱277·type/lint/build·정리](docs/test-reports/2026-11-05-issue93-backup-writer.md)를 각각 PASS했습니다. 아래 과거 실행과 합산하지 않으며 실제 백업·복원·Mac·운영 배포 완료가 아닙니다.
+
+이전 source-map-js1.2.2 후보 exact83fed46의 [전체277TC·type/lint/build·엄격 정리](docs/test-reports/2026-11-05-issue87-source-map-candidate.md)도 통과했습니다. 이후 명시 승인 후 동일 pair의 exact3fdb1d1에서 [production 재audit: 취약점 0건·엄격 정리 PASS](docs/test-reports/2026-11-05-issue87-source-map-audit.md)를 확인했습니다. 이전 lock의 high1·당시 전송 승인 차단 이력과 새 실제 결과를 구분합니다. [#94의277TC](docs/test-reports/2026-11-05-issue94-retained-photo-warnings.md)·[이전 #92의276TC](docs/test-reports/2026-11-05-issue92-backup-completeness.md)·[과거 후보247](docs/test-reports/2026-11-05-preprod-candidate-offline.md)과 합산하지 않습니다. 브라우저·실DB·복원/롤백 전체 게이트와 별도 잔여 보안 범위는 남습니다. 아래 과거 체크 표시는 당시 범위이며 현재 배포 완료가 아닙니다.
+
+- [x] #92 별도 분석→수정 전29TC 중19FAIL 재현→최소 수정→같은29/기존복원25/전체276 및 type/lint/build·엄격 정리 PASS, exact9497d1b·독립 검토 (실제 백업/복원 성공 아님)
+- [x] #93 새 목적지 writer의 nofollow/보유 dirfd·EXCL·기존 백업 조상 거부·완료 ACK 검증. 고정14TC RED8FAIL→GREEN14PASS, 별도protocol12/완전성30/복원정책25/전체277·type/lint/build·엄격 정리 PASS, exactafbbf96·독립 리뷰 ([보고서](docs/test-reports/2026-11-05-issue93-backup-writer.md)). 기존 백업 이동/수정 없음·실백업/복원 아님
+- [x] #94 모든 사진 보관·미참조 경고 정책 구현: RED30중3FAIL→같은30PASS/복원정책25PASS/전체277·type/lint/build·엄격 정리 PASS, exact1f9c605 ([보고서](docs/test-reports/2026-11-05-issue94-retained-photo-warnings.md)). 실제 백업/복원·운영 반영 아님
+- [ ] #46/#48 옛 exact28efad2 parser6TC 중 미래4종 보존FAIL ([보고서](https://github.com/rlawksml/word-html-studio/blob/0fec8b719a88001b61b54b31238bb28472757628/docs/test-reports/2026-11-05-exact-fallback-preservation.md)); 호환 fallback·불변 artifact/환경/기간/사진 검증 필요. 후보PASS로 대체 금지
+- [ ] 전체 테스트 출력 요약 개선 검토: 최신277TC stdout64973bytes, 현재64KiB까지563bytes 여유(직전692d34f는64979/557). 상한 완화/TC 제거/제목 축약 금지
+
+- [x] 원래 dirty36개 보존·분류, source 복구 사본의 hash/bundle 검증 및 로컬 `.git` 비공개 보관 (DB 백업 아님)
+- [x] #47 marker 무쓰기/대상 hash 보존·#88 무삭제 방어·기존 gate/실연결 hardblock 보존
+- [x] exact `3ccb429`에서 무키 격리 restore25/photo12/preservation30 = **67PASS**, 실패/외부 TC skip0·독립 확인
+- [x] Stage2/HTML-copy8파일 원본 해시 보존·현재 문서 정합화·과거 보고서11+캡처1 비공개 보존/공개 색인. exact16b7558 evidence17PASS ([후속 기록](docs/test-reports/2026-11-05-source-completion.md))
+- [x] exact24279e7의 restore25/photo12/preservation30/evidence17/publication15를 병렬 실행해 native99PASS (다른 실행과 합산하지 않음)
+- [x] 승인된 무스크립트·무키 Linux prep→오프라인 검증 경로·독립 리뷰·실제 실행. 기준9485c79의232와 후보fb75c62의247 각각 type/lint/build/TAP·엄격 자식 종료·소유 자원 정리 PASS
+- [x] #91 유효 월 보존/invalid calendar 방어와 순수15TC·같은 후보247 회귀. 실제 UI 완료로 판단하지 않음
+- [x] HTML fixture의 소유 esbuild 실제 close 대기·자동 HTML-LINES-07 한 개 추가. 수동 외부편집기06과 구분
+- [x] #87 최소 Next/eslint-config-next16.4.5 후보·검토한 새 lock 적용, exactbae02fb의 무스크립트 설치/type/lint/build/276TC·엄격 정리 PASS ([보고서](docs/test-reports/2026-11-05-issue87-next-candidate.md)); 보안 완료/배포 아님
+- [x] #87 source-map-js1.2.2의 승인된2JSON 전달·최소 lock3필드 변경·다른734레코드/제품/277TC 보존·정책29/전체277 및 type/lint/build·엄격 정리 PASS ([보고서](docs/test-reports/2026-11-05-issue87-source-map-candidate.md))
+- [x] #87 새 lock의 실제 production 재audit: public graph·실행환경 정보의 공식 npm registry 전송 명시 승인 후 exact3fdb1d1/run42032239269의 전 등급/총합0·SEAL/FINAL/엄격 정리 PASS·artifact0. 이전 차단/발견 결과와 구분 ([보고서](docs/test-reports/2026-11-05-issue87-source-map-audit.md))
+- [ ] #66 vinext/React·개발 Miniflare/sharp 등 별도 잔여 보안 검증. 이번 production metadata 결과를 full dev audit/실행 경로 전체 안전성으로 확대하지 않음
+- [ ] #91 실제 DOM 부분 월 편집/IME 및 로그인·사진·통합본 브라우저/Network·자원 P0
+- [ ] npm/build 각각 관측 warning2의 분류·필요한 조치 (경고 부재나 안전성으로 일반화하지 않음)
+- [ ] 별도 승인 후 #86 SQL·신규 QA·두 작업자/사진의 실제 Staging P0 검증
+- [ ] #47 새 빈 복구 대상의 실제 복원·최신 독립 백업, #46/#48 exact fallback/최신 데이터/환경 보존 증거
+- [ ] 사용자 최종 운영 승인 전 main merge·배포·운영 SQL/DB/Storage 변경 금지
+
 ## M0 — 자료 분석과 제품 방향 확정
 
 - [x] 실제 Word 4개의 공통 구조와 편차 분석
@@ -10,8 +60,30 @@
 
 ## M1 — 화면 프로토타입
 
+- [x] #77 Cloudflare 10021 진입점 경로 수정 및 실제 dry-run 업로드 파일 구조 회귀 검증
+
+- [x] #82 HTML 본문 줄바꿈을 명시적 `<br>`로 출력: 빈 줄·이모티콘·escaping·원본 불변 회귀 테스트
+- [x] #82 과거 독립 staging에서 사용자 줄바꿈·빈 줄 유지 확인(2026-11-04). 현재 후보의 재검증·전체 편집기 호환으로 일반화하지 않음 ([역사 색인](docs/test-reports/2026-11-05-historical-evidence-index.md))
+
+- [x] 독립 Cloudflare staging 설정 추가: 공개 URL 비활성, 테스트 DB 고정, dry-run 검증 명령
+- [ ] 무료 플랜·접근 보호·비밀키 설정 후 독립 staging 배포 및 P0 검증
+- [ ] Cloudflare 계정 이메일 인증 후 비공개 최초 업로드 재시도 (10034 차단, 2026-09-29)
+- [x] 독립 staging 입장 gate 구현: 서버 검증·서명 쿠키·Origin 검사·정적 파일 우회 차단
+- [ ] gate 실 Worker/브라우저 통합 검증, 무료 rate-limit 지원 및 강한 별도 secret 등록
+- [x] 인증 후 정적 JS/CSS 404 수정: staging 전용 adapter와 CI 로컬 workerd 통합 검증
+- [ ] 원격 Worker 및 실제 브라우저·Supabase P0 검증 (로컬 workerd 통과와 구분)
+- [x] 글 유지·원본 최근 3개월·재사용 원본 제외 정책 문서화 (삭제 미실행)
+
+- [x] #77 GitHub 구조를 보존하는 Staging 전용 배포 소스 추출·provenance·안전 테스트
+- [ ] #77 Sites 공식 원격 소스 bootstrap 호환성 해결 후 배포 및 실제 통합 검증
+
 - [x] 역할별 첫 화면과 세션 단위 작업자 접근
 - [x] 입력자·HTML 편집자 접속 코드의 서버 두벌식 자판 정규화와 한글·영문 입력 지원
+- [x] 작업자 로그인·수동 저장·입력 마무리·이탈·ZIP 준비의 단계별 로딩 안내와 중복 실행 차단
+- [x] 기존 세션 복귀 로딩, 로그인·Workspace 시간 제한, 로그아웃 응답 대기와 실패 복구
+- [x] API 격리 브라우저에서 로딩·실패·재시도·모바일 높이·12회 로그인 실패 리소스 검증
+- [x] 기존 TypeScript 오류 7건 해소 및 CI 필수 타입 검사 추가
+- [ ] #75 Staging 실연결 검증 및 배포 판정
 - [x] 모바일 우선 방문자 달력
 - [x] 로그아웃·방문자 메인 이동 시 달력 상태 초기화
 - [x] 날짜별 소식, 디바운스 검색, 공식 동네책방 게시판 연결, 공개 상태
@@ -24,7 +96,8 @@
 - [x] 전시 등 장기 행사의 시작일·종료일 기간 입력과 월 경계 달력 노출
 - [x] 입력 완료 전 현재 작성 내용 HTML 미리보기
 - [x] 방문자·입력자 미리보기 사진 중앙 정렬과 모바일 후면 스크롤 잠금
-- [x] 소식·통합본 순서 드래그 변경
+- [x] 소식 순서 드래그 변경
+- [ ] #86 통합본 월별 순서 저장: 전용 API/hook·손잡이 정렬 구현 및 로컬 검증, 신규 SQL/실제 Staging CAS·재접속 검증 승인 대기 ([보고서](docs/test-reports/2026-11-04-issue86-digest-order.md))
 - [x] 자동 저장과 수동 임시 저장
 - [x] 작성 중 로고·뒤로가기·로그아웃 이탈 경고와 계속 작성·임시 저장·저장하지 않고 이동 선택
 - [x] 지난달 내용 복사
@@ -58,7 +131,7 @@
 - [x] 책방·월별 소식 단위 API와 자동 저장 요청 직렬화
 - [x] `updated_at` 기반 낙관적 충돌 방지와 최신 내용 다시 불러오기
 - [x] 빈 Supabase에서 첫 책방을 등록할 수 있는 초기 진입 흐름
-- [x] 사진 업로드 실패 정리와 DB 저장 후 지연 삭제
+- [ ] #88 사진 보존 방어: client DELETE 무전송·server 명시적 보존 응답·물리 삭제 queue 제거 구현, exact e0219f9 격리 순수·구조12TC PASS. 실제 React/API·늦은 자동 저장·전체 회귀·배포 대기 ([범위/TC](docs/test-reports/2026-11-05-issue88-photo-retention-source.md))
 - [x] 책방 관리 저장 성공 응답 확인과 실제 충돌 레코드 단위 격리
 - [x] 일시적인 Database·Storage 오류 재시도와 응답 유실 후 동일 저장 복구
 - [x] 사진 서명 갱신 재시도와 Windows 빈 MIME·HEIC/HEIF 미리보기 지원
@@ -71,6 +144,7 @@
 - [x] 입력 텍스트 선택을 방해하지 않는 소식·사진 전용 드래그 손잡이
 - [ ] 2개월 이전 자료를 지난 소식으로 분류
 - [ ] 원본·미리보기 사진 3개월 보관 후 정리 정책
+- [ ] #88 후속: 참조 안전성이 보장되는 별도 GC·삭제 승인·용량 관찰 설계 (현 단계의 보존을 파일 존재 보증이나 공개 URL 철회로 해석하지 않음)
 - [ ] 월별 HTML·사진 ZIP 백업
 - [x] Supabase 접속 설정과 비밀값 환경변수 구조 작성
 - [x] 작업 암호의 클라이언트 하드코딩 제거와 서버 세션 쿠키 적용

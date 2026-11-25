@@ -7,5 +7,6 @@ console.log(JSON.stringify({
   verifiedFiles: result.verifiedFiles,
   verifiedBytes: result.verifiedBytes,
   failures: result.failures,
+  warnings: result.warnings,
 }, null, 2));
 if (result.status !== "PASS") process.exitCode = 1;

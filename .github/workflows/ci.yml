@@ -2,15 +2,57 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      validation_mode:
+        description: Isolated no-key policy tests or reviewed offline app validation, never deployment
+        type: choice
+        options: [rollback_preparation, source_policy, offline_app]
+        default: rollback_preparation
+        required: true
+      expected_commit:
+        description: Exact reviewed feature commit, never a Production target
+        type: string
+        required: true
+      source_suite:
+        description: Reviewed source-policy suite, ignored by rollback mode
+        type: choice
+        options: [restore, photo, preservation, evidence, publication, backup_completeness, backup_paths, backup_protocol]
+        default: restore
+        required: false
+      staging_artifact_approved:
+        description: Explicit approval to transfer compiled Staging dist only; offline_app only
+        type: boolean
+        default: false
+        required: false
+      staging_storage_checked_at:
+        description: Confirmed free artifact headroom timestamp (UTC ISO milliseconds); offline_app only
+        type: string
+        default: ''
+        required: false
 
 permissions:
   contents: read
 
 jobs:
+  release-branch-policy:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: node --test scripts/release-branch-policy.test.mjs
+      - run: node scripts/release-branch-policy.mjs
+
   verify:
+    # Manual dispatch must not install app dependencies or activate legacy DB tests.
+    # Drafts run the cheap branch policy; ready PRs and main pushes keep the app gate.
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -26,17 +68,24 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
       - run: npm run audit:production
-      - run: npm run validate:deployment-target
-        env:
-          DEPLOYMENT_TARGET: ${{ github.event_name == 'workflow_dispatch' && 'develop' || (github.base_ref || github.ref_name) }}
+      # The Sites manifest is only validated when preparing a Sites release, not for Git branch CI.
       - run: npm run migration:check
         env:
           MIGRATION_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
       - run: npm run lint
+      - run: npm run typecheck
+      - name: Verify isolated deployment source adapter
+        run: node --test ../../scripts/prepare-sites-source.test.mjs
       - run: npm test
+      - name: Verify independent Cloudflare staging config
+        run: node --test tests/cloudflare-staging-config.test.mjs
+      - name: Verify staging access gate and real Worker asset routing
+        run: npm run test:staging-worker
 
   supabase-integration:
-    if: github.event_name == 'workflow_dispatch'
+    # Hard-disabled until an owned, non-destructive integration adapter is approved.
+    # Inputs cannot reactivate the legacy creation/cleanup suite.
+    if: ${{ false }}
     environment: staging
     runs-on: ubuntu-latest
     defaults:
@@ -69,3 +118,56 @@ jobs:
           test -n "$BLOCKED_SUPABASE_PROJECT_REFS"
       - run: npm run build
       - run: npm run test:integration
+
+  rollback-dispatch-guard:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require reviewed exact commit and isolated mode
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_commit }}
+          VALIDATION_MODE: ${{ inputs.validation_mode }}
+          SOURCE_SUITE: ${{ inputs.source_suite }}
+          STAGING_ARTIFACT_APPROVED: ${{ inputs.staging_artifact_approved }}
+          STAGING_STORAGE_CHECKED_AT: ${{ inputs.staging_storage_checked_at }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]] || [[ "$GITHUB_SHA" != "$EXPECTED_SHA" ]]; then
+            echo '::error::ROLLBACK_DISPATCH_BLOCKED_COMMIT_OR_MODE_MISMATCH'
+            exit 1
+          fi
+          if [[ "$STAGING_ARTIFACT_APPROVED" != false || -n "$STAGING_STORAGE_CHECKED_AT" ]]; then
+            [[ "$VALIDATION_MODE" == offline_app && "$STAGING_ARTIFACT_APPROVED" == true && "$STAGING_STORAGE_CHECKED_AT" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$ ]] || { echo '::error::STAGING_ARTIFACT_DISPATCH_BLOCKED'; exit 1; }
+          fi
+          case "$VALIDATION_MODE" in
+            rollback_preparation) ;;
+            source_policy)
+              [[ "$GITHUB_REF" == refs/heads/codex/* && ( "$SOURCE_SUITE" == restore || "$SOURCE_SUITE" == photo || "$SOURCE_SUITE" == preservation || "$SOURCE_SUITE" == evidence || "$SOURCE_SUITE" == publication || "$SOURCE_SUITE" == backup_completeness || "$SOURCE_SUITE" == backup_paths || "$SOURCE_SUITE" == backup_protocol ) ]] || { echo '::error::SOURCE_POLICY_DISPATCH_BLOCKED'; exit 1; }
+              ;;
+            offline_app)
+              [[ "$GITHUB_REF" == refs/heads/codex/* ]] || { echo '::error::OFFLINE_APP_DISPATCH_BLOCKED'; exit 1; }
+              ;;
+            *) echo '::error::ISOLATED_MODE_NOT_ALLOWLISTED'; exit 1 ;;
+          esac
+
+  isolated-rollback-policy:
+    needs: rollback-dispatch-guard
+    if: github.event_name == 'workflow_dispatch' && inputs.validation_mode == 'rollback_preparation' && needs.rollback-dispatch-guard.result == 'success'
+    uses: ./.github/workflows/rollback-preparation.yml
+
+  isolated-source-policy:
+    needs: rollback-dispatch-guard
+    if: github.event_name == 'workflow_dispatch' && inputs.validation_mode == 'source_policy' && needs.rollback-dispatch-guard.result == 'success'
+    uses: ./.github/workflows/source-policy-validation.yml
+    with:
+      suite: ${{ inputs.source_suite }}
+
+  isolated-offline-app:
+    needs: rollback-dispatch-guard
+    if: github.event_name == 'workflow_dispatch' && inputs.validation_mode == 'offline_app' && needs.rollback-dispatch-guard.result == 'success'
+    uses: ./.github/workflows/offline-app-validation.yml
+    with:
+      expected_commit: ${{ inputs.expected_commit }}
+      staging_artifact_approved: ${{ inputs.staging_artifact_approved }}
+      staging_storage_checked_at: ${{ inputs.staging_storage_checked_at }}

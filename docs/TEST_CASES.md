@@ -1,14 +1,84 @@
 # 동네책방 소식 스튜디오 테스트 케이스
 
-이 문서는 기능 변경 후 반복 실행할 수 있는 회귀 테스트 기준입니다. 실제 운영 데이터를 직접 수정하는 수동 테스트는 테스트 전용 책방·발행 월을 사용하고, 종료 후 생성한 소식·사진·편집 잠금을 정리합니다.
+이 문서는 기능 변경 후 반복 실행할 수 있는 회귀 테스트 기준입니다. 상태 변경 테스트는 분리 환경의 명시적으로 승인된 테스트 전용 자료에서만 실행합니다. 운영·보관 QA 자료는 수정하지 않습니다. 성공 자료 보관 결정을 따르며, 별도 승인·안전한 adapter 없는 자동 정리는 하지 않습니다. legacy 실연결 suite는 하드 차단 상태입니다.
 
 ## 문서 정보
+
+### 릴리스 브랜치 정책 — RELEASE-FLOW-01~06
+
+`node --test scripts/release-branch-policy.test.mjs`로 버전·이슈가 표시된 작업 PR → `develop`, 내부 `develop` → `main`, 잘못된 대상·외부 저장소·누락 이벤트 거부, 기능 브랜치끼리의 스택형 PR, 외부 데이터 접근이 없는 CI 구성 및 기존 PR #95에만 한정된 예외를 확인한다. 이 검사는 Git 경로만 확인하며 실제 Staging/운영 배포나 DB 통합 테스트를 대신하지 않는다.
+
+### 2026-11-06 도구 체인·Worker 종료 진단 (최신)
+
+후속 exacted6bf0db80e4cb8cf10fecee12c552c0bec0385c/[42076842796](https://github.com/rlawksml/word-html-studio/actions/runs/42076842796)은 type/lint/build·앱277·Worker36 PASS/나머지0, 엄격 정리 후 COMPLETE다. `STAGE-UPLOAD-01`은 실제 published CLI dry-run·생성물 import를 유지하며 동일 모듈의 정확한 esbuild 자식만 실제 close까지 기다리고 marker1회를 확인한다. 단독 upload1도 exact3d4f3e4/[42076842047](https://github.com/rlawksml/word-html-studio/actions/runs/42076842047)에서 strict 정리를 통과했다. 아래 실패는 수정 전 이력이며 두 실행 수는 합산하지 않는다. 실제 원격 사용자·DB/사진 검증으로 확대하지 않는다.
+
+[통합 기록](test-reports/2026-11-06-toolchain-staging-progress.md): exact1d5a07f에서 type/lint/build·앱277·Worker36 모두 PASS지만 종료 esbuild zombie1로 전체 FAIL이다. 진단 분리 결과 runtime9/strict 정리는 exact5bcb9d5에서 PASS, upload1은 exact5547fc4에서 기능 PASS 뒤 같은 정리 실패였다. 진단 수치를 전체36 회귀 성공으로 대신하거나 합산하지 않는다. `STAGE-UPLOAD-01`의 실제 dry-run 산출물 import 검증은 유지하고 해당 CLI의 자식 종료 소유권만 최소 수정한다. 후보 전체36의 엄격 정리 재검증 전 운영 GO로 처리하지 않는다.
+
+호환 fallback exact1f3fb0b는 type/lint/build·앱30과 별도 보존10·엄격 정리를 각각 통과했다. [fallback 보고서](https://github.com/rlawksml/word-html-studio/blob/49bcafab2d7f2f5b523149b48a6d3af847143a57/docs/test-reports/2026-11-06-compatible-fallback-runtime.md). 실제 배포물·DB/복원·환경 보존 검증과 구분한다.
+
+### 2026-11-06 React/RSC·호환 fallback
+
+[실제 결과](test-reports/2026-11-06-react-rsc-fallback.md): React/RSC19.2.9의 기존 배포 정책 TC를 보강하고 exact7e52fc08에서 전체277/type/lint/build·정리 PASS. 별도 fallback82f79b6은 실제 old parser/sanitizer/helper의10TC·정리 PASS이며 route/CAS는 정적 계약, HTTP/DB는 미실행이다. 옛 exact28efad2의6TC/4FAIL은 역사 증거로 보존한다. 실제 Staging·독립 백업/복원·불변 fallback artifact는 별도이며 운영 NO-GO다. 승인된 새 QA 성공 자료는 삭제하지 않고 보관한다.
+
+### 2026-11-05 #93 writer-only 경로·프로토콜
+
+[보고서](test-reports/2026-11-05-issue93-backup-writer.md): 수정 전 actual CLI14는6PASS/8FAIL(05~12), 같은 동결14가692d34f에서14PASS였다. 최종afbbf96에서 CLI14·별도protocol12·완전성30·복원정책25·앱277/type/lint/build가 각각 PASS·실패/취소/skip/todo0·엄격 정리였다. 정상 실제 CLI는 SDK만 합성하며 UTF8/바이너리와 manifest 검증기를 확인한다. protocol12는 실제 client/server/raw framing·marker identity·EOF/취소/상한·동시 PUT과 기존 백업 부모 보존을 포함한다. ACK 과대·pending 취소만 명시적 합성 peer이며 실제 writer 파일 검증과 구분한다.
+
+두 전용 suite는 full277에 합치지 않는다. user 데이터·백업·DB·Storage 접근/변경0, 자체 scratch만 정리했다. Linux 파일 기반 writer GO이며 Mac·실제 SDK/복원·브라우저 P0·운영 배포 검증으로 확대하지 않는다. 과거 실행과 TC 수를 합산하지 않으며 **운영 NO-GO**를 유지한다.
+
+### 2026-11-05 #87 명시 승인 후 실제 재audit
+
+[실제 재audit 보고서](test-reports/2026-11-05-issue87-source-map-audit.md): 전송에 대한 사용자 명시 승인 후 exact3fdb1d1/run42032239269의 plain production audit가 PASS/reasonNONE, 모든 등급/총합0·npm11.19.1·SEAL/FINAL/엄격 정리 후 COMPLETE·artifact0이었다. 아래 이전 후보 보고서의 승인 차단은 당시 기록으로 보존한다. AUDIT-LIVE01과 종료 제어는 같은1회 실행에서 확인했으며 별도 앱 exact83fed46의277·type/lint/build와 같은4b79/6829 pair로 연결한다. 전체 TC-SEC-001의 실제 브라우저/DB·배포 후 검증은 미완료이고 #66/full dev 보안·운영 GO로 확대하지 않는다.
+
+### 2026-11-05 #87 source-map-js 최소 후보
+
+[당시 후보 보고서](test-reports/2026-11-05-issue87-source-map-candidate.md): metadata exact661b6fb의 최종META01~29 PASS와 승인된2JSON 회수/파일 검증, 제품 exact83fed46의 기존27파일277TC/type/lint/build·엄격 정리 PASS. package 불변·lock735개 중 target3필드만 변경·기타734개 불변을 확인했다. 당시 actual audit는 전송 승인 단계에서 BLOCKED/미실행이었고, 이후 실제 결과는 위 후속 기록을 따른다. 이전 high1 audit와 혼동하지 않으며 TC-SEC-001 전체 PASS나 운영 GO로 처리하지 않는다. 두29 실행 및29/277·이전 결과를 합산하지 않는다. unit 출력64970B/공유cap여유566B·warning 분류 미완료와 실제 브라우저/DB/fallback 게이트를 유지한다.
+
+### 2026-11-05 #94 사진 보관 정책 후속
+
+exact1f9c605의 [보고서](test-reports/2026-11-05-issue94-retained-photo-warnings.md): 최종 RED와 같은30TC/기존복원25/전체277 및 type/lint/build·엄격 정리 PASS. 미참조 원본/미리보기는 모두 보관하고 고정 경고만 주며, 누락/변조/거짓 통계는 계속 FAIL·warnings[]다. TC20은 참조 전체 소멸 포함4가지 보존, TC30은 부정4가지·사진 존재/bytes 불변과 CLI 소스 계약을 확인한다. 기존29 중20의 정책 기대와21의 빈 경고 assert를 명시적으로 변경하고 새30을 추가했다. 실제 SDK/복원·#93 경로·운영 GO가 아니며,30/25/277은 합산하지 않는다.
+
+### 2026-11-05 #87 최소 Next 후보
+
+exactbae02fb의 [별도 보고서](test-reports/2026-11-05-issue87-next-candidate.md): 새 lock 무스크립트 설치/type/lint/build·같은27파일276TC·엄격 종료/정리 PASS. NEXT-LOCK/APP 단계는 PASS, production audit·실제 브라우저·실DB/fallback은 BLOCKED다. 예전 fallback의6TC 중4FAIL과 browser inventory 차단도 링크했다. 모든 실행 수를 합산하지 않으며 운영 NO-GO다.
+
+### 2026-11-05 #92 백업 완전성 후속
+
+exact9497d1b의 [RED/GREEN 보고서](test-reports/2026-11-05-issue92-backup-completeness.md): 새 BACKUP-COMPLETE01~29는 수정 전19FAIL/10PASS→수정 후29PASS, 기존복원25PASS, 전체27파일276TC/type/lint/build/엄격 종료·정리 PASS. 세 실행은 중복 합산하지 않는다. #93 경로·#94 미참조 보관 정책·실제 백업/복원·브라우저·audit는 미완료이며 운영 NO-GO다.
+
+### 2026-11-05 후보 오프라인 회귀 — 운영 승인과 구분
+
+exactfb75c62에서 typecheck/lint/build/기본26파일247TC와 엄격 자식 종료·격리·소유 자원 정리까지 PASS했다. 실제 DB·Storage·브라우저/외부 편집기·audit·운영 배포는 아니다. [후보 보고서](test-reports/2026-11-05-preprod-candidate-offline.md)와 [native99](test-reports/2026-11-05-candidate99-native-regression.md)의 서로 다른 exact 결과는 합산하지 않는다. 아래 main 기준·과거 배포 사례도 당시 기록으로 구분한다.
+
+자동 HTML TC는01~05와07의6개다. **06은 실제 외부 편집기 수동 검증**으로 남겨 두며 자동 단위 성공으로 체크하지 않는다. 새 자동07은 테스트가 만든 esbuild ChildProcess만 실제 close까지 기다리고 다른 PID·기존 데이터를 정리하지 않는다.
+
+### 독립 Staging 정적 파일 회귀 — STAGE-ASSET / STAGE-RUNTIME
+
+- 우선순위: P0, 로컬 격리 전용. 사전 조건: `npm ci`, `npm run build`, loopback 실행 권한. 실제 DB/비밀키 불필요.
+- 실행: `npm run test:staging-worker` (CI 및 `check:cloudflare-staging`에도 연결).
+- STAGE-ASSET: `tests/staging-assets.test.mjs`의 7개 테스트. GET/HEAD만 정적 전달, 정확한 404만 body 취소 후 앱 fallback, 기타 상태 보존, binding 오류 503, 경로/메서드 경계, 무인증 차단, 인증 cookie 제거를 검증한다.
+- STAGE-RUNTIME: `tests/staging-worker-runtime.test.mjs`의 8개 하위 시나리오. 로그인→실제 JS/CSS GET/HEAD의 bytes·MIME→기존 favicon/PDF→POST 경계→DB 미연결 API→변조/만료 cookie→로그아웃→native 로그인 시도 제한 순서로 실행한다.
+- 기대: 무인증 asset 401, 인증 asset 200 및 빌드 원본과 동일, private headers 유지, 외부 요청 0. DB를 주입하지 않으므로 인증된 version API의 정확한 설정 누락 503은 예상 결과다.
+- 브라우저 렌더링·메모리와 원격 Cloudflare/Supabase 검증은 별도이며 이 명령으로 완료 처리하지 않는다.
+- 결과: [2026-09-29 보고서](test-reports/2026-09-29-staging-assets.md).
+
+### 기본 정보
 
 - 기준 버전: `main`
 - 최초 작성일: 2026-07-28
 - 운영 주소: `https://bookstore-news-studio.rlawksml.chatgpt.site/`
 - 자동 테스트 위치: `apps/web/tests/`
-- 실행 명령: `npm run lint`, `npm test`, `npm run build`, `npm run test:integration:local`
+- 실행 명령: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, 격리 환경에서만 `npm run test:integration:local`
+
+## 타입 검사 회귀 게이트 (#75)
+
+| TC | 우선순위 | 실행 / 기대 결과 | 자동화 |
+|---|---|---|---|
+| TC-TYPE-001 | P0 | `npm run typecheck`: 이미지 경로 narrowing·Cloudflare 바인딩·Vite 설정을 포함해 오류 0건 | tsc / CI |
+| TC-TYPE-002 | P0 | `npm test`: 확장자 없는 sites 플러그인 import로 빌드 및 전체 회귀 통과 | Node tests / CI |
+| TC-TYPE-003 | P1 | CI verify 로그에 독립 `npm run typecheck` 단계가 실행되고 성공 | GitHub Actions |
+
+사전 조건: lockfile 기준 의존성 설치. 위 세 TC는 DB·Storage 쓰기가 필요 없습니다. 로컬 빌드 통과와 실제 Staging 통합 검증 완료를 구분합니다.
 
 ## 우선순위와 실행 구분
 
@@ -28,11 +98,17 @@
 - 환경 C: 방문자용 모바일 기기 또는 로그인하지 않은 브라우저
 - 테스트 전용 책방 1곳과 발행 월 1개
 - 20MB 이하 JPEG·PNG 각 1장과 iPhone HEIC 1장
-- 테스트 데이터 제목에는 `[테스트]`를 붙이고 종료 후 삭제
+- 테스트 데이터 제목에는 `[테스트]`를 붙이고 승인된 성공 자료는 보관. 별도 승인·안전 adapter 없는 정리는 BLOCKED
 - 동일 브라우저의 여러 탭은 작업자 로그인 쿠키를 공유하므로 동시 작업 검증에는 사용하지 않음
 - Production 점검은 공개 GET·읽기 전용 집계만 사용하고, 생성·수정·삭제 TC는 별도 Staging에서만 실행
 
 ## 0. 백업·복원 안전성
+
+### TC-DR-005 · 운영 백업 중 변경 시 완료 차단
+
+- 우선순위: P0. 새 비공개 목적지와 승인된 무편집 시간대를 확인한 읽기 전용 작업만 허용한다.
+- 자동: `apps/web/tests/backup-source-guard.test.mjs`의 BACKUP-SOURCE-01~14. 잘못된 source/미확인 시간대, 활성·잘못된 lease, DB 같은 개수의 본문 수정, schema·Storage drift, 누락/잘못된 버킷과 목록 응답을 fixture로 재현한다.
+- 기대: 고정 오류 코드, 완료 manifest·`COMPLETE` 없음, 기존 자료 불변. 안정된 입력만 한 차례 저장 후 각 범위 재조회 비교를 통과한다. 실제 운영 백업·POSIX writer 검증 및 별도 복원과는 구분한다.
 
 ### TC-DR-001 · 백업 파일 무결성
 
@@ -104,7 +180,7 @@
 - 기대 결과:
   - 브랜치와 Sites 프로젝트가 올바른 조합일 때만 CI가 진행된다.
   - `develop`의 Staging 설정이 release PR을 통해 `main`에 그대로 들어가면 배포 전에 실패한다.
-  - GitHub의 실제 Supabase 통합 테스트는 `staging` Environment Secret만 사용한다.
+  - legacy Supabase job은 고정 비활성이다. 현재 수동 source/offline 검증에는 운영·Staging Secret을 제공하지 않는다. 새 실연결 단계는 별도 승인·대상 검증이 필요하다.
 
 ### TC-DR-007 · migration 불변성·파괴적 변경 차단
 
@@ -130,7 +206,7 @@
 - 기대 결과:
   - 미래 필드와 v1.0.1에서 수정한 기존 필드가 모두 보존된다.
   - 요청 배열 순서는 유지되고 사용자가 삭제한 항목은 되살아나지 않는다.
-  - 테스트 전용 행만 정리하며 기존 데이터는 변경되지 않는다.
+  - 승인된 신규 테스트 행은 보관하고 기존 데이터는 변경하지 않는다. 별도 승인·adapter 없는 정리는 실행하지 않는다.
 
 ### TC-DR-009 · 기간 일정 별도 저장소 롤백 보존과 원자 저장
 
@@ -143,40 +219,42 @@
   4. 기간 행의 시작일·종료일을 다시 읽는다.
   5. 종료일이 시작일보다 빠른 요청을 보내 본문과 기간이 모두 갱신되지 않는지 확인한다.
   6. 기간을 변경·해제·재등록해 본문과 기간의 원자 저장 및 비활성화를 확인한다.
-  7. `/api/version`을 확인하고 `finally`에서 테스트 전용 행만 정확한 ID로 정리한다.
+  7. `/api/version`과 기존 행 지문을 확인한다. 신규 자료는 승인대로 보관하며 `finally` 자동 정리를 실행하지 않는다.
 - 기대 결과:
   - v1.0.1 저장 후에도 기간 행이 정확히 유지된다.
   - v1.1 저장 응답과 공개 Workspace에는 기간이 결합되지만 기존 JSONB에는 섞이지 않는다.
   - 잘못된 기간은 `INVALID_SCHEDULE_RANGE`와 정확한 필드 경로로 거부되고 부분 저장이 없다.
   - API는 제품 `1.1.0-rc.1`, DB `202609070002`를 식별한다.
-  - 기존 Staging 행 수·사진 manifest는 테스트 전후가 같다.
+  - 테스트 이전부터 있던 행·사진의 지문은 불변이며 신규 자료는 구분해 보관한다.
 
 ### TC-DR-010 · GitHub Actions 지원 런타임 유지
 
 - 우선순위/구분: P1 / 자동·CI
 - 절차:
   1. `verify`와 `supabase-integration` job의 checkout·Node 설치 action 버전을 검사한다.
-  2. PR 검증과 수동 Staging 통합 workflow를 각각 실행한다.
+  2. 승인된 exact SHA 수동 격리 검증을 실행하고 legacy `supabase-integration` job의 skip 상태를 확인한다. 일반 PR 검증은 설치/실행 경계를 갖춘 경우에만 별도로 실행한다.
 - 기대 결과:
-  - 두 job 모두 GitHub가 지원하는 Node 24 기반 action major를 사용한다.
+  - 활성 job의 action 런타임은 지원 버전이며 legacy DB job의 비활성 조건은 입력으로 우회할 수 없다.
   - 기존 Node 22 애플리케이션 실행, npm cache, 전체 Git 이력, Staging Environment 설정은 유지된다.
-  - Node.js 20 지원 종료 경고 없이 두 job이 통과한다.
+  - 실제 허용한 job만 성공하고 legacy DB job은 skip한다. 구형 런타임 경고와 미실행 범위를 별도 기록한다.
 
-### TC-DR-011 · Supabase 통합 테스트 QA 데이터 정리 검증
+### TC-DR-011 · legacy 진입 차단과 mock-only 삭제 보호
 
-- 우선순위/구분: P1 / 자동·실제 Supabase Staging
-- 사전조건: 운영과 분리된 Staging, 통합 테스트가 생성한 고유 2099년 ID와 Storage 경로
+- 우선순위/구분: P0 / 무키 합성 검증, 실제 Supabase 실행 금지
+- 사전조건: OS 격리·빈 안전 환경, 실제 SDK/Worker/환경파일·DB 없이 실행
 - 절차:
   1. 정리 단계 중 일부가 Supabase 오류를 반환하거나 예외를 던지는 대역으로 안전장치 단위 테스트를 실행한다.
-  2. 앞 단계 실패와 관계없이 뒤의 정확한 정리 대상까지 모두 시도되는지 확인한다.
-  3. 실제 Staging 통합 테스트 3건을 실행한다.
-  4. 책방·Submission·기간 일정·편집 임대·개선사항을 테스트 키로 재조회한다.
-  5. 원본·미리보기 Storage 객체를 테스트가 예약한 정확한 경로로 재조회한다.
+  2. 위조·재사용 plan, 불완전 evidence·unknown child·부재 확인 오류가 파괴 호출 전에 거절되는지 확인한다.
+  3. 첫 삭제 실패·응답 유실이면 이후 부모 cascade를 중단하고 이미 시도한 횟수를 숨기지 않는지 확인한다.
+  4. null·누락·오류·비배열·꽉 찬 Storage 페이지를 부재로 오인하지 않는지 확인한다.
+  5. 유효한 합성 설정·override가 있어도 SDK/Worker/HTTP·환경파일 전에 legacy/local 진입을 차단한다.
 - 기대 결과:
   - 정리 API 오류와 남은 QA 행·객체는 테스트 실패로 보고된다.
-  - 한 정리 단계가 실패해도 나머지 정확한 대상의 정리를 계속 시도한다.
-  - 정상 실행은 실제 삭제와 삭제 후 잔여 0건 확인을 모두 통과해야 성공한다.
-  - 운영 Supabase와 기존 Staging 업무 데이터는 조회·수정·삭제하지 않는다.
+  - 사전조건 실패의 파괴 호출0, 첫 파괴 실패 이후 추가 호출0을 확인한다.
+  - 순수 모델 PASS는 실제 ownership·원자성·TOCTOU·삭제 안전성의 증거가 아니다.
+  - 운영·Staging의 기존 자료를 조회·수정·삭제하지 않으며 차단을 해제하지 않는다.
+
+자동화는 `supabase-cleanup-guard.test.mjs`10개와 `integration-safety-block.test.mjs`6개다. 과거 계속 정리 정책은 현재 기대값이 아니다. [과거 증거 색인](test-reports/2026-11-05-historical-evidence-index.md)과 현재 exact SHA의 보고서를 구분한다.
 
 ## 1. 초기 로딩과 접속
 
@@ -255,6 +333,26 @@
   - 현재 구조에서는 공유 HttpOnly 쿠키가 탭 B 세션으로 교체돼 탭 A가 401을 받을 수 있다.
   - 실제 동시 사용자 검증은 별도 브라우저나 별도 기기에서 진행한다.
   - 향후 개선 시 탭 A에 세션 종료 안내를 표시하고 반복 요청을 중단한다.
+
+### TC-AUTH-005 · 로그인 로딩과 중복 제출 차단
+
+- 우선순위/구분: P0 / 자동·수동 (`tests/async-loading-feedback.test.mjs`)
+- 브라우저 자동화: `tests/browser-loading.mjs` (실제 빌드 UI + 로컬 API mock; 실제 쿠키·Supabase 통합과 별도)
+- 절차:
+  1. 올바른 작업 암호로 접속하면서 세션 확인과 Workspace 응답을 각각 지연시킨다.
+  2. Enter와 접속 버튼을 거의 동시에 실행하고 버튼을 여러 번 누른다.
+  3. 로그인 중 닫기·배경 클릭·암호 수정을 시도한다.
+  4. 세션 발급은 성공시키고 Workspace 로드만 실패시키는 경우를 확인한다.
+  5. Workspace 응답 중단, 기존 세션 복귀, 로그아웃 지연·400·응답 유실을 검증한다.
+  6. 실패·닫기를 12회 반복해 Console·Network와 GC 후 DOM·listener·heap 표본을 확인한다.
+- 기대 결과:
+  - `작업 암호를 확인하고 있어요`와 `동네책방 작업 공간을 준비하고 있어요`가 단계별로 표시된다.
+  - 암호 입력·닫기·접속 버튼이 잠기며 세션 POST는 한 번만 실행된다.
+  - 실패하면 로딩 상태가 끝나고 입력값을 유지한 채 다시 시도할 수 있다.
+  - Workspace 준비 실패 시 발급된 쿠키와 탭 세션 ID를 정리해 새로고침에서 잘못 복원되지 않는다.
+  - 다른 탭이 이후 만든 새 세션 쿠키는 이전 탭의 rollback이 지우지 않는다.
+  - 로그아웃 전에 편집 임대를 해제하고, 실패 시 임대를 다시 확인한다. 응답 유실이나 재획득 실패에서는 탭 복구본을 보존하고 방문자 화면으로 이동한다.
+  - 시간 제한 후 잠금이 해제되고 재시도가 가능하다. 360px 및 높이가 줄어든 모달의 버튼에 접근할 수 있다.
 
 ## 3. 책방 기본정보
 
@@ -428,6 +526,19 @@
   - 하루 기간은 한 날짜로, 연도 경계는 양쪽 연도를 포함해 표시된다.
   - 개별 날짜 입력과 기간 입력은 동시에 활성화되지 않고 기존 `dates[]` 소식은 그대로 동작한다.
 
+### TC-SUB-012 · 수동 저장·입력 완료·이탈 중복 실행 차단
+
+- 우선순위/구분: P0 / 자동·수동 (`tests/async-loading-feedback.test.mjs`)
+- 브라우저 자동화: `tests/browser-loading.mjs`; `저장하지 않고 이동` 중 로그아웃 실패가 성공 알림으로 덮이지 않는지도 확인한다.
+- 절차:
+  1. 임시 저장과 입력 마무리 버튼을 각각 빠르게 여러 번 누른다.
+  2. 작성 중 이탈 팝업에서 `임시 저장 후 이동`과 `저장하지 않고 이동`을 연달아 누른다.
+  3. 각 저장 요청을 실패시키고 다시 시도한다.
+- 기대 결과:
+  - 처리 중 두 저장 버튼이 함께 잠기고 현재 작업 문구가 표시된다.
+  - 이탈 팝업에서는 먼저 선택한 작업 하나만 실행되고 모든 선택 버튼이 잠긴다.
+  - 실패하면 작성 내용과 팝업 선택 상태를 잃지 않고 버튼이 다시 활성화된다.
+
 ## 5. 소식·사진 순서 변경
 
 ### TC-SORT-001 · 입력 텍스트 선택
@@ -514,17 +625,41 @@
   3. 손상된 HEIC를 선택한다.
 - 기대 결과:
   - 지원하지 않는 형식·초과 용량·미리보기 변환 실패를 구분해 안내한다.
-  - 부분 저장된 원본·미리보기와 DB 참조를 남기지 않는다.
+  - 완전하게 전송하지 못한 사진은 새 DB 참조로 연결하지 않는다.
+  - 부분 전송 파일은 안전을 위해 보존한다. DB 연결 저장 응답만 유실된 경우에는 반영 실패로 단정하거나 파일을 삭제하지 않는다.
 
-### TC-IMG-007 · 사진 삭제 실패 복구
+### TC-IMG-007 · 사진 참조 제거와 물리 파일 보존 (#88)
 
-- 우선순위/구분: P1 / 자동·실제 Supabase 통합
+- 우선순위/구분: P0 / 격리 브라우저·API 통합 (실행 전 별도 승인 필요)
 - 절차:
-  1. 저장된 사진을 소식에서 삭제한다.
-  2. DB 저장은 성공시키고 Storage 삭제만 일시 실패시킨다.
+  1. 테스트 전용 소식에서 저장된 사진의 × 버튼을 누르고 저장한다.
+  2. 이전 자동 저장 응답이 늦게 도착하거나 연결 저장 응답만 유실되는 경우도 확인한다.
 - 기대 결과:
-  - DB에서 제거된 사진이 다시 화면에 나타나지 않는다.
-  - Storage 정리 실패는 별도로 안내하고 이후 재시도할 수 있다.
+  - 성공적으로 참조를 제거한 사진은 다시 소식에 나타나지 않는다.
+  - 새 클라이언트는 DELETE를 보내지 않고 원본·미리보기 파일은 보존된다.
+  - 기존 클라이언트의 DELETE에도 서버는 입력자·경로·개수 검증 후 200 보존 결과를 반환한다.
+  - UI는 소식에서의 제거와 파일 삭제를 구분한다. 이미 알려진 공개 URL의 철회는 보장하지 않는다.
+
+### TC-IMG-008~019 · #88 보존 방어의 로컬 경계 TC
+
+공통 사전조건: 외부 네트워크·실제 DB·Storage·세션·비밀값을 노출하지 않는 부모 관리 격리 실행 환경. 자동화: `apps/web/tests/image-retention-policy.test.mjs`, 명령: `npm run test:image-retention`. 테스트를 작성한 것만으로 PASS가 아니다. source assertion과 fake ledger는 실제 React/API/DB 통합 증거가 아니다.
+
+| TC | 우선순위 | 절차와 기대 결과 |
+|---|---|---|
+| TC-IMG-008 | P0 | 보존 결과는 정확한 세 필드이며 이전 반환값을 수정해도 다음 결과가 변하지 않음; 존재·연결 성공을 주장하지 않음 |
+| TC-IMG-009 | P0 | 실제 client helper에 사진·빈 배열을 전달; fetch 0회, 구버전 삭제 서버에도 요청하지 않음 |
+| TC-IMG-010 | P0 | 입력자로 legacy handler 호출; 200과 명시적 보존 결과, 저장소 의존성 없음 |
+| TC-IMG-011 | P0 | 무세션·HTML·방문자 역할; 403, 본문 파싱 전 거절 |
+| TC-IMG-012 | P0 | 비배열·빈 배열·잘못된 원소·501개 거절, 500개 허용 |
+| TC-IMG-013 | P0 | 원본/미리보기 prefix·경로 순회·역슬래시·타입·길이 검증 유지 |
+| TC-IMG-014 | P0 | JSON 파싱 실패는 Route Handler 오류 경계로 전달; 정리 성공으로 위장하지 않음 |
+| TC-IMG-015 | P0 | 순수 연결 함수가 기존·다른 소식·미래 필드를 보존하고 입력 객체를 변형하지 않음 |
+| TC-IMG-016 | P0 | 큐 실행 시 책방·월·Submission·소식이 사라졌으면 throw; 연결 성공으로 오인하지 않음 |
+| TC-IMG-017 | P0 | 실제 client save/보존 helper + fake commit/응답 유실·불완전 JSON; 원래 오류·참조 경로쌍 보존; React/실DB 통합 아님 |
+| TC-IMG-018 | P0 | 이전 autosave/공유 경로 모델 및 1,000회 반복 반환; 물리 삭제 없음; heap 측정 아님 |
+| TC-IMG-019 | P0 | controller cleanup/queue 제거와 server 보존 handler 연결, UI 제거 문구의 소스 경계 확인 |
+
+격리 브라우저·실제 API의 응답 유실·동시 편집·원본 다운로드·부분 업로드·Console/Network/server/heap 회귀는 별도 필수 TC다. legacy Supabase 통합 어댑터는 파괴적 fixture cleanup을 포함하므로 이번 작업에서 실행하지 않으며, 코드의 실행 flag를 켜는 것으로 승인받았다고 간주하지 않는다.
 
 ## 7. 동시 편집과 충돌
 
@@ -578,10 +713,17 @@
 - 우선순위/구분: P1 / 자동·수동
 - 절차:
   1. 통합본에 포함할 소식을 선택한다.
-  2. 책방 순서를 드래그해 바꾼다.
+  2. 책방 순서 손잡이를 드래그해 바꾸고 저장 안내를 확인한다.
+  3. 새로고침 후 통합본을 다시 연다.
 - 기대 결과:
   - 선택한 책방·지역·소식 제목만 통합본에 포함된다.
   - 순서 변경이 저장되고 다른 책방의 원본 내용은 바뀌지 않는다.
+  - 목록·HTML 미리보기·복사가 같은 순서를 사용하며 새로고침 후에도 유지된다.
+  - 순서 저장은 전용 월별 API 1회이며 일반 소식 배열/updated_at을 순서 저장에 사용하지 않는다.
+  - 미설치·로딩·권한 없음은 손잡이를 비활성화하고 저장 성공으로 오인시키지 않는다.
+  - 409 충돌·미확인 결과를 자동 덮어쓰지 않고 최신 순서 조회로 복구한다.
+- 자동 검증: `tests/digest-order*.test.mjs`, `tests/browser-digest.mjs`. 순수/fake SDK/메모리 API이며 실제 SQL·서명 인증·동시 CAS·백업 복원 검증과 구분한다.
+- 실행 증거/제외 항목: [#86 단계별 보고서](test-reports/2026-11-04-issue86-digest-order.md). 실제 DB 쓰기·새 테스트 자료 생성은 별도 승인 후에만 수행한다.
 
 ### TC-HTML-003 · HTML·TXT·사진 ZIP
 
@@ -602,6 +744,19 @@
 - 기대 결과:
   - 방문자에게 게시 URL이 표시된다.
   - 원본 수정 후 재게시 필요 상태가 표시된다.
+
+### TC-HTML-005 · ZIP 준비 로딩과 중복 다운로드 차단
+
+- 우선순위/구분: P1 / 자동·수동 (`tests/async-loading-feedback.test.mjs`)
+- 브라우저 자동화: `tests/browser-loading.mjs` (원본 404·재시도·다운로드 이벤트); ZIP 내부 파일 호환성은 별도 검증한다.
+- 절차:
+  1. 원본 사진이 여러 장인 완료 소식에서 사진 ZIP을 누른다.
+  2. 준비 중 두 ZIP 버튼을 빠르게 여러 번 누른다.
+  3. HTML·TXT·사진 ZIP과 사진 요청 실패 경우도 반복한다.
+- 기대 결과:
+  - `사진을 묶는 중` 또는 `작업 파일을 묶는 중`과 다운로드 준비 안내가 표시된다.
+  - 두 ZIP 버튼이 함께 잠겨 다운로드가 한 번만 실행된다.
+  - 성공하면 완료 안내가 표시되고, 실패하면 오류 안내 뒤 다시 받을 수 있다.
 
 ## 9. 방문자·도움말·개선사항
 
@@ -717,18 +872,18 @@
 
 - 모든 P0 자동 테스트 통과
 - `npm run lint`, `npm test`, `npm run build` 통과
-- 실제 Supabase 통합 테스트가 테스트 데이터를 모두 정리하고 종료
+- 실제 Supabase 통합 테스트는 분리 대상·쓰기 범위가 승인되고 기존 자료 보존이 검증되어야 함. 성공 QA 보관 합의를 우선하며, 정리를 승인하지 않은 자료는 그대로 보관
 - `git diff --check` 통과
 - 환경변수 값·작업 암호·Supabase 비밀키가 변경 파일에 없음
 - 수동 P0 항목에서 실패가 있다면 배포하지 않고 원인과 재현 절차 기록
 
 ### 테스트 종료 정리
 
-1. 테스트용 책방·소식·게시 URL을 삭제한다.
-2. 원본과 미리보기 Storage 객체가 모두 삭제됐는지 확인한다.
-3. 테스트 세션의 편집 임대를 해제한다.
-4. 운영 달력·책방 수·소식 수가 테스트 전과 같은지 확인한다.
-5. 테스트 실패는 TC ID, 브라우저, 파일 형식, HTTP 상태와 함께 개선사항으로 기록한다.
+1. 실행 전 자료와 이번 신규 소유 자료를 구분한다. 기존 업무·보관 QA·성공 자료를 삭제/수정/초기화하지 않는다.
+2. DB/Storage 정리는 별도 명시 승인과 검증된 소유 adapter가 있는 정확한 신규 실패 자료만 대상으로 한다. 승인/안전장치가 없으면 BLOCKED로 남긴다. 백업 검사를 통과시키려고 미참조 사진을 지우지 않는다.
+3. 임대 해제도 이번 테스트 소유 세션/자원에 한정한다. 운영에서 세션·presence 상태를 변경하지 않는다.
+4. 운영 확인은 무인증 GET/HEAD·로그 범위만 사용한다. 수치를 맞추려고 기존 데이터를 되돌리거나 덮어쓰지 않는다.
+5. 컨테이너 메모리/scratch fixture는 정확한 실행 소유 범위만 정리하고 최종 부재를 확인한다. 실패는 TC ID·비밀값 없는 상태/숫자와 재현 증거로 기록한다.
 
 ## 12. 실행 기록
 
@@ -798,3 +953,26 @@
 
 1. 빌드가 HEIC 변환기 지연 로드 청크의 500KB 초과를 경고했다. 일반 방문자와 JPEG 입력 시 내려받지 않고 HEIC를 선택할 때만 로드되므로 이번 배포 차단 사유는 아니다. 모바일 성능 TC에서 실제 다운로드 시간과 메모리를 별도로 측정한다.
 2. 최근 운영 Worker 오류 로그에는 `/favicon.ico` HTTP 404 한 건만 있었다. 화면·저장·사진 API 오류는 아니며 사이트 아이콘을 추가하면 제거할 수 있다.
+# HTML 줄바꿈 회귀 — Issue #82
+
+합성 데이터만 사용하며 DB·Storage·운영 세션을 변경하지 않는다. `apps/web`에서 `npm run test:html-lines` 또는 전체 `npm test`로 실행한다.
+
+| TC | 검증 내용 | 기대 결과 |
+|---|---|---|
+| HTML-LINES-01 | CRLF/CR/LF, 연속 빈 줄, 이모티콘, 특수문자 | 줄바꿈마다 `<br>` 하나, 특수문자 escape |
+| HTML-LINES-02 | 본문·일정·추가 항목·운영 안내·책방 소개 등 | CSS 없이 명시적 줄바꿈 유지 |
+| HTML-LINES-03 | script/img/br 문자를 직접 입력 | 실행 태그가 아닌 문자열로 보존 |
+| HTML-LINES-04 | 미리보기/복사와 caption/alt 구분 | 본문 일치, 속성에 `<br>` 미삽입, 사진 정책 유지 |
+| HTML-LINES-05 | 여러 번 생성 및 통합본 생성 | 원본 객체 불변, 통합본 제목 중심 유지 |
+| HTML-LINES-06 | 실제 사용 편집기에 HTML 복사 및 ZIP TXT 붙여넣기 | 첫 줄·빈 줄·이모티콘 동일 표시; 별도 브라우저 검증 필요 |
+| HTML-LINES-07 | 자동 fixture가 만든 native bundler 종료 | 정확한 소유 서비스1개·실제 close1개, 원래 spawn 복원, timeout은 실패. 전체 runner의 좀비 포함 잔여 프로세스 검사도 계속 필수 |
+
+## 격리 CI의 Staging 컴파일 전달
+
+`STAGE-ARTIFACT-01~13` (P0, native 합성 fixture): `.github/validation/staging-compiled-artifact.test.mjs`. 기본 미전송, 승인/시각, 제한 경로, 공용 asset 원본 일치, 링크/크기, exact 검증 식별자, 바이트 손상/경로 충돌, 필수 파일, 인라인 소스맵 거부, 무실행·새 비공개 목적지 추출을 확인한다. DB/Storage·네트워크는 사용하지 않는다.
+
+`STAGE-ARTIFACT-14` (P0, 승인된 실제 격리 CI): 동일 커밋 `offline_app` 승인 실행 후 type/lint/build·앱/Worker 전체 회귀와 exact 정리 완료를 확인한다. 허용 파일만 담은 1일 아티팩트 1개가 실제 생성되고 로컬에서 전체 SHA 및 테스트 식별자가 일치해야 PASS다. 업로드 승인 없음·만료·실패 시에는 전달하지 않는다. 합성 검증을 이 통합 TC로 대신하지 않는다.
+
+`STAGE-ARTIFACT-15~16` (native 합성 fixture): 업로드를 끈 `offline_app`은 전체 회귀 뒤 경로 진단만 실행한다. 차단 항목의 고정 위치·이름 형태·확장자·구두점 분류 및 리터럴 import 증거만 출력하며 이름·내용·해시·빌드 키를 출력하거나 아카이브를 만들지 않는다. 리터럴 참조가 없다는 결과는 동적 참조가 없다는 증거가 아니며, 경로 진단 결과는 앱 회귀 통과 여부와 구분한다.
+
+`STAGE-ARTIFACT-17` (P0, native 합성 fixture): 실제 미전송 진단에서 확인한 서버 정적 JavaScript 참조에 맞춰 `dist/server/_next/static/`의 파일명에서만 `~`를 추가 허용한다. 하위 폴더의 일반 이름과 최대 128자 ASCII 규칙을 지키며, 폴더명·클라이언트·SSR·서버 일반 경로·다른 확장자·다른 구두점·끝 개행·비밀 이름은 수집과 수신 양쪽에서 차단한다. 해당 파일의 인라인 소스맵도 계속 차단한다. 실제 전송 PASS는 별도 TC 14로 판단한다.

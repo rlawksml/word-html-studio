@@ -1,0 +1,70 @@
+{
+  "formatVersion": 2,
+  "purpose": "pre-deployment-fallback",
+  "mode": "prepare-only",
+  "target": {
+    "sitesProjectId": "appgprj_6a5dbe2598fc8191a1c25c37e759c6ae",
+    "supabaseProjectRef": "kdigttaghqubfjsmbngl"
+  },
+  "appAction": "pin-immutable-artifact",
+  "databaseAction": "preserve-current",
+  "storageAction": "preserve-current",
+  "migrationAction": "none",
+  "productionBaseline": {
+    "version": null,
+    "commit": null,
+    "immutableVersionId": null,
+    "schemaVersion": null,
+    "deployedAt": null,
+    "observedAt": null,
+    "evidenceSha256": null
+  },
+  "releaseCandidate": { "commit": null, "schemaVersion": null },
+  "rollbackArtifact": {
+    "provider": "sites",
+    "projectId": "appgprj_6a5dbe2598fc8191a1c25c37e759c6ae",
+    "immutableVersionId": null,
+    "version": null,
+    "commit": null,
+    "sha256": null,
+    "capturedAt": null
+  },
+  "latestBackup": {
+    "capturedAt": null,
+    "verifiedAt": null,
+    "manifestSha256": null,
+    "databaseAndStorageVerified": false,
+    "baselineCommit": null,
+    "supabaseProjectRef": "kdigttaghqubfjsmbngl"
+  },
+  "environmentPreservation": {
+    "verifiedAt": null,
+    "evidenceSha256": null,
+    "projectId": "appgprj_6a5dbe2598fc8191a1c25c37e759c6ae",
+    "supabaseProjectRef": "kdigttaghqubfjsmbngl",
+    "keepCurrentBindings": false,
+    "credentialsUnchanged": false
+  },
+  "compatibility": {
+    "verifiedAt": null,
+    "evidenceSha256": null,
+    "artifactCommit": null,
+    "artifactVersionId": null,
+    "artifactSha256": null,
+    "releaseCandidateCommit": null,
+    "schemaVersion": null,
+    "unknownJsonFieldsPreserved": false,
+    "scheduleRangesPreserved": false,
+    "storageReferencesPreserved": false
+  },
+  "readOnlySmoke": {
+    "verifiedAt": null,
+    "evidenceSha256": null,
+    "artifactCommit": null,
+    "artifactVersionId": null,
+    "artifactSha256": null,
+    "schemaVersion": null,
+    "readOnly": true,
+    "passed": false
+  }
+}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { persistBookstore, persistSubmission, WorkspaceConflictError } from "@/lib/workspace-client";
-import { rebaseSubmissionSnapshot, restoreSubmissionFromBaseline } from "@/lib/workspace-persistence";
+import { reconcilePersistedSubmission, rebaseSubmissionSnapshot, restoreSubmissionFromBaseline } from "@/lib/workspace-persistence";
 import type { Role } from "@/lib/workspace-formatters";
 import type { Bookstore, Submission, Workspace } from "@/lib/workspace-types";
 
@@ -90,14 +90,18 @@ export function useWorkspacePersistence(options: PersistenceOptions) {
     setBookstores(next);
   }, [setBookstores]);
 
-  const adoptSubmission = useCallback(async (saved: Submission, localTransform?: (submission: Submission) => Submission) => {
+  const adoptSubmission = useCallback(async (
+    requested: Submission,
+    saved: Submission,
+    localTransform?: (submission: Submission) => Submission,
+  ) => {
     submissionBaselineRef.current.set(saved.id, fingerprint(saved));
     savedSubmissionsRef.current.set(saved.id, saved);
     blockedRecordsRef.current.delete(`submission:${saved.id}`);
     const next = submissionsRef.current.map((current) => {
       if (current.id !== saved.id) return current;
       const local = localTransform ? localTransform(current) : current;
-      return { ...local, updatedAt: saved.updatedAt, publishedAt: saved.publishedAt, publishedUrl: saved.publishedUrl };
+      return reconcilePersistedSubmission(requested, saved, local);
     });
     submissionsRef.current = next;
     setSubmissions(next);
@@ -140,7 +144,7 @@ export function useWorkspacePersistence(options: PersistenceOptions) {
     }
     for (const submission of changedSubmissions) {
       try {
-        await adoptSubmission(await persistSubmission(submission));
+        await adoptSubmission(submission, await persistSubmission(submission));
       } catch (error) {
         firstError ||= recordFailure(error, `submission:${submission.id}`);
       }
@@ -173,8 +177,9 @@ export function useWorkspacePersistence(options: PersistenceOptions) {
     if (!current) throw new Error("사진을 연결할 소식을 찾지 못했습니다.");
     setSaveState("사진 정보 저장 중...");
     try {
-      const saved = await persistSubmission(transform(current));
-      await adoptSubmission(saved, transform);
+      const requested = transform(current);
+      const saved = await persistSubmission(requested);
+      await adoptSubmission(requested, saved, transform);
       setStorageError("");
       setSaveState(`자동 저장됨 · ${savedClock()}`);
       return saved;
@@ -193,7 +198,7 @@ export function useWorkspacePersistence(options: PersistenceOptions) {
       const current = submissionsRef.current.find((submission) => submission.id === snapshot.id);
       const versionedSnapshot = rebaseSubmissionSnapshot(snapshot, current);
       const saved = await persistSubmission(versionedSnapshot);
-      await adoptSubmission(saved, () => versionedSnapshot);
+      await adoptSubmission(versionedSnapshot, saved, () => versionedSnapshot);
       setStorageError("");
       setSaveState(`임시 저장됨 · ${savedClock()}`);
       return saved;

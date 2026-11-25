@@ -1,0 +1,242 @@
+name: Isolated rollback preparation tests
+
+on:
+  workflow_call:
+  pull_request:
+    paths:
+      - apps/web/scripts/rollback-readiness-policy.mjs
+      - apps/web/scripts/prepare-rollback.mjs
+      - apps/web/tests/rollback-readiness.test.mjs
+      - apps/web/tests/fixtures/rollback-sandbox.Dockerfile
+      - .github/workflows/rollback-preparation.yml
+      - docs/*ROLLBACK*.md
+      - docs/*rollback*.md
+      - docs/test-reports/*rollback*.md
+
+permissions:
+  contents: read
+
+jobs:
+  rollback-preparation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Assemble trusted runtime and run isolated 17-case suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          fail() { printf '::error::%s\n' "$1"; exit 1; }
+
+          # No checked-out shell/JS is executed by the host. This fixed inline
+          # controller copies only the three reviewed sources into FROM scratch.
+          for tool in /usr/bin/env /usr/bin/docker /usr/bin/timeout /usr/bin/ldd /usr/bin/realpath; do
+            [[ -x "$tool" ]] || fail TRUSTED_HOST_TOOL_MISSING
+          done
+          node_source="$(command -v node)" || fail HOST_NODE_MISSING
+          node_real="$(/usr/bin/realpath -e -- "$node_source")" || fail HOST_NODE_UNRESOLVED
+          case "$node_real" in /usr/*|/opt/*) ;; *) fail HOST_NODE_UNTRUSTED_PATH ;; esac
+          [[ -f "$node_real" && -x "$node_real" ]] || fail HOST_NODE_NOT_REGULAR_EXECUTABLE
+          env_real="$(/usr/bin/realpath -e -- /usr/bin/env)" || fail HOST_ENV_UNRESOLVED
+          case "$env_real" in /usr/*) ;; *) fail HOST_ENV_UNTRUSTED_PATH ;; esac
+          [[ -f "$env_real" && -x "$env_real" ]] || fail HOST_ENV_NOT_REGULAR_EXECUTABLE
+          node_version="$(/usr/bin/timeout --kill-after=5s 5s /usr/bin/env -i PATH=/usr/bin:/bin "$node_real" --version)" || fail HOST_NODE_VERSION_FAILED
+          [[ "$node_version" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] || fail HOST_NODE_VERSION_INVALID
+          (( BASH_REMATCH[1] > 22 || (BASH_REMATCH[1] == 22 && BASH_REMATCH[2] >= 13) )) || fail HOST_NODE_TOO_OLD
+
+          workspace="$(/usr/bin/realpath -e -- "$GITHUB_WORKSPACE")" || fail WORKSPACE_UNRESOLVED
+          [[ "$workspace" == "$GITHUB_WORKSPACE" ]] || fail WORKSPACE_SYMLINK_FORBIDDEN
+          scratch="$(mktemp -d /tmp/bookstore-rollback-qa.XXXXXXXXXX)" || fail SCRATCH_CREATION_FAILED
+          context="$scratch/context"
+          rootfs="$context/rootfs"
+          mkdir -p "$rootfs/usr/bin" "$rootfs/work/scripts" "$rootfs/work/tests" "$rootfs/tmp" "$scratch/docker-config"
+          cid_file="$scratch/container.cid"
+          iid_file="$scratch/image.iid"
+          run_log="$scratch/run.log"
+          nonce="$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
+          [[ "$nonce" =~ ^[a-f0-9]{32}$ ]] || fail NONCE_GENERATION_FAILED
+          container_name="bookstore-rollback-$nonce"
+          run_attempted=0
+          bounded_exit=0
+
+          # Limit output before storing or printing it, and preserve every
+          # pipeline status. A cap hit/SIGPIPE/timeout is failure, never a pass.
+          bounded() {
+            local duration="$1" destination="$2"
+            shift 2
+            local statuses bytes
+            set +e
+            /usr/bin/timeout --kill-after=5s "${duration}s" "$@" 2>&1 | head -c 65537 > "$destination"
+            statuses=("${PIPESTATUS[@]}")
+            set -e
+            bounded_exit="${statuses[0]}"
+            bytes="$(wc -c < "$destination")"
+            if (( bytes > 65536 || statuses[1] != 0 )); then
+              bounded_exit=125
+              return 1
+            fi
+            (( statuses[0] == 0 ))
+          }
+          emit_bounded() {
+            local report="$1"
+            [[ -f "$report" && ! -L "$report" && "$(wc -c < "$report")" -le 65536 ]] || return 1
+            printf '::stop-commands::%s\n' "$nonce"
+            cat -- "$report"
+            printf '\n::%s::\n' "$nonce"
+          }
+          # Functions cannot be invoked by timeout directly; all bounded Docker
+          # calls below use this fixed argv prefix, never eval or repo commands.
+          docker_argv=(/usr/bin/env -i PATH=/usr/bin:/bin /usr/bin/docker --config "$scratch/docker-config")
+          absent_container() {
+            local selector="$2" filter
+            if [[ "$selector" == "$container_name" ]]; then
+              # A literal nonce-name substring filter is conservative: any
+              # match blocks absence. Creation still atomically reserves name.
+              filter="name=$container_name"
+            elif [[ "$selector" =~ ^[a-f0-9]{64}$ ]]; then
+              filter="id=$selector"
+            else
+              return 1
+            fi
+            # Do not infer absence from human error text or non-zero exit.
+            # Only a successful bounded, exact-scope list with no IDs proves it.
+            bounded 10 "$scratch/absence.log" "${docker_argv[@]}" container ls --all --no-trunc --filter "$filter" --format '{{.ID}}' || return 1
+            [[ "$(< "$scratch/absence.log")" == '' ]]
+          }
+          cleanup() {
+            local original_status=$? cleanup_failed=0 selector inspect_line full_id inspected_nonce inspected_name extra
+            trap - EXIT INT TERM
+            if [[ "$run_attempted" == 1 ]]; then
+              selector="$container_name"
+              # A CID file is parent-owned and outside the image/context.
+              # A missing CID uses only our unique name; a malformed CID never
+              # becomes a Docker selector and does not authorize broad cleanup.
+              if [[ -e "$cid_file" || -L "$cid_file" ]]; then
+                if [[ -f "$cid_file" && ! -L "$cid_file" && "$(wc -c < "$cid_file")" -le 65 ]]; then
+                  selector="$(< "$cid_file")"
+                  [[ "$selector" =~ ^[a-f0-9]{64}$ ]] || cleanup_failed=1
+                else
+                  cleanup_failed=1
+                fi
+              fi
+              if [[ "$cleanup_failed" == 0 ]]; then
+                if bounded 10 "$scratch/cleanup-inspect.log" "${docker_argv[@]}" container inspect --format '{{.Id}} {{index .Config.Labels "bookstore.rollback-qa"}} {{.Name}}' "$selector"; then
+                  inspect_line="$(< "$scratch/cleanup-inspect.log")"
+                  read -r full_id inspected_nonce inspected_name extra <<< "$inspect_line"
+                  if [[ "$full_id" =~ ^[a-f0-9]{64}$ && "$inspected_nonce" == "$nonce" && "$inspected_name" == "/$container_name" && -z "$extra" && "$inspect_line" == "$full_id $nonce /$container_name" ]]; then
+                    if ! bounded 10 "$scratch/cleanup-remove.log" "${docker_argv[@]}" container rm --force "$full_id"; then
+                      cleanup_failed=1
+                    fi
+                  else
+                    cleanup_failed=1
+                  fi
+                elif ! absent_container "$scratch/cleanup-inspect.log" "$selector"; then
+                  cleanup_failed=1
+                fi
+              fi
+            fi
+            if [[ "$cleanup_failed" != 0 ]]; then
+              printf '::error::CONTAINER_CLEANUP_UNCONFIRMED\n'
+              exit 1
+            fi
+            exit "$original_status"
+          }
+          trap cleanup EXIT
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+
+          # Parent-reviewed exact file: FROM scratch, one local COPY, fixed
+          # runtime/entrypoint; no RUN, remote ADD or Dockerfile frontend.
+          expected_dockerfile_sha256='a1893281d7c521deeca8cc529ae8ed332f463b95face1cddd49d4ca4431f3ba7'
+          [[ "$expected_dockerfile_sha256" =~ ^[a-f0-9]{64}$ ]] || fail DOCKERFILE_HASH_NOT_REVIEWED
+          dockerfile_source="$workspace/apps/web/tests/fixtures/rollback-sandbox.Dockerfile"
+          [[ -f "$dockerfile_source" && ! -L "$dockerfile_source" ]] || fail DOCKERFILE_NOT_REGULAR
+          [[ "$(/usr/bin/realpath -e -- "$dockerfile_source")" == "$dockerfile_source" ]] || fail DOCKERFILE_SYMLINK_FORBIDDEN
+          actual_dockerfile_sha256="$(sha256sum -- "$dockerfile_source")"
+          actual_dockerfile_sha256="${actual_dockerfile_sha256%% *}"
+          [[ "$actual_dockerfile_sha256" == "$expected_dockerfile_sha256" ]] || fail DOCKERFILE_HASH_MISMATCH
+          cp -- "$dockerfile_source" "$context/Dockerfile"
+
+          for relative in apps/web/scripts/rollback-readiness-policy.mjs apps/web/scripts/prepare-rollback.mjs apps/web/tests/rollback-readiness.test.mjs; do
+            source_file="$workspace/$relative"
+            [[ -f "$source_file" && ! -L "$source_file" ]] || fail SOURCE_NOT_REGULAR
+            [[ "$(/usr/bin/realpath -e -- "$source_file")" == "$source_file" ]] || fail SOURCE_SYMLINK_FORBIDDEN
+            [[ "$(wc -c < "$source_file")" -le 1048576 ]] || fail SOURCE_SIZE_EXCEEDED
+            cp -- "$source_file" "$rootfs/work/${relative#apps/web/}"
+          done
+          [[ "$(wc -c < "$node_real")" -le 268435456 ]] || fail HOST_NODE_SIZE_EXCEEDED
+          cp -L -- "$node_real" "$rootfs/usr/bin/node"
+          cp -L -- "$env_real" "$rootfs/usr/bin/env"
+          # ldd is applied ONLY to trusted host Node/env, never checkout files.
+          for trusted_binary in "$node_real" "$env_real"; do
+            bounded 5 "$scratch/ldd.log" /usr/bin/env -i PATH=/usr/bin:/bin /usr/bin/ldd "$trusted_binary" || fail TRUSTED_RUNTIME_LDD_FAILED
+            awk '
+              /^[ \t]*linux-vdso\.so\.[0-9]+[ \t]+\(0x[0-9a-f]+\)$/ { next }
+              /^[ \t]*[^ \t]+ => \// {
+                if (NF != 4 || $3 !~ /^\/(lib\/|lib64\/|usr\/lib\/)/ || $4 !~ /^\(0x[0-9a-f]+\)$/) exit 1;
+                print $3; next
+              }
+              /^[ \t]*\// {
+                if (NF != 2 || $1 !~ /^\/(lib\/|lib64\/|usr\/lib\/)/ || $2 !~ /^\(0x[0-9a-f]+\)$/) exit 1;
+                print $1; next
+              }
+              { exit 1 }
+            ' "$scratch/ldd.log" > "$scratch/libraries.list" || fail LDD_OUTPUT_NOT_ALLOWLISTED
+            [[ -s "$scratch/libraries.list" ]] || fail LDD_NO_LIBRARIES
+            while IFS= read -r library; do
+              case "$library" in /lib/*|/lib64/*|/usr/lib/*) ;; *) fail LIBRARY_PATH_FORBIDDEN ;; esac
+              canonical_library="$(/usr/bin/realpath -e -- "$library")" || fail LIBRARY_UNRESOLVED
+              case "$canonical_library" in /lib/*|/lib64/*|/usr/lib/*) ;; *) fail LIBRARY_CANONICAL_PATH_FORBIDDEN ;; esac
+              [[ -f "$canonical_library" && -r "$canonical_library" ]] || fail LIBRARY_NOT_READABLE_REGULAR
+              cp -L --parents -- "$library" "$rootfs"
+            done < "$scratch/libraries.list"
+          done
+          find "$rootfs" -type d -exec chmod 0755 {} +
+          # umask077 is intentional for parent scratch, but the non-root image
+          # user must be able to read libraries and execute the trusted runtime.
+          find "$rootfs" -type f -exec chmod 0555 {} +
+          chmod 1777 "$rootfs/tmp"
+          chmod 0444 "$rootfs/work/scripts/rollback-readiness-policy.mjs" "$rootfs/work/scripts/prepare-rollback.mjs" "$rootfs/work/tests/rollback-readiness.test.mjs"
+          context_bytes="$(du --apparent-size --bytes --summarize "$context" | awk '{print $1}')"
+          [[ "$context_bytes" =~ ^[0-9]+$ ]] || fail CONTEXT_SIZE_INVALID
+          (( context_bytes <= 536870912 )) || fail CONTEXT_SIZE_EXCEEDED
+
+          # No fallback when the daemon cannot enforce the requested cgroup
+          # limits. Query only these capability booleans, never a full info dump.
+          bounded 10 "$scratch/limits.log" "${docker_argv[@]}" info --format '{{.MemoryLimit}} {{.SwapLimit}} {{.CPUCfsQuota}} {{.PidsLimit}}' || { emit_bounded "$scratch/limits.log" || true; fail SANDBOX_LIMIT_SUPPORT_UNCONFIRMED; }
+          [[ "$(< "$scratch/limits.log")" == 'true true true true' ]] || fail SANDBOX_LIMIT_SUPPORT_UNAVAILABLE
+          if ! absent_container '' "$container_name"; then
+            emit_bounded "$scratch/absence.log" || true
+            fail CONTAINER_NAME_ABSENCE_UNCONFIRMED
+          fi
+          bounded 60 "$scratch/build.log" "${docker_argv[@]}" build --network=none --pull=false --quiet --iidfile "$iid_file" "$context" || { emit_bounded "$scratch/build.log" || true; fail SANDBOX_BUILD_FAILED_OR_OUTPUT_CAPPED; }
+          [[ -f "$iid_file" && ! -L "$iid_file" && "$(wc -c < "$iid_file")" -le 72 ]] || fail IMAGE_ID_FILE_INVALID
+          image_id="$(< "$iid_file")"
+          [[ "$image_id" =~ ^sha256:[a-f0-9]{64}$ ]] || fail IMAGE_ID_INVALID
+
+          run_attempted=1
+          bounded 45 "$run_log" "${docker_argv[@]}" run \
+            --pull=never --network=none --read-only --user=65534:65534 \
+            --cap-drop=ALL --security-opt=no-new-privileges \
+            --memory=256m --memory-swap=256m --cpus=1 --pids-limit=32 \
+            --ulimit=cpu=30:30 --ulimit=fsize=8388608:8388608 \
+            --ulimit=nofile=128:128 --ulimit=core=0:0 \
+            --tmpfs=/tmp:rw,noexec,nosuid,nodev,size=16m --log-driver=none \
+            --rm --cidfile "$cid_file" --name "$container_name" \
+            --label "bookstore.rollback-qa=$nonce" "$image_id" || { emit_bounded "$run_log" || true; fail SANDBOX_TEST_FAILED_OR_OUTPUT_CAPPED; }
+
+          # Success means the exact 17-test suite completed without cancellations
+          # or skips; exit zero by itself is insufficient.
+          for summary in '# tests 17' '# pass 17' '# fail 0' '# cancelled 0' '# skipped 0' '# todo 0'; do
+            [[ "$(grep -Fxc -- "$summary" "$run_log")" == 1 ]] || fail TAP_SUMMARY_MISSING_OR_DUPLICATED
+          done
+          if grep -Eq '^not ok([[:space:]]|$)' "$run_log"; then fail TAP_FAILURE_PRESENT; fi
+          # Only this bounded report is emitted. Disable workflow-command parsing
+          # around untrusted TAP; the nonce is never passed into the container.
+          emit_bounded "$run_log"
+          printf 'Rollback preparation: 17/17 declared-policy tests passed in isolation.\n'
+          # No image/global cleanup and no broad temp deletion. The ephemeral
+          # runner owns scratch/image disposal; trap removes only our container.

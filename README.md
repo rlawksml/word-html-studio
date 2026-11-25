@@ -4,15 +4,40 @@
 
 제품 방향은 **Word 변환기**가 아니라 **소식 입력·공개·HTML 발행 서비스**입니다. Word를 작성할 줄 아는 사람이 HTML/CSS를 몰라도 한 화면에서 한 책방씩 작성할 수 있도록 설계했습니다.
 
+## 2026-11-06 운영 반영 전 상태
+
+React/RSC19.2.9 최소 패치 exact7e52fc08에서 **type/lint/build·전체277TC·엄격 정리 PASS**를 확인했습니다. 별도 이전 버전 호환 fallback exact82f79b6도 고정 데이터 보존10TC·정리 PASS입니다. [통합 결과와 남은5묶음](docs/test-reports/2026-11-06-react-rsc-fallback.md)을 보세요. 실제 배포물/DB 검증 완료를 뜻하지 않으며 운영 NO-GO입니다.
+
+사용자가 무료 Staging 최신 후보 배포·#86 SQL1건·새 QA2책방/미사용 월/사진/두 세션 검증을 승인했습니다. #86 SQL 설치·객체·버전·RLS/익명 접근 차단을 실제 확인했습니다. Git 전송은 회복됐고 최신 exacted6bf0d의 type/lint/build·앱277·실제 Worker36·엄격 정리 후 COMPLETE까지 통과했습니다. 호환 fallback exact1f3fb0b도 type/lint/build·앱30·보존10·엄격 정리를 각각 통과했습니다. [최신 결과/남은 작업](docs/test-reports/2026-11-06-toolchain-staging-progress.md)을 보세요. 새 pair의 dev 포함 audit는 SCHEMA 판정 불가로 제한된 진단 중이며, 배포 파일 전달과 실제 백업/복원 선택은 별도 승인 대기입니다. 실제 Staging 사용자 QA·백업/복원 완료는 아니므로 운영 NO-GO입니다. 기존 자료·성공 QA 보관, 운영 반영/유료 전환 금지 원칙은 그대로이며 아래 기록은 과거 이력입니다.
+
+### 2026-11-05 이전 단계
+
+#93의 **새 백업 목적지 writer 경로 방어**를 구현했습니다. 기존 CLI14에서 8FAIL을 재현한 뒤 같은14PASS를 확인했고, 최종 exact `afbbf96`의 protocol12·백업완전성30·복원정책25·앱277 및 type/lint/build·엄격 정리도 각각 PASS입니다. 서로 겹치는 suite는 합산하지 않습니다. [RED/GREEN·최종 회귀 보고서](docs/test-reports/2026-11-05-issue93-backup-writer.md)를 보세요. 이는 Linux 격리 writer 검증이며 실제 DB/사진 백업·복원, Mac, 전체 서비스 배포 검증은 아닙니다.
+
+앞선 source-map-js1.2.2 후보 exact `83fed46`도 **전체277TC·typecheck·lint·build·엄격 정리 PASS**였습니다. 승인된 두JSON 전달·독립 파일 검증도 완료했고 package와 다른734개 lock 레코드는 불변입니다. 이후 별도 registry 전송을 명시 승인받아 같은 manifest pair의 exact `3fdb1d1`에서 **실제 production 재audit: 취약점 0건·엄격 정리 PASS**를 확인했습니다. [앱 후보 보고서](docs/test-reports/2026-11-05-issue87-source-map-candidate.md)와 [실제 재audit 보고서](docs/test-reports/2026-11-05-issue87-source-map-audit.md)를 구분해 보세요. 전체 보안 완료나 배포 GO가 아닙니다.
+
+사용자의 재개 요청에 따라 #94의 **모든 사진 보관·미참조 경고** 정책을 구현하고 exact1f9c605에서 목표30/복원정책25/전체277TC·type/lint/build와 엄격 정리를 검증했습니다. [#94 보고서](docs/test-reports/2026-11-05-issue94-retained-photo-warnings.md)를 보세요. 이전 [중단 기록](docs/test-reports/2026-11-05-pause-resume-checkpoint.md)은 당시 checkpoint이며 현재 중단 상태를 뜻하지 않습니다.
+
+이전 lock에 대한 [실제 metadata audit](https://github.com/rlawksml/word-html-studio/blob/3e8289ffd041c3fba48ec3087c226d286c10f5e7/docs/test-reports/2026-11-05-issue87-metadata-audit.md)는 source-map-js high1로 FAIL(FINDINGS)이었습니다. 이를 새 lock의 재audit 결과로 대신하지 않습니다. 보안 잔여·실제 백업/복원·브라우저/DB·호환 fallback 검증이 남아 **운영 NO-GO**를 유지합니다.
+
+이전 #87 최소 Next 후보 exact `bae02fb`도 **새 lock의 무스크립트 설치·typecheck·lint·build·276TC·엄격 정리 PASS**였습니다. [당시 보안 후보 회귀 보고서](docs/test-reports/2026-11-05-issue87-next-candidate.md)의 앱 실행에는 audit가 없었고, 이후 위 별도 실제 audit에서 high1을 확인했습니다. #87 완료나 운영 승인은 아닙니다.
+
+후속 #92의 exact `9497d1b`에서 **typecheck·lint·build·276TC와 자식 종료/임시 자원 정리**를 무료 Linux 격리 CI로 검증했습니다. 수정 전29TC 중19FAIL을 재현한 뒤 같은29개와 기존복원25개도 별도 통과했습니다. [백업 완전성 RED/GREEN 보고서](docs/test-reports/2026-11-05-issue92-backup-completeness.md)를 확인하세요. 과거 후보의 [247TC](docs/test-reports/2026-11-05-preprod-candidate-offline.md)·[native99](docs/test-reports/2026-11-05-candidate99-native-regression.md)는 다른 exact 증거이며 중복 합산하지 않습니다.
+
+**운영 NO-GO**는 유지합니다. #93 writer의 파일 기반 범위는 완료했지만 #94 보관 정책까지 포함한 실제 백업/복원, #66 등 잔여 보안 범위, 브라우저·실DB P0, 최신 독립 백업과 exact fallback 호환이 남습니다. 이번에는 main merge·운영/Staging 배포·SQL·기존 DB/사진·유료 설정을 변경하지 않았습니다. 실제 긴급 롤백 가능을 아직 확정하지 않으며 남은 게이트는 [TODO](TODO.md)를 따릅니다.
+
 ## 현재 구현된 프로토타입
 
 - 방문자: 지관서가 동네책방 페이지 바로가기, 책방·소식 수 요약, 책방별 색상 일정과 툴팁을 갖춘 모바일 달력, 제목 중심 카드, 중앙 정렬 사진 상세 화면과 후면 스크롤 잠금, 디바운스 검색
 - 정보 입력자: 항상 보이는 3단계 안내, 월별 진행률, 한 책방씩 작성, 중앙 정렬 사진이 적용된 작성 중 HTML 미리보기와 후면 스크롤 잠금, 이번 달 운영 안내, 일정 문구·신청 방법·자유 항목·여러 링크, 선택 후 명시적으로 추가하는 여러 날짜 또는 시작일·종료일 기간, 여러 소식·사진과 손잡이 전용 드래그 정렬
 - 초기 연결: 위트 있는 전체 데이터 로딩 화면, 최대 3회 자동 확인, 8초 지연 안내와 수동 재시도, 빈 DB에서 첫 책방 등록 시작
+- 작업 피드백: 로그인 암호 확인·작업 공간 준비 단계 안내, 연속 클릭 중복 세션 차단, 수동 저장·입력 마무리·이탈·ZIP 준비 중 버튼별 로딩과 재시도
+- 세션 복귀·종료: 메인 이동 후 같은 역할 복귀 시 세션 확인 로딩, 로그인 요청 시간 제한, 로그아웃 응답 완료까지 재접속 차단과 실패 안내
 - 저장: 책방 관리 저장 성공 응답 확인, 책방·월별 소식 단위 자동 저장, 일시 오류 재시도, 이전 저장 요청 직렬화, 다른 브라우저 변경 충돌 안내, 수동 임시 저장, 지난달 내용 복사, 작성 중 이탈 시 계속 작성·임시 저장 후 이동·마지막 자동 저장 이후 변경 버리기 선택, 탭 안 임시 복구본, 한글 IME 직후 완료 시 최신 입력·서버 응답 일치 확인
 - 완료: 누락된 필수 항목으로 자동 이동, 책방별 입력 완료, 수정 시 자동으로 작성 중 전환, 책방별 소식 제목이 담긴 월 전체 완료 내용 복사
 - HTML 편집자: 입력 완료 자료만 열람, 개별 HTML 복사·미리보기, 사진 ZIP과 HTML·복사용 TXT·사진 ZIP
-- 통합본: 포함 소식 선택, 책방 순서 드래그 변경, 책방·지역·소식 제목 중심 통합 HTML 복사·미리보기
+- HTML 본문의 입력 줄바꿈·빈 줄은 HTML escape 후 `<br>`로 변환해 미리보기·복사·HTML/TXT 내보내기에 공통 적용합니다. 원문 데이터는 변경하지 않습니다. 사진은 기존처럼 미리보기와 내보내기에서 다르게 처리합니다.
+- 통합본: 포함 소식 선택, 손잡이 전용 순서 변경, 책방·지역·소식 제목 중심 통합 HTML 복사·미리보기. #86 월별 순서 저장은 전용 API·revision 충돌 방지·응답 유실 조회 복구로 구현했으며 로컬 검증 중입니다. 새 SQL 적용·실제 DB 검증·운영 반영 전까지 완료로 판단하지 않습니다. [단계별 보고서](docs/test-reports/2026-11-04-issue86-digest-order.md)
 - 게시: 선택적 게시 URL 저장, 게시 완료·재게시 상태 표시
 - 버그·개선사항: 유형별 안내 폼과 공개 진행 상태, HTML 편집자 전용 상태·예정일 관리, Markdown·JSON 다운로드와 통합본 복사
 - 도움말: 모바일 웹 사용 가이드와 기존 PDF 새 창 열기·다운로드
@@ -25,7 +50,9 @@
 
 ## 데이터에 관한 중요 안내
 
-공용 저장소는 **Supabase**를 사용하며 기존 브라우저 `localStorage`의 샘플·임시 데이터는 가져오지 않습니다. Supabase가 연결되면 빈 운영 데이터에서 책방을 새로 등록해 시작합니다.
+독립 Cloudflare staging의 진입점은 `apps/web/staging-entry.mjs`입니다. Wrangler가 main을 basename으로 업로드하므로 앱 루트 위치를 유지합니다. `npm run test:staging-worker`는 실제 dry-run 산출물의 상대 import도 검증합니다.
+
+공용 저장소는 **Supabase**를 사용하며 기존 브라우저 `localStorage`의 샘플·임시 데이터는 가져오지 않습니다. 최초 프로토타입은 빈 DB에서 시작했지만 현재는 보관 중인 자료가 있으므로 연결·검증을 위해 초기화하거나 새 데이터로 덮어쓰지 않습니다.
 
 - Supabase Database: 책방 기본정보, 월별 소식, 일정·작업 상태와 개선사항
 - Supabase Storage: 비공개 원본 사진 버킷과 공개 모바일 미리보기 버킷
@@ -37,7 +64,7 @@ HTML 편집자의 통합 작업 ZIP에는 브라우저 미리보기용 `.html`, 
 
 사진은 한 장당 20MB까지 받습니다. 브라우저는 모바일 미리보기를 만든 뒤 짧게 유효한 업로드 주소를 발급받아 원본과 미리보기를 Supabase Storage에 직접 전송합니다. 큰 파일이 Next.js 서버 요청 크기 제한에 걸려 `413` 오류가 나는 것을 피하면서도 Storage 비밀키와 원본 사진은 공개하지 않습니다. Windows에서 MIME 정보가 비어 있는 파일도 확장자로 판별하고, 브라우저가 직접 표시하지 못하는 HEIC/HEIF는 사진을 고를 때만 전용 변환기를 지연 로드해 JPEG 미리보기를 만듭니다.
 
-파일을 드래그할 때 브라우저가 `drop`과 파일 입력 `change`를 연달아 발생시키더라도 한 번에 하나의 업로드만 진행합니다. 업로드 중에는 진행 안내를 표시하고 뒤로가기·임시 저장·입력 마무리가 사진의 DB 연결보다 먼저 실행되지 않게 합니다. 네트워크·Storage 5xx는 같은 전송을 짧게 재시도하고, 연결이 끊기거나 서명 주소가 무효해졌다면 새 주소를 발급받아 최대 3회 복구합니다. Supabase가 이미 저장된 예약 파일에 대해 HTTP `400` 안에 `409 Duplicate`를 반환하면 성공한 업로드로 이어서 처리합니다. 최종 실패 시 예약된 원본·미리보기를 정리하며, 사진 삭제는 DB에서 참조가 사라진 뒤 Storage 객체를 제거해 저장 실패가 깨진 이미지로 이어지지 않게 합니다.
+파일을 드래그할 때 브라우저가 `drop`과 파일 입력 `change`를 연달아 발생시키더라도 한 번에 하나의 업로드만 진행합니다. 업로드 중에는 진행 안내를 표시하고 뒤로가기·임시 저장·입력 마무리가 사진의 DB 연결보다 먼저 실행되지 않게 합니다. 네트워크·Storage 5xx는 같은 전송을 짧게 재시도하고, 연결이 끊기거나 서명 주소가 무효해졌다면 새 주소를 발급받아 최대 3회 복구합니다. Supabase가 이미 저장된 예약 파일에 대해 HTTP `400` 안에 `409 Duplicate`를 반환하면 성공한 업로드로 이어서 처리합니다. 저장 성공 뒤 응답만 유실될 수 있으므로 이번 #88 수정에서는 실패·재예약 파일도 보수적으로 보관합니다. × 버튼은 소식의 사진 참조만 제거하며 원본·미리보기의 물리 삭제나 기존 공개 URL 철회를 뜻하지 않습니다.
 
 한글·공백·특수문자가 포함된 원본 파일명은 화면과 ZIP 다운로드 이름으로 그대로 보존하되, Supabase Storage의 실제 객체 경로에는 UUID와 MIME 타입에서 결정한 영문 확장자만 사용합니다. 운영체제마다 다른 파일명 인코딩 때문에 `InvalidKey`가 발생하지 않도록 저장 경로와 표시 이름을 분리했습니다.
 
@@ -99,7 +126,7 @@ page.tsx
 | 최초 세션·데이터 로딩과 재시도 | `hooks/use-workspace-initialization.ts`, `components/molecules/StorageLoadingOverlay.tsx` |
 | 공용 데이터 읽기 | `app/api/workspace/route.ts` |
 | 책방·월별 소식 저장 | `app/api/bookstores/route.ts`, `app/api/submissions/route.ts` |
-| 사진 업로드·삭제·원본 다운로드 | `app/api/images/route.ts` |
+| 사진 업로드·안전 보관·원본 다운로드 | `app/api/images/route.ts`, `lib/image-retention-policy.mjs` |
 | 작업 암호와 탭 세션 | `app/api/session/route.ts`, `lib/access-code-normalization.mjs`, `lib/workspace-session.ts` |
 | 동시 편집 안내 | `hooks/use-editing-presence.ts`, `app/api/presence/route.ts`, `styles/presence.css` |
 | 버그·개선 접수·상태·내보내기 | `components/organisms/ImprovementsWorkspace.tsx`, `app/api/improvements/route.ts`, `lib/improvement-export.ts` |
@@ -120,6 +147,7 @@ npm run dev
 
 ```bash
 npm run lint
+npm run typecheck
 npm test
 npm run build
 npm run migration:check
@@ -129,11 +157,31 @@ npm run backup:verify -- /absolute/path/to/backup
 
 로컬 주소는 `http://localhost:3000`입니다.
 
-`test:integration:local`은 `.env.local`의 Supabase에 테스트 전용 책방·소식·사진을 잠시 만들고 저장 충돌과 파일 정리를 확인한 뒤 모두 삭제합니다. GitHub Actions에서는 기본 lint·build·회귀 테스트를 자동 실행하고, 저장소 Secret이 설정된 수동 실행에서 같은 Supabase 통합 테스트를 수행합니다.
+로딩의 브라우저 회귀는 빌드 후 `npm run test:browser-loading`으로 실행합니다. Playwright가 별도 도구 환경에 설치돼 있다면 `PLAYWRIGHT_MODULE_PATH`에 해당 `playwright/index.mjs` 절대 경로를 지정합니다. 이 검증은 임시 로컬 서버와 메모리 fixture만 사용하고 모든 API를 mock 처리하므로 Supabase 키·실제 암호가 필요 없습니다. 보고서: [로딩·세션 통합 검증](docs/test-reports/2026-09-22-issue-75-local-browser.md).
+
+`test:integration:local`은 현재 **안전 차단 확인용**입니다. 환경파일·SDK·Worker를 읽거나 DB/Storage에 연결하기 전에 종료합니다. 기존 실연결 통합 suite도 활성화 flag와 무관하게 쓰기/정리를 차단하고, CI의 해당 job은 하드 비활성화했습니다. caller가 만든 cleanup evidence는 실제 ownership/원자성 증거가 아니므로, 별도 검토·승인한 adapter 없이 이를 해제하지 않습니다. 운영·보관 Staging의 기존 자료와 성공 QA를 삭제하지 않습니다.
+
+수동 CI는 exact feature SHA의 두 경로를 제공합니다. `source_policy`는 무키·무외부망 native 검증이고, `offline_app`은 승인된 무스크립트 의존성 준비 뒤 prep를 분리·제거하고 읽기전용 도구/무키/network-none·실효 OS 자원 제한에서 type/lint/build/unit을 실행합니다. 일반 PR/main의 기존 audit/verify gate는 유지하며 이 수동 성공이 audit·실제 통합까지 통과했다는 뜻은 아닙니다. [준비·실패 이력과 기준선232](docs/test-reports/2026-11-05-offline-app-baseline.md)에 실행 경계를 기록했습니다.
+
+`test:browser-html-copy`와 `test:staging-browser`는 기존 Playwright/브라우저를 쓰는 선택 검증입니다. 합성 API·메모리 clipboard/native form을 다루며 실제 DB·OS clipboard·외부 편집기와는 다릅니다. SDK mock12는 후보247에 포함됐고 HTML browser5는 이번 오프라인 단위에 포함되지 않습니다. 과거 native17이나 [역사 색인](docs/test-reports/2026-11-05-historical-evidence-index.md)을 현재 브라우저 전체 PASS로 재사용하지 않습니다.
+
+Vite 빌드는 TypeScript 문법을 변환하지만 전체 타입 검사를 대신하지 않습니다. 배포 전 `npm run typecheck` 통과가 필수입니다. Cloudflare 타입은 개발 의존성으로만 제공하며 `cloudflare-env.d.ts`의 선택적 D1 선언은 DB를 생성하거나 Supabase 연결을 바꾸지 않습니다.
 
 SEO의 공개 기준 주소와 검색·공유 문구는 `apps/web/lib/site-metadata.ts`에서 관리합니다. 운영 도메인이 바뀌면 `SITE_URL`을 먼저 변경하고 canonical, Open Graph, sitemap을 다시 확인합니다. Lighthouse 성능은 앱 코드 외에도 Cloudflare 보안 스크립트와 첫 요청의 콜드 스타트에 영향을 받으므로 배포 전 로컬 빌드와 배포 후 운영 주소를 모두 측정합니다.
 
 ## 배포
+
+**현재 기준:** [릴리스 운영 가이드](docs/RELEASE_FLOW.md). GitHub 저장소 하나에서 이슈별 PR을 `develop`에 모아 분리 스테이징에서 검증하고, 승인한 `develop → main` PR의 소스를 현재 운영 Worker에 반영합니다. 새 버전마다 주소를 만들지 않습니다. CI는 검사만 하며 머지가 배포나 DB 변경을 자동으로 실행하지 않습니다. 이 절의 기존 Sites 배포 설명은 과거 이력입니다.
+
+별도 무료 Cloudflare 스테이징의 설정과 검증은 [독립 스테이징 준비](docs/CLOUDFLARE_STAGING.md)를 참고하세요. 2026-11-04 기록에는 독립 Worker 배포·입장·제한된 QA 확인이 남아 있습니다. 이 준비 브랜치의 #47/#88 및 후속 소스는 운영이나 staging에 새로 배포하지 않았고, 과거 기록을 현재 원격 상태 확인으로 표현하지 않습니다. 기존 운영 Sites의 플랫폼 이전도 하지 않습니다.
+
+독립 스테이징은 별도 입장 암호 gate를 사용하며 기존 역할별 암호를 대체하지 않습니다. 원본 최근 3개월·글/미리보기 유지의 [사진 보관 정책](docs/PHOTO_RETENTION.md)은 설계 합의만 기록했으며 자동 삭제는 구현하거나 실행하지 않았습니다.
+
+#88 1차 보존 방어는 소식에서 사진 참조를 제거해도 원본·미리보기 파일을 물리 삭제하지 않습니다. 새 클라이언트는 DELETE를 보내지 않으며 기존 클라이언트의 정리 요청에도 서버는 `retained:true, deleted:false`를 응답합니다. 저장 응답 유실을 저장 실패로 단정해 성공 파일을 지우는 위험을 차단하기 위한 보수적 정책입니다. 미완료 업로드 파일이 남아 용량이 늘 수 있고, 이미 알려진 공개 미리보기 URL을 철회하는 기능은 아닙니다. [수정 범위·미검증 TC](docs/test-reports/2026-11-05-issue88-photo-retention-source.md)를 참고하세요. 아직 실행 검증·배포 완료를 의미하지 않습니다.
+
+인증 후 `/assets/`의 GET·HEAD는 별도 정적 파일 adapter가 처리합니다. 빌드 후 `npm run test:staging-worker`로 DB·외부 통신을 차단한 로컬 Worker 엔진에서 인증과 JS/CSS 전달을 검증하며 CI에도 포함됩니다. [정적 파일 404 수정 검증](docs/test-reports/2026-09-29-staging-assets.md)을 참고하세요. 로컬 통과는 원격 배포·브라우저·DB 전체 검증 완료를 뜻하지 않습니다.
+
+GitHub는 monorepo를 유지하며 배포 전용 앱 루트는 검증된 커밋에서 별도로 준비합니다. [Sites 소스 경계와 현재 bootstrap 제약](docs/SITES_SOURCE_ADAPTER.md)을 참고하세요. 준비 도구 자체는 배포하거나 DB에 접근하지 않습니다.
 
 현재 프로젝트는 vinext가 Next.js 코드를 Cloudflare Worker에서 실행할 수 있는 형태로 만들고, Sites가 그 결과를 Cloudflare 환경에 배포합니다. 즉 Vercel은 Next.js를 올릴 수 있는 여러 배포 서비스 중 하나일 뿐 필수 구성요소가 아닙니다. 화면과 API 실행은 Sites/Cloudflare가, 책방 데이터와 사진 보관은 Supabase가 담당합니다. 향후 독립 운영 도메인이나 Vercel의 관리 기능이 필요할 때 별도 배포 대상으로 검토할 수 있지만, 한 저장소에서 두 배포 환경을 동시에 운영하면 환경변수·배포 주소·장애 확인 지점이 두 벌이 되므로 운영 초기에는 한 플랫폼만 사용하는 편이 안전합니다.
 
