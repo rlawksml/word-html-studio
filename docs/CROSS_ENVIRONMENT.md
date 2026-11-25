@@ -20,6 +20,7 @@ Node.js 최소 버전과 scripts는 apps/web/package.json, 고정 버전은 pack
 ## 환경과 데이터 경계
 
 - `.env.local`은 이관하지 않는다. 새 기기에서 승인된 staging 설정만 별도 보안 경로로 공급한다. 변수 이름은 저장소의 예시·설정 문서를 참고하며 실제 값을 채팅·문서·Git에 적지 않는다.
+- 기존 기기의 `.env.local`도 안전하다고 가정하지 않는다. 2026-11-25 기준 Mac의 `.env.local`은 운영 Supabase를 관리자 키로 가리킨다. `npm run dev`나 로컬 통합 테스트 전에 `SUPABASE_URL`의 프로젝트 이름이 스테이징(`kriyjyyudngtibrtkylf`)인지 먼저 확인하고, 운영(`kdigttaghqubfjsmbngl`)이면 실행하지 않는다. 값은 출력하지 않고 프로젝트 이름만 확인한다.
 - 운영 데이터·사진 백업은 Git 소스와 별개다. clone은 DB/Storage를 복원하거나 복사하지 않는다.
 - 기존 운영 DB/Storage는 테스트·초기화·삭제하지 않는다. 실제 DB 테스트는 대상이 별도 staging임을 확인하고 승인된 절차로만 실행한다.
 - GitHub·Cloudflare·Supabase·브라우저 로그인 및 AI 도구 연결은 새 환경에서 별도로 확인한다. 채팅 기억·로그인·로컬 자동화는 clone으로 이동하지 않는다.
