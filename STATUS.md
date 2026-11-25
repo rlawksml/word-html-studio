@@ -41,6 +41,15 @@
 - 병합 전 develop push로 배포되는 워크플로가 없음을 확인했다(CI push 트리거는 main뿐).
 - 인계 문서 PR #96은 이 브랜치(`codex/v1.2-task-staging-deploy-verify`)에 합쳐 develop 통합 경로로 옮겼다. #96의 브랜치 이름은 develop PR 이름 규칙과 맞지 않았다.
 
+## ⚠️ 위험 사항 (2026-11-25 확인)
+
+| 위험 | 현재 상태 | 지키는 방법 |
+|---|---|---|
+| 로컬 개발 서버가 운영 DB에 연결됨 | Mac `apps/web/.env.local`의 `SUPABASE_URL`이 **운영 Supabase `kdigttaghqubfjsmbngl`**이고 관리자 키(`SUPABASE_SECRET_KEY`)가 함께 있다. 스테이징용 env 파일은 Mac에 없다 | 이 상태로 `npm run dev`·로컬 통합 테스트·브라우저 확인을 하지 않는다. 로그인 후 저장·사진 업로드·완료 처리가 운영 DB와 Storage를 바꾼다. 로컬 화면 확인 전 `.env.local`을 백업하고 **스테이징 `kriyjyyudngtibrtkylf`** 값으로 바꾼 뒤, 시작 전에 URL의 프로젝트 이름을 확인한다. 원래 파일 복원도 확인한다 |
+| `--config` 없는 wrangler 배포 | 빌드 결과물의 기본 Worker 이름이 `bookstore-news-studio-web`이다 | 스테이징은 `--config wrangler.staging.json`(`bookstore-news-studio-staging`)으로만 배포한다. 운영 `bookstore-news-studio-v11` 배포는 별도 승인과 RELEASE_FLOW 절차를 따른다 |
+| AI 세션이 운영까지 진행 | 2026-11-25 Mac의 Claude Code 세션은 스테이징까지만 진행했다(운영 미접촉 확인) | 세션 시작 요청에 "스테이징까지만, 운영 Worker·main·DB 마이그레이션 금지, 배포 전 대상 Worker와 SUPABASE_URL 표시"를 넣는다. 승인 화면에서 대상 이름을 확인한다 |
+| 스테이징 URL 공개 | 스테이징 Worker는 `workers_dev: false`, `routes: []`라 외부 접근이 막혀 있다 | 열 때는 별도 승인 후 `/__staging/login` 입장 게이트가 막는지 먼저 확인한다 |
+
 ## 작업 환경 메모
 
 - claude.ai 클라우드 세션: 저장소 push 권한으로 git push와 GitHub REST(`gh api`)가 된다. GraphQL(`gh pr`, `gh issue` 일부)과 npm 레지스트리, Cloudflare·workers.dev는 막혀 있어 전체 회귀는 GitHub Actions `verify`로 확인했다.
