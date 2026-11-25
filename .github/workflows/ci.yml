@@ -41,7 +41,7 @@ jobs:
   release-branch-policy:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
         with:
@@ -50,9 +50,58 @@ jobs:
       - run: node scripts/release-branch-policy.mjs
 
   verify:
+    # Required status check. It passes only when the app gate passed, or when a ready PR
+    # changed nothing but Markdown and the app gate was skipped on purpose.
+    if: always() && (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false))
+    needs: [change-scope, verify-app]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require the app gate unless only Markdown changed
+        env:
+          SCOPE_RESULT: ${{ needs.change-scope.result }}
+          APP_CHANGED: ${{ needs.change-scope.outputs.app }}
+          APP_RESULT: ${{ needs.verify-app.result }}
+        run: |
+          echo "change-scope=$SCOPE_RESULT app=$APP_CHANGED verify-app=$APP_RESULT"
+          if [ "$SCOPE_RESULT" = "success" ] && [ "$APP_CHANGED" = "false" ] && [ "$APP_RESULT" = "skipped" ]; then
+            echo "Markdown-only change: app gate not needed."
+            exit 0
+          fi
+          [ "$SCOPE_RESULT" = "success" ] && [ "$APP_CHANGED" = "true" ] && [ "$APP_RESULT" = "success" ]
+
+  change-scope:
+    # Reads the PR file list through the API (no checkout, read-only token). Anything that is
+    # not Markdown, a rename from a non-Markdown path, a failed lookup or a push means app=true.
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      app: ${{ steps.scope.outputs.app }}
+    steps:
+      - id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          app=true
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            if files="$(gh api --paginate "repos/$REPOSITORY/pulls/$PR_NUMBER/files" --jq '.[] | .filename, (.previous_filename // empty)')"; then
+              if [ -n "$files" ] && ! printf '%s\n' "$files" | grep -qvE '\.md$'; then app=false; fi
+            fi
+          fi
+          echo "app=$app" | tee -a "$GITHUB_OUTPUT"
+
+  verify-app:
     # Manual dispatch must not install app dependencies or activate legacy DB tests.
     # Drafts run the cheap branch policy; ready PRs and main pushes keep the app gate.
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false)
+    if: needs.change-scope.outputs.app == 'true' && (github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.draft == false))
+    needs: change-scope
     runs-on: ubuntu-latest
     defaults:
       run:
