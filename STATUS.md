@@ -55,6 +55,12 @@
 - claude.ai 클라우드 세션: 저장소 push 권한으로 git push와 GitHub REST(`gh api`)가 된다. GraphQL(`gh pr`, `gh issue` 일부)과 npm 레지스트리, Cloudflare·workers.dev는 막혀 있어 전체 회귀는 GitHub Actions `verify`로 확인했다.
 - Mac 로컬의 Claude Code(데스크톱 앱 Code 탭 또는 CLI): Mac의 wrangler 로그인과 `.env.local`을 쓰므로 스테이징 배포는 여기서 한다. 배포 명령은 반드시 `--config wrangler.staging.json`이어야 한다. `--config` 없는 `wrangler deploy`는 기본 이름 `bookstore-news-studio-web`으로 새 Worker를 만든다.
 
+## Git 운영 규칙 변경 (#107)
+
+- 바뀐 파일이 모두 `.md`인 PR은 CI가 앱 검증을 건너뛰고 필수 검사 `verify`만 통과로 보고한다. 앱 파일이 하나라도 있으면 전체 검증한다.
+- PR을 쌓지 않는다. 상태 기록(이 문서·테스트 보고서)은 그 작업 PR 안에서 갱신한다. 상세는 docs/RELEASE_FLOW.md "브랜치와 커밋 운영 규칙".
+- 병합 후 브랜치 자동 삭제와 기존 브랜치 정리는 저장소 설정 변경이라 사용자 승인 후 진행한다.
+
 ## 다음 행동
 
 1. **[결정 필요] 스테이징 브라우저 확인**: 스테이징 URL 접근을 열지 결정한다. 여는 경우 `/__staging/login` 입장 게이트가 막아주는지 먼저 확인하고, HTML 미리보기·복사, 사진 ZIP 다운로드·압축 해제, 12월호 해 넘김 날짜, 마감·종료 라벨 색을 본다.
