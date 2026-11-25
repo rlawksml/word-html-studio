@@ -65,7 +65,8 @@ export const hasSubmissionContent = (submission?: Submission) => Boolean(submiss
 
 // 아래 함수는 UI 표시와 HTML 생성 양쪽에서 같은 날짜·URL·파일명 규칙을 사용하게 합니다.
 export const nowIso = () => new Date().toISOString();
-export const formatMonth = (month: string) => { const [year, value] = month.split("-"); return `${year}년 ${Number(value)}월`; };
+// 잘못된 월 값은 "년 NaN월" 대신 빈 문자열로 돌려 화면·HTML 제목이 깨지지 않게 합니다.
+export const formatMonth = (month: string) => { const match = /^(\d{4})-(\d{2})$/.exec(month); return match ? `${match[1]}년 ${Number(match[2])}월` : ""; };
 export const formatDate = (value: string) => {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   return match ? `${Number(match[2])}월 ${Number(match[3])}일` : "";
