@@ -9,7 +9,7 @@ const { result: bundled, lifecycle } = await bundleWithOwnedService({
   tsconfig: fileURLToPath(new URL("../tsconfig.json", import.meta.url)),
   bundle: true, write: false, platform: "node", format: "esm",
 });
-const { generatedHtml, digestHtml, escapeMultilineHtml, makeNews, makeSubmission, blankBookstore } = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
+const { generatedHtml, digestHtml, escapeMultilineHtml, makeNews, makeSubmission, blankBookstore, displayLabelBackground, DISPLAY_LABELS } = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString("base64")}`);
 
 function fixture() {
   const bookstore = { ...blankBookstore(), id: 1, name: "테스트 책방", region: "테스트 지역" };
@@ -83,4 +83,16 @@ test("HTML-LINES-05 generation never mutates source and digest remains title-onl
 
 test("HTML-LINES-07 the owned native bundler closes before test registration", () => {
   assert.deepEqual(lifecycle, { services: 1, closed: 1 });
+});
+
+test("HTML-LABEL-01 closed labels use the gray badge while others keep the brand color", () => {
+  assert.deepEqual(DISPLAY_LABELS.map((label) => [label, displayLabelBackground(label)]), [["신청 중", "#8e735b"], ["신청 마감", "#6f6f6f"], ["행사 종료", "#6f6f6f"], ["신규 모집", "#8e735b"], ["상시 운영", "#8e735b"]]);
+  assert.equal(displayLabelBackground("알 수 없음"), "#8e735b");
+  const { bookstore, submission, news } = fixture();
+  news.displayLabel = "행사 종료";
+  const preview = generatedHtml(submission, bookstore, true);
+  assert.match(preview, /background:#6f6f6f;color:#fff;font-size:12px;vertical-align:middle">행사 종료<\/span>/);
+  assert.equal(generatedHtml(submission, bookstore, false).match(/<h2[^]*?<\/h2>/)[0], preview.match(/<h2[^]*?<\/h2>/)[0]);
+  news.displayLabel = '<b>"x"</b>';
+  assert.ok(generatedHtml(submission, bookstore).includes("&lt;b&gt;&quot;x&quot;&lt;/b&gt;</span>"));
 });
