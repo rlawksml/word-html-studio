@@ -8,11 +8,13 @@ import { useDigestOrder } from "@/hooks/use-digest-order";
 import { digestHtml, generatedHtml } from "@/lib/html-generators";
 import {
   BOOKSTORE_COLORS,
+  escapeHtml,
   formatMonth,
   hasSubmissionContent,
   keepValidPublicationMonth,
   makeNewsId,
   makeSubmission,
+  newsImageFilename,
   nowIso,
   previousMonth,
   publicationCalendarDays,
@@ -795,8 +797,7 @@ export function useStudioController(initialMonth: string) {
         const news = submission.news[newsIndex];
         for (let imageIndex = 0; imageIndex < news.images.length; imageIndex += 1) {
           const item = news.images[imageIndex];
-          const extension = item.name.split(".").pop() || "jpg";
-          const filename = `${submission.month}_${safeFilename(bookstore.name)}_${String(newsIndex + 1).padStart(2, "0")}_${String(imageIndex + 1).padStart(2, "0")}_${safeFilename(news.title)}.${extension}`;
+          const filename = newsImageFilename(submission.month, bookstore.name, newsIndex, imageIndex, news.title, item.name);
           imageFolder?.file(filename, await urlToBlob(item.originalUrl || item.url));
         }
       }
@@ -804,9 +805,9 @@ export function useStudioController(initialMonth: string) {
         const pasteReadyHtml = generatedHtml(submission, bookstore, false);
         const baseFilename = `${submission.month}_${safeFilename(bookstore.name)}`;
         // HTML은 브라우저 미리보기용 전체 문서, TXT는 외부 HTML 편집기에 그대로 붙여넣는 본문 마크업입니다.
-        zip.file(`${baseFilename}.html`, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${bookstore.name}</title></head><body>${pasteReadyHtml}</body></html>`);
+        zip.file(`${baseFilename}.html`, `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${escapeHtml(bookstore.name)}</title></head><body>${pasteReadyHtml}</body></html>`);
         zip.file(`${baseFilename}_HTML코드_복사용.txt`, pasteReadyHtml);
-        zip.file("사진배치안내.txt", submission.news.map((news, index) => `${index + 1}. ${news.title}\n${news.images.map((image, imageIndex) => `- ${submission.month}_${safeFilename(bookstore.name)}_${String(index + 1).padStart(2, "0")}_${String(imageIndex + 1).padStart(2, "0")}_${safeFilename(news.title)}.${image.name.split(".").pop() || "jpg"}`).join("\n")}`).join("\n\n"));
+        zip.file("사진배치안내.txt", submission.news.map((news, index) => `${index + 1}. ${news.title}\n${news.images.map((image, imageIndex) => `- ${newsImageFilename(submission.month, bookstore.name, index, imageIndex, news.title, image.name)}`).join("\n")}`).join("\n\n"));
       }
       triggerDownload(`${submission.month}_${safeFilename(bookstore.name)}_${withHtml ? "작업파일" : "사진"}.zip`, await zip.generateAsync({ type: "blob" }));
       notify(withHtml ? "HTML·TXT·사진 ZIP을 준비했습니다." : "사진 ZIP을 준비했습니다.");
