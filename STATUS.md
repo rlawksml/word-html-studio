@@ -18,9 +18,26 @@
 - 실행하지 않음: 스테이징 배포, 스테이징 Supabase 통합, 운영 조회, 병합, 배포, DB/Storage 조작.
 - 작업 환경 메모: 원격 세션의 git fetch/push와 GitHub 커넥터 쓰기는 403으로 막혀 커밋·push는 사용자 Mac 터미널에서 수행했다.
 
+## 2026-11-25 v1.2 생성 HTML 개선 (이슈 #97~#100)
+
+모두 #95 병합 전이라 운영 소스가 포함된 `codex/m5-release-flow`(130be32)에서 시작했다. 각 PR은 Ready 상태이며 병합하지 않았다.
+
+| 이슈 | 브랜치 | PR | base | CI verify |
+|---|---|---|---|---|
+| #97 escape·사진 파일명 통일 | codex/v1.2-issue-97-html-escape-filenames | #101 | codex/m5-release-flow | success |
+| #98 해 넘김 날짜·잘못된 월 | codex/v1.2-issue-98-cross-year-dates | #102 | codex/m5-release-flow | success |
+| #99 표시 라벨 색 | codex/v1.2-issue-99-label-colors | #103 | codex/m5-release-flow | success |
+| #100 ZIP 구성 분리 | codex/v1.2-issue-100-zip-builder-split | #104 | #97 브랜치(스택) | 첫 실행 1건 실패 후 수정, 재검증 결과는 PR 확인 |
+
+- 상세 검증: `docs/test-reports/2026-11-25-issue97~100-*.md`(각 브랜치).
+- 병합 순서: #95 → #101 → #104(base를 develop으로 변경) → #102 → #103. #101과 #102는 `lib/html-generators.ts` import 줄이 겹치므로 뒤에 병합하는 쪽을 갱신한다.
+- 운영 HTML 문구가 바뀌는 #98·#99와 ZIP 동작을 건드린 #97·#100은 develop 통합 후 스테이징에서 확인한다. 운영 배포는 별도 승인.
+- 작업 환경 메모: 이 세션은 저장소 push 권한으로 GitHub REST API와 git push가 가능했다. GraphQL(`gh pr`/`gh issue` 일부)은 막혀 REST(`gh api`)를 사용했다. npm 레지스트리 접근은 막혀 전체 회귀는 GitHub Actions `verify`로 확인했다.
+
 ## 다음 행동
 
 1. 사용자 승인 시 PR #95를 develop에 병합한다. 병합 후 develop SHA를 이 문서에 기록한다.
+1-1. #95 병합 후 v1.2 PR(#101~#104)의 base를 develop으로 바꾸고 위 순서로 검토·병합한다.
 2. #96 base를 develop으로 바꿔 인계 문서를 통합할지 검토한다.
 3. 이후 v1.2 작업은 병합된 develop에서 codex/v1.2-issue-<번호>-<작업명> 브랜치로 시작한다. 운영 반영은 docs/RELEASE_FLOW.md 순서와 별도 승인을 따른다.
 
